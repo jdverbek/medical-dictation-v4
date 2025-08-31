@@ -17,10 +17,20 @@ class IntelligentTranscriptionCorrector:
     """Fixes transcription errors with medical context awareness"""
     
     def __init__(self):
-        # Common transcription errors in Dutch medical context
+        # Comprehensive Dutch medical transcription corrections
         self.medical_corrections = {
-            # Drug names
+            # Cardiac conditions - most common errors
+            'artredicotentie': 'atriumfibrillatie',
+            'artredecotentie': 'atriumfibrillatie', 
+            'atredicotentie': 'atriumfibrillatie',
+            'voorkamervipulatie': 'voorkamerfibrillatie',
+            'voorkamer vipulatie': 'voorkamerfibrillatie',
+            'vkf': 'voorkamerfibrillatie',
+            'af': 'atriumfibrillatie',
+            
+            # Drug names - critical corrections
             'sedocar': 'Cedocard',
+            'cedocar': 'Cedocard',
             'arixtra': 'Arixtra',
             'xarelto': 'Xarelto',
             'plavix': 'Plavix',
@@ -29,8 +39,11 @@ class IntelligentTranscriptionCorrector:
             'lisinopril': 'Lisinopril',
             'furosemide': 'Furosemide',
             'lasix': 'Lasix',
+            'sintrom': 'Sintrom',
+            'eliquis': 'Eliquis',
+            'pradaxa': 'Pradaxa',
             
-            # Medical terms
+            # Medical terms - common transcription errors
             'rustica g': 'rust-ECG',
             'rustica': 'rust-ECG',
             'cv-blok': 'AV-blok',
@@ -38,18 +51,82 @@ class IntelligentTranscriptionCorrector:
             'lvef': 'LVEF',
             'rvef': 'RVEF',
             'spoedgevangen': 'spoedgevallen',
+            'spoedgeval': 'spoedgevallen',
             'retrosternale': 'retrosternale',
             'dyspneuën': 'dyspnoe',
+            'dyspnoïde': 'dyspnoe',
+            'vorse dyspnoïde': 'erge dyspnoe',
             'biventriculaire': 'biventriculaire',
             'klepleiden': 'klepleiden',
             'coronarografie': 'coronarografie',
             'succutan': 'subcutaan',
+            'subcutaan': 'subcutaan',
+            
+            # Anatomical terms
+            'ventricultus': 'ventrikel',
+            'dadelijke ventricultus': 'linker ventrikel',
+            'hypokinesie': 'hypokinesie',
+            'anterior': 'anterior',
+            'atria': 'atria',
+            'vena capa': 'vena cava',
+            'interferor': 'inferior',
+            'spiekerlepensubstantie': 'tricuspidalisklep insufficiëntie',
+            'directe spiekerlepensubstantie': 'tricuspidalisklep insufficiëntie',
+            
+            # Laboratory values
+            'serocreatinine': 'serumcreatinine',
+            'mgpg': 'mg/dl',
+            'kmpg': 'mmHg',
+            'nc-program t': 'NT-proBNP',
+            'troponine t': 'troponine T',
             
             # Dosages and measurements
             'extra 2.5 mg': 'Arixtra 2.5 mg',
             'extra 2,5 mg': 'Arixtra 2.5 mg',
             '2.5 mg 1 maal per dag succutan': 'Arixtra 2.5 mg 1x daags subcutaan',
             '2,5 mg 1 maal per dag succutan': 'Arixtra 2.5 mg 1x daags subcutaan',
+            
+            # Age and demographics
+            'zeeuwtachtigjarige': '80-jarige',
+            'zeventigjarige': '70-jarige',
+            'zestigjarige': '60-jarige',
+            
+            # Medical history terms
+            'ptv-vaartijden': 'PT/INR waarden',
+            'mastectomiechtje': 'mastectomie',
+            'horstig verschil': 'verder geen bijzonderheden',
+            
+            # Physical examination
+            'kreptatieopdroog': 'crepitaties',
+            'soefelessystoolis': 'systolische souffle',
+            'apex': 'apex',
+            'veldenboek': 'longvelden',
+            'long op de veldenboek': 'longvelden',
+            
+            # ECG terms
+            'de novo': 'de novo',
+            'circulair afgevoerden': 'circulaire afwijkingen',
+            'diffuse repolarisatiegevoelens': 'diffuse repolarisatiestoornissen',
+            'repolarisatiegevoelens': 'repolarisatiestoornissen',
+            
+            # Echo terms
+            'cardiografie': 'echocardiografie',
+            'lichte dadelijke': 'linker ventrikel',
+            'maatige functionen': 'matige functie',
+            'hydraaflepensubstantie': 'mitralisklep insufficiëntie',
+            'begrootte': 'vergrote',
+            'gestuurde': 'dilatatie van de',
+            'geschatte systoolische pulmonaaldruk': 'geschatte systolische pulmonaaldruk',
+            'plus cdd': 'plus RAD',
+            
+            # Common phrase corrections
+            'retrosternale drugs voor dadigheid': 'retrosternale pijn',
+            'drugs voor dadigheid': 'pijn',
+            'vorse dyspnoïde voor': 'erge dyspnoe',
+            'eigen rust al': 'in rust',
+            'gezwollen benen': 'gezwollen benen',
+            'spekelen in zonderspecifie': 'bij auscultatie',
+            'duidelijke primariolaire bedingmedeel': 'duidelijke cardiale decompensatie'
         }
         
         # Context-specific corrections
