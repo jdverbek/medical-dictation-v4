@@ -247,16 +247,7 @@ def compare_treatments(dictated, ai_recommended):
 # Initialize transcription systemstem
 transcription_system = SuperiorMedicalTranscription()
 
-# Initialize medical expert agents system (OpenAI only for reliability)
-try:
-    from medical_expert_agents import MedicalExpertAgents
-    medical_experts = MedicalExpertAgents()
-    EXPERTS_AVAILABLE = True
-    print("🤖 Medical Expert Agents (OpenAI Only) initialized successfully!")
-except Exception as e:
-    print(f"⚠️ Medical Expert Agents not available: {e}")
-    medical_experts = None
-    EXPERTS_AVAILABLE = False
+# NOTE: Medical Expert Agents already initialized above with embedded class
 
 # Configure logging
 logging.basicConfig(
