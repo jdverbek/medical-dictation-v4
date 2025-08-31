@@ -6,30 +6,10 @@ services:
     env: python
     plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: python main.py
     envVars:
       - key: OPENAI_API_KEY
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: SECRET_KEY
-        generateValue: true
-      - key: DATABASE_URL
-        fromDatabase:
-          name: medical-postgres
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: medical-redis
-          property: connectionString
-
-databases:
-  - name: medical-postgres
-    plan: starter
-
-services:
-  - type: redis
-    name: medical-redis
-    plan: starter
 
