@@ -13,6 +13,7 @@ import secrets
 import time
 import logging
 import json
+from typing import Dict, List, Any, Optional
 from functools import wraps
 from backend.superior_transcription import SuperiorMedicalTranscription
 
