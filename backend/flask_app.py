@@ -13,7 +13,7 @@ import io
 from datetime import datetime
 import openai
 import anthropic
-from medical_intelligence import MedicalOrchestratorV2
+from medical_intelligence import MedicalIntelligenceOrchestrator
 
 # Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -32,7 +32,7 @@ if ANTHROPIC_API_KEY:
     anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # Initialize medical intelligence system
-medical_orchestrator = MedicalOrchestratorV2()
+medical_orchestrator = MedicalIntelligenceOrchestrator()
 
 # In-memory storage
 audio_storage = {}
@@ -187,46 +187,37 @@ def transcribe_audio_endpoint():
         print(f"Starting transcription for session {session_id}")
         transcript = transcribe_audio_sync(audio_data)
         
-        # Step 2: Advanced medical intelligence processing
-        print(f"Applying medical intelligence for session {session_id}")
-        medical_result = medical_orchestrator.process_medical_transcript(
+        # Step 2: Apply REAL medical intelligence
+        print(f"Applying REAL medical intelligence for session {session_id}")
+        intelligence_result = medical_orchestrator.process_medical_audio_transcript(
             transcript, patient_id, report_type
         )
         
-        # Step 3: Generate final report based on medical intelligence
-        print(f"Generating final report for session {session_id}")
+        # Step 3: Use the intelligent results
+        print(f"Generating final output for session {session_id}")
         
-        if medical_result['type'] == 'emergency_consult':
-            # Emergency consultation
-            final_transcript = medical_result['expanded_consultation']
-            final_report = medical_result['expanded_consultation']
-            processing_notes = f"🚨 Spoedconsult gedetecteerd: {', '.join(medical_result['emergency_keywords'])}"
-            
-        elif medical_result['type'] == 'echo_report':
-            # Professional echo report
-            final_transcript = medical_result['original_transcript']
-            final_report = medical_result['structured_report']
-            processing_notes = f"📊 Professioneel {report_type} rapport gegenereerd"
-            
-        else:
-            # Regular medical processing with context
-            final_transcript = medical_result['improved_transcript']
-            final_report = generate_medical_report_sync(final_transcript, patient_id, report_type)
-            processing_notes = f"🧠 Medische context toegepast: {', '.join(medical_result['contexts'])}"
+        final_transcript = intelligence_result['corrected_transcript']
+        final_report = intelligence_result['intelligent_report']
+        
+        # Create processing notes
+        corrections_text = ", ".join(intelligence_result['corrections_made']) if intelligence_result['corrections_made'] else "Geen correcties nodig"
+        processing_notes = f"🧠 {len(intelligence_result['corrections_made'])} correcties: {corrections_text}"
         
         # Store result
         result = {
             'transcript': final_transcript,
             'report': final_report,
             'session_id': session_id,
-            'confidence': 0.95,  # Higher confidence with medical intelligence
+            'confidence': intelligence_result['confidence'],
             'processing_metadata': {
-                'agents_used': ['transcriber', 'medical_context', 'emergency_detector', 'echo_specialist'],
-                'medical_contexts': medical_result.get('contexts', []),
-                'processing_type': medical_result['type'],
+                'agents_used': ['transcriber', 'intelligent_corrector', 'medical_analyzer', 'report_generator'],
+                'corrections_made': intelligence_result['corrections_made'],
+                'medical_analysis': intelligence_result['medical_analysis'],
+                'processing_type': intelligence_result['processing_type'],
+                'clinical_contexts': intelligence_result['clinical_contexts'],
                 'processing_notes': processing_notes,
                 'iterations': 1,
-                'improvements_made': 1
+                'improvements_made': len(intelligence_result['corrections_made'])
             }
         }
         
@@ -239,8 +230,9 @@ def transcribe_audio_endpoint():
             "audio_url": f"/api/audio/{session_id}",
             "session_id": session_id,
             "processing_info": {
-                "type": medical_result['type'],
-                "contexts": medical_result.get('contexts', []),
+                "type": intelligence_result['processing_type'],
+                "contexts": intelligence_result['clinical_contexts'],
+                "corrections": intelligence_result['corrections_made'],
                 "notes": processing_notes
             }
         })
