@@ -214,61 +214,107 @@ Geef analyse in JSON format:
         
         system_prompt = """Je bent een expert cardioloog gespecialiseerd in behandelingsprotocollen volgens de meest recente ESC 2024 richtlijnen.
 
-BELANGRIJKE ESC 2024 UPDATES:
-- ESC 2024 Guidelines on Acute Coronary Syndromes (ACS)
-- ESC 2024 Guidelines on Heart Failure
-- ESC 2024 Guidelines on Atrial Fibrillation
-- ESC 2024 Guidelines on Hypertension
-- ESC 2024 Guidelines on Valvular Heart Disease
+GEEF ALTIJD CONCRETE, SPECIFIEKE AANBEVELINGEN MET:
+- Exacte medicijnnamen en doseringen
+- Target waarden (HR, BP, etc.)
+- Specifieke timing van controles
+- Concrete vervolgstappen
 
-MEDICATIE VOLGENS ESC 2024:
-- NSTEMI/STEMI: Dual antiplatelet therapy (aspirin + P2Y12 inhibitor)
-- Heart Failure: ACE-I/ARB/ARNI + Beta-blocker + MRA + SGLT2i (4-pillar therapy)
-- Atrial Fibrillation: CHA2DS2-VASc score voor anticoagulatie
-- Hypertension: ACE-I/ARB first line, add CCB or thiazide
+ESC 2024 RECOMMENDATION CLASSES:
+- Class I: Aanbevolen/geïndiceerd (should be done)
+- Class IIa: Redelijk om te doen (reasonable to do)  
+- Class IIb: Mag overwogen worden (may be considered)
+- Class III: Niet aanbevolen/schadelijk (should not be done)
 
-DOSERING VOLGENS ESC 2024:
-- Atorvastatine: 80mg voor ACS (high-intensity statin)
-- Metoprolol: 25-200mg BID (heart failure)
-- Lisinopril: 2.5-40mg daily
-- Arixtra (fondaparinux): 2.5mg daily (ACS, contraindication heparin)
+ESC 2024 EVIDENCE LEVELS:
+- Level A: Meerdere RCTs of meta-analyses
+- Level B: Enkele RCT of grote niet-RCT studies
+- Level C: Consensus van experts/kleine studies
 
-Geef ALTIJD een JSON response terug met ESC 2024 referenties."""
+CONCRETE BEHANDELPROTOCOLLEN ESC 2024:
+
+VOORKAMERFIBRILLATIE (VKF):
+- Rate controle: Metoprolol 25-50mg BID, target HR <110 bpm (Class I, Level A)
+- Anticoagulatie: CHA2DS2-VASc ≥2: Apixaban 5mg BID (Class I, Level A)
+- Cardioversie: Binnen 48u of na 3 weken anticoagulatie (Class I, Level A)
+- Controle: ECG + labo (INR, kreatinine) na 24-48u
+
+ACUUT CORONAIR SYNDROOM (ACS):
+- DAPT: Aspirin 75-100mg + Ticagrelor 90mg BID (Class I, Level A)
+- Statin: Atorvastatine 80mg (Class I, Level A)
+- ACE-remmer: Lisinopril 2.5-10mg (Class I, Level A)
+- Beta-blokker: Metoprolol 25mg BID (Class I, Level A)
+- Target: LDL <1.4 mmol/L, BP <140/90
+
+HARTFALEN:
+- 4-pillar therapy (Class I, Level A):
+  * ACE-I: Lisinopril 2.5-40mg daily
+  * Beta-blokker: Metoprolol 12.5-200mg BID
+  * MRA: Spironolacton 25-50mg daily
+  * SGLT2i: Dapagliflozin 10mg daily
+- Target: LVEF verbetering, NT-proBNP daling
+
+HYPERTENSIE:
+- Eerste lijn: Lisinopril 5-10mg + Amlodipine 5-10mg (Class I, Level A)
+- Target: <140/90 mmHg (<130/80 bij diabetes)
+- Controle: BP meting na 2-4 weken
+
+Geef ALTIJD een JSON response terug met concrete details."""
         
-        prompt = f"""Geef behandelingsadvies voor deze patiënt volgens ESC 2024 richtlijnen:
+        prompt = f"""Geef CONCRETE behandelingsadvies voor deze patiënt volgens ESC 2024 richtlijnen:
 
 TRANSCRIPTIE: {transcript}
 DIAGNOSE: {diagnosis}
 
-Geef behandelingsprotocol in JSON format met ESC 2024 referenties:
+GEEF SPECIFIEKE, CONCRETE AANBEVELINGEN zoals dit voorbeeld voor VKF:
+"Opname met rate controle met Metoprolol 25mg BID, target HR <110 bpm. Morgen controle labo (kreatinine, INR) en ECG. Indien geen tekenen van decompensatie, morgen nuchter voor cardioversie."
+
+Geef behandelingsprotocol in JSON format met CONCRETE details:
 {{
     "treatment_plan": {{
-        "immediate_actions": ["directe acties volgens ESC 2024"],
+        "immediate_actions": [
+            "Specifieke actie met exacte medicatie en dosering",
+            "Opname/polikliniek met concrete reden"
+        ],
         "medications": [
             {{
-                "name": "medicijnnaam",
-                "dose": "exacte dosering volgens ESC 2024",
-                "frequency": "frequentie",
-                "duration": "duur",
-                "indication": "indicatie",
-                "esc_2024_reference": "specifieke ESC 2024 richtlijn sectie"
+                "name": "Exacte medicijnnaam",
+                "dose": "Precieze dosering (mg/dag)",
+                "frequency": "BID/TID/daily",
+                "duration": "Specifieke duur",
+                "indication": "Concrete indicatie",
+                "target_value": "Target HR <110 bpm / BP <140/90 / LDL <1.4",
+                "esc_class": "I/IIa/IIb/III",
+                "esc_evidence": "A/B/C",
+                "esc_2024_reference": "ESC 2024 sectie X.X"
             }}
         ],
-        "monitoring": ["wat te monitoren volgens ESC 2024"],
-        "follow_up": "vervolgafspraken volgens ESC 2024"
+        "monitoring": [
+            "Specifieke controle na X dagen/weken",
+            "Welke parameters (ECG, labo, echo)",
+            "Target waarden om na te streven"
+        ],
+        "follow_up": "Concrete vervolgafspraken met timing"
     }},
-    "contraindications": ["contra-indicaties volgens ESC 2024"],
-    "drug_interactions": ["interacties volgens ESC 2024"],
-    "esc_guideline_class": "I/IIa/IIb/III volgens ESC 2024",
-    "evidence_level": "A/B/C volgens ESC 2024",
+    "contraindications": ["Specifieke contra-indicaties"],
+    "drug_interactions": ["Concrete interacties"],
+    "esc_guideline_class": "Class I/IIa/IIb/III volgens ESC 2024",
+    "evidence_level": "Level A/B/C volgens ESC 2024",
     "esc_2024_citations": [
-        "ESC 2024 Guidelines on [specific condition]",
-        "Section [X.X] - [specific recommendation]"
+        "ESC 2024 Guidelines on [specific condition] - Section X.X",
+        "Specific recommendation with Class and Level"
     ],
     "quality_indicators": {{
-        "guideline_adherence": "percentage adherence to ESC 2024",
+        "guideline_adherence": "100% ESC 2024 compliant",
         "evidence_strength": "strong/moderate/weak",
-        "safety_profile": "high/medium/low risk"
+        "safety_profile": "high/medium/low risk",
+        "target_achievement": "Concrete targets defined"
+    }},
+    "clinical_pathway": {{
+        "day_1": "Concrete acties dag 1",
+        "day_2_7": "Vervolgacties week 1", 
+        "week_2_4": "Controles en aanpassingen",
+        "long_term": "Lange termijn management"
     }}
 }}"""
         
@@ -299,7 +345,15 @@ Geef behandelingsprotocol in JSON format met ESC 2024 referenties:
                     result['quality_indicators'] = {
                         "guideline_adherence": "ESC 2024 compliant",
                         "evidence_strength": "moderate",
-                        "safety_profile": "standard risk"
+                        "safety_profile": "standard risk",
+                        "target_achievement": "targets defined"
+                    }
+                if 'clinical_pathway' not in result:
+                    result['clinical_pathway'] = {
+                        "day_1": "Initial assessment and treatment",
+                        "day_2_7": "Early monitoring and adjustments",
+                        "week_2_4": "Follow-up and optimization",
+                        "long_term": "Chronic management per ESC 2024"
                     }
                 return result
             else:

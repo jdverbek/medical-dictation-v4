@@ -370,30 +370,49 @@ def api_transcribe():
                 agent_3_data = expert_analysis.get('agent_3_treatment_protocol', {})
                 treatment_plan = agent_3_data.get('treatment_plan', {})
                 
-                # Format AI treatment recommendations with ESC 2024 citations
+                # Format AI treatment recommendations with ESC 2024 citations and concrete details
                 ai_medications = treatment_plan.get('medications', [])
                 ai_actions = treatment_plan.get('immediate_actions', [])
                 ai_monitoring = treatment_plan.get('monitoring', [])
                 esc_citations = agent_3_data.get('esc_2024_citations', [])
                 quality_indicators = agent_3_data.get('quality_indicators', {})
+                clinical_pathway = agent_3_data.get('clinical_pathway', {})
                 
                 ai_treatment_parts = []
                 if ai_actions:
                     ai_treatment_parts.append(f"🚨 Directe acties: {'; '.join(ai_actions)}")
+                
                 if ai_medications:
                     med_strings = []
                     for med in ai_medications:
                         if isinstance(med, dict):
                             med_str = f"{med.get('name', 'Unknown')} {med.get('dose', '')} {med.get('frequency', '')}"
-                            esc_ref = med.get('esc_2024_reference', '')
-                            if esc_ref:
-                                med_str += f" (ESC 2024: {esc_ref})"
+                            target = med.get('target_value', '')
+                            esc_class = med.get('esc_class', '')
+                            esc_evidence = med.get('esc_evidence', '')
+                            
+                            if target:
+                                med_str += f" (target: {target})"
+                            if esc_class and esc_evidence:
+                                med_str += f" [ESC Class {esc_class}, Level {esc_evidence}]"
+                            
                             med_strings.append(med_str.strip())
                         else:
                             med_strings.append(str(med))
                     ai_treatment_parts.append(f"💊 Medicatie: {'; '.join(med_strings)}")
+                
                 if ai_monitoring:
                     ai_treatment_parts.append(f"📊 Monitoring: {'; '.join(ai_monitoring)}")
+                
+                # Add clinical pathway for concrete timing
+                if clinical_pathway:
+                    pathway_parts = []
+                    if clinical_pathway.get('day_1'):
+                        pathway_parts.append(f"Dag 1: {clinical_pathway['day_1']}")
+                    if clinical_pathway.get('day_2_7'):
+                        pathway_parts.append(f"Week 1: {clinical_pathway['day_2_7']}")
+                    if pathway_parts:
+                        ai_treatment_parts.append(f"⏰ Planning: {'; '.join(pathway_parts)}")
                 
                 # Add ESC 2024 compliance information
                 if esc_citations:
@@ -402,7 +421,8 @@ def api_transcribe():
                 if quality_indicators:
                     guideline_adherence = quality_indicators.get('guideline_adherence', 'unknown')
                     evidence_strength = quality_indicators.get('evidence_strength', 'unknown')
-                    ai_treatment_parts.append(f"✅ Kwaliteit: {guideline_adherence}, Evidence: {evidence_strength}")
+                    target_achievement = quality_indicators.get('target_achievement', 'unknown')
+                    ai_treatment_parts.append(f"✅ Kwaliteit: {guideline_adherence}, Evidence: {evidence_strength}, Targets: {target_achievement}")
                 
                 ai_treatment = ' | '.join(ai_treatment_parts) if ai_treatment_parts else "Geen specifieke AI aanbevelingen"
                 
