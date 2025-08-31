@@ -12,22 +12,23 @@ import tempfile
 
 class SuperiorMedicalTranscription:
     def __init__(self):
-        # Initialize separate OpenAI client for audio transcription
-        # Use standard OpenAI API endpoint for audio, not the Manus proxy
+        # Use the same API configuration as the rest of the app (Manus proxy)
+        # The OPENAI_API_KEY environment variable is configured for the Manus proxy
         try:
             from openai import OpenAI
             self.audio_client = OpenAI(
                 api_key=os.environ.get('OPENAI_API_KEY'),
-                base_url="https://api.openai.com/v1"  # Force standard OpenAI API for audio
+                base_url=os.environ.get('OPENAI_API_BASE', 'https://api.openai.com/v1')
             )
-            print("🎤 Audio transcription client initialized with standard OpenAI API")
+            print(f"🎤 Audio transcription client initialized with base URL: {os.environ.get('OPENAI_API_BASE', 'https://api.openai.com/v1')}")
         except ImportError:
             # Fallback to legacy OpenAI client
             import openai
             openai.api_key = os.environ.get('OPENAI_API_KEY')
-            openai.api_base = "https://api.openai.com/v1"  # Force standard API
+            if os.environ.get('OPENAI_API_BASE'):
+                openai.api_base = os.environ.get('OPENAI_API_BASE')
             self.audio_client = None
-            print("🎤 Using legacy OpenAI client for audio transcription")
+            print(f"🎤 Using legacy OpenAI client for audio transcription with base: {os.environ.get('OPENAI_API_BASE', 'default')}")
     
     def convert_audio_to_wav(self, file_content, original_filename):
         """Convert audio file to WAV format using ffmpeg for gpt-4o-transcribe compatibility"""
