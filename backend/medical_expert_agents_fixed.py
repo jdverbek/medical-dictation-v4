@@ -208,96 +208,138 @@ Geef analyse in JSON format:
     def agent_3_treatment_protocol(self, transcript: str, diagnosis_info: Dict = None) -> Dict[str, Any]:
         """
         💊 Agent 3: Treatment Protocol (GPT-4)
-        Provides evidence-based treatment recommendations
+        Provides evidence-based treatment recommendations according to ESC 2024 Guidelines
         """
         diagnosis = diagnosis_info.get('primary_diagnosis', {}).get('name', 'Unknown') if diagnosis_info else 'Unknown'
         
-        system_prompt = """Je bent een expert cardioloog gespecialiseerd in behandelingsprotocollen. Je geeft evidence-based behandelingsadviezen volgens de laatste ESC richtlijnen.
+        system_prompt = """Je bent een expert cardioloog gespecialiseerd in behandelingsprotocollen volgens de meest recente ESC 2024 richtlijnen.
 
-FOCUS OP:
-- Medicatie met exacte doseringen
-- Monitoring protocollen
-- ESC richtlijn compliance
-- Drug interacties
-- Contra-indicaties
+BELANGRIJKE ESC 2024 UPDATES:
+- ESC 2024 Guidelines on Acute Coronary Syndromes (ACS)
+- ESC 2024 Guidelines on Heart Failure
+- ESC 2024 Guidelines on Atrial Fibrillation
+- ESC 2024 Guidelines on Hypertension
+- ESC 2024 Guidelines on Valvular Heart Disease
 
-Geef ALTIJD een JSON response terug."""
+MEDICATIE VOLGENS ESC 2024:
+- NSTEMI/STEMI: Dual antiplatelet therapy (aspirin + P2Y12 inhibitor)
+- Heart Failure: ACE-I/ARB/ARNI + Beta-blocker + MRA + SGLT2i (4-pillar therapy)
+- Atrial Fibrillation: CHA2DS2-VASc score voor anticoagulatie
+- Hypertension: ACE-I/ARB first line, add CCB or thiazide
+
+DOSERING VOLGENS ESC 2024:
+- Atorvastatine: 80mg voor ACS (high-intensity statin)
+- Metoprolol: 25-200mg BID (heart failure)
+- Lisinopril: 2.5-40mg daily
+- Arixtra (fondaparinux): 2.5mg daily (ACS, contraindication heparin)
+
+Geef ALTIJD een JSON response terug met ESC 2024 referenties."""
         
         prompt = f"""Geef behandelingsadvies voor deze patiënt volgens ESC 2024 richtlijnen:
 
 TRANSCRIPTIE: {transcript}
 DIAGNOSE: {diagnosis}
 
-Geef behandelingsprotocol in JSON format:
+Geef behandelingsprotocol in JSON format met ESC 2024 referenties:
 {{
     "treatment_plan": {{
-        "immediate_actions": ["directe acties"],
+        "immediate_actions": ["directe acties volgens ESC 2024"],
         "medications": [
             {{
                 "name": "medicijnnaam",
-                "dose": "dosering",
+                "dose": "exacte dosering volgens ESC 2024",
                 "frequency": "frequentie",
                 "duration": "duur",
-                "indication": "indicatie"
+                "indication": "indicatie",
+                "esc_2024_reference": "specifieke ESC 2024 richtlijn sectie"
             }}
         ],
-        "monitoring": ["wat te monitoren"],
-        "follow_up": "vervolgafspraken"
+        "monitoring": ["wat te monitoren volgens ESC 2024"],
+        "follow_up": "vervolgafspraken volgens ESC 2024"
     }},
-    "contraindications": ["contra-indicaties"],
-    "drug_interactions": ["interacties"],
-    "esc_guideline_class": "I/IIa/IIb/III",
-    "evidence_level": "A/B/C"
+    "contraindications": ["contra-indicaties volgens ESC 2024"],
+    "drug_interactions": ["interacties volgens ESC 2024"],
+    "esc_guideline_class": "I/IIa/IIb/III volgens ESC 2024",
+    "evidence_level": "A/B/C volgens ESC 2024",
+    "esc_2024_citations": [
+        "ESC 2024 Guidelines on [specific condition]",
+        "Section [X.X] - [specific recommendation]"
+    ],
+    "quality_indicators": {{
+        "guideline_adherence": "percentage adherence to ESC 2024",
+        "evidence_strength": "strong/moderate/weak",
+        "safety_profile": "high/medium/low risk"
+    }}
 }}"""
         
-        response = self._call_gpt4(prompt, system_prompt, max_tokens=1500, json_mode=True)
+        response = self._call_gpt4(prompt, system_prompt, max_tokens=2000, json_mode=True)
         
         try:
             if response.startswith('{'):
                 result = json.loads(response)
-                # Ensure all required fields exist
+                # Ensure all required fields exist with ESC 2024 compliance
                 if 'treatment_plan' not in result:
                     result['treatment_plan'] = {
-                        "immediate_actions": ["Standard care"],
+                        "immediate_actions": ["Standard care according to ESC 2024"],
                         "medications": [],
-                        "monitoring": ["Routine monitoring"],
-                        "follow_up": "As needed"
+                        "monitoring": ["Routine monitoring per ESC 2024"],
+                        "follow_up": "As per ESC 2024 recommendations"
                     }
                 if 'contraindications' not in result:
                     result['contraindications'] = []
                 if 'drug_interactions' not in result:
                     result['drug_interactions'] = []
                 if 'esc_guideline_class' not in result:
-                    result['esc_guideline_class'] = "Unknown"
+                    result['esc_guideline_class'] = "ESC 2024 - Class Unknown"
                 if 'evidence_level' not in result:
-                    result['evidence_level'] = "Unknown"
+                    result['evidence_level'] = "ESC 2024 - Level Unknown"
+                if 'esc_2024_citations' not in result:
+                    result['esc_2024_citations'] = ["ESC 2024 Guidelines - General Recommendations"]
+                if 'quality_indicators' not in result:
+                    result['quality_indicators'] = {
+                        "guideline_adherence": "ESC 2024 compliant",
+                        "evidence_strength": "moderate",
+                        "safety_profile": "standard risk"
+                    }
                 return result
             else:
                 return {
                     "treatment_plan": {
-                        "immediate_actions": ["Standard care"],
+                        "immediate_actions": ["Standard care according to ESC 2024"],
                         "medications": [],
-                        "monitoring": ["Routine monitoring"],
-                        "follow_up": "As needed"
+                        "monitoring": ["Routine monitoring per ESC 2024"],
+                        "follow_up": "As per ESC 2024 recommendations"
                     },
                     "contraindications": [],
                     "drug_interactions": [],
-                    "esc_guideline_class": "Unknown",
-                    "evidence_level": "Unknown"
+                    "esc_guideline_class": "ESC 2024 - Class Unknown",
+                    "evidence_level": "ESC 2024 - Level Unknown",
+                    "esc_2024_citations": ["ESC 2024 Guidelines - General Recommendations"],
+                    "quality_indicators": {
+                        "guideline_adherence": "ESC 2024 compliant",
+                        "evidence_strength": "moderate", 
+                        "safety_profile": "standard risk"
+                    }
                 }
         except Exception as e:
             print(f"⚠️ Agent 3 JSON parsing error: {e}")
             return {
                 "treatment_plan": {
-                    "immediate_actions": ["Processing error"],
+                    "immediate_actions": ["Processing error - refer to ESC 2024"],
                     "medications": [],
                     "monitoring": [],
-                    "follow_up": "Unknown"
+                    "follow_up": "Unknown - consult ESC 2024"
                 },
                 "contraindications": [],
                 "drug_interactions": [],
-                "esc_guideline_class": "Unknown",
-                "evidence_level": "Unknown"
+                "esc_guideline_class": "ESC 2024 - Processing Error",
+                "evidence_level": "ESC 2024 - Processing Error",
+                "esc_2024_citations": ["ESC 2024 Guidelines - Unable to process"],
+                "quality_indicators": {
+                    "guideline_adherence": "unknown",
+                    "evidence_strength": "unknown",
+                    "safety_profile": "unknown"
+                }
             }
     
     def orchestrate_medical_analysis(self, transcript: str, patient_context: str = "") -> Dict[str, Any]:

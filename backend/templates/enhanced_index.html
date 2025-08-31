@@ -480,8 +480,12 @@
                         differencesList.appendChild(li);
                     });
                     
-                    // Show enhanced metadata
+                    // Show enhanced metadata with ESC 2024 information
                     const metadata = document.getElementById('metadata');
+                    const escCitations = expertAnalysis.esc_2024_citations || [];
+                    const escClass = expertAnalysis.esc_guideline_class || 'Unknown';
+                    const evidenceLevel = expertAnalysis.evidence_level || 'Unknown';
+                    
                     metadata.innerHTML = `
                         <strong>🎉 Verwerking voltooid!</strong><br>
                         <strong>Type:</strong> ${result.verslag_type}<br>
@@ -489,7 +493,10 @@
                         <strong>AI Correcties:</strong> ${expertAnalysis.corrections_made || 0} verbeteringen<br>
                         <strong>Urgentie:</strong> ${expertAnalysis.urgency_level || 'Onbekend'}<br>
                         <strong>Patiënt ID:</strong> ${result.patient_id}<br>
-                        <strong>Agents:</strong> ${expertAnalysis.agents_used || 3} Expert AI Systems
+                        <strong>Agents:</strong> ${expertAnalysis.agents_used || 3} Expert AI Systems<br>
+                        <strong>📚 ESC 2024 Class:</strong> ${escClass}<br>
+                        <strong>🔬 Evidence Level:</strong> ${evidenceLevel}<br>
+                        ${escCitations.length > 0 ? `<strong>📖 ESC 2024 Citations:</strong> ${escCitations.slice(0, 2).join('; ')}<br>` : ''}
                     `;
 
                     loading.style.display = 'none';

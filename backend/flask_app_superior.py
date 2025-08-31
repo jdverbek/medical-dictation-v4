@@ -370,25 +370,39 @@ def api_transcribe():
                 agent_3_data = expert_analysis.get('agent_3_treatment_protocol', {})
                 treatment_plan = agent_3_data.get('treatment_plan', {})
                 
-                # Format AI treatment recommendations
+                # Format AI treatment recommendations with ESC 2024 citations
                 ai_medications = treatment_plan.get('medications', [])
                 ai_actions = treatment_plan.get('immediate_actions', [])
                 ai_monitoring = treatment_plan.get('monitoring', [])
+                esc_citations = agent_3_data.get('esc_2024_citations', [])
+                quality_indicators = agent_3_data.get('quality_indicators', {})
                 
                 ai_treatment_parts = []
                 if ai_actions:
-                    ai_treatment_parts.append(f"Directe acties: {'; '.join(ai_actions)}")
+                    ai_treatment_parts.append(f"🚨 Directe acties: {'; '.join(ai_actions)}")
                 if ai_medications:
                     med_strings = []
                     for med in ai_medications:
                         if isinstance(med, dict):
                             med_str = f"{med.get('name', 'Unknown')} {med.get('dose', '')} {med.get('frequency', '')}"
+                            esc_ref = med.get('esc_2024_reference', '')
+                            if esc_ref:
+                                med_str += f" (ESC 2024: {esc_ref})"
                             med_strings.append(med_str.strip())
                         else:
                             med_strings.append(str(med))
-                    ai_treatment_parts.append(f"Medicatie: {'; '.join(med_strings)}")
+                    ai_treatment_parts.append(f"💊 Medicatie: {'; '.join(med_strings)}")
                 if ai_monitoring:
-                    ai_treatment_parts.append(f"Monitoring: {'; '.join(ai_monitoring)}")
+                    ai_treatment_parts.append(f"📊 Monitoring: {'; '.join(ai_monitoring)}")
+                
+                # Add ESC 2024 compliance information
+                if esc_citations:
+                    ai_treatment_parts.append(f"📚 ESC 2024: {'; '.join(esc_citations[:2])}")  # Show first 2 citations
+                
+                if quality_indicators:
+                    guideline_adherence = quality_indicators.get('guideline_adherence', 'unknown')
+                    evidence_strength = quality_indicators.get('evidence_strength', 'unknown')
+                    ai_treatment_parts.append(f"✅ Kwaliteit: {guideline_adherence}, Evidence: {evidence_strength}")
                 
                 ai_treatment = ' | '.join(ai_treatment_parts) if ai_treatment_parts else "Geen specifieke AI aanbevelingen"
                 
@@ -420,7 +434,11 @@ def api_transcribe():
                 'safety_alerts': expert_analysis.get('agent_1_quality_control', {}).get('safety_alerts', []),
                 'urgency_level': expert_analysis.get('agent_2_diagnostic_expert', {}).get('urgency_level', 'unknown'),
                 'corrections_made': len(expert_analysis.get('agent_1_quality_control', {}).get('corrections', [])),
-                'agents_used': expert_analysis.get('orchestration_summary', {}).get('agents_used', 3)
+                'agents_used': expert_analysis.get('orchestration_summary', {}).get('agents_used', 3),
+                'esc_2024_citations': expert_analysis.get('agent_3_treatment_protocol', {}).get('esc_2024_citations', []),
+                'esc_guideline_class': expert_analysis.get('agent_3_treatment_protocol', {}).get('esc_guideline_class', 'Unknown'),
+                'evidence_level': expert_analysis.get('agent_3_treatment_protocol', {}).get('evidence_level', 'Unknown'),
+                'quality_indicators': expert_analysis.get('agent_3_treatment_protocol', {}).get('quality_indicators', {})
             }
         })
         
