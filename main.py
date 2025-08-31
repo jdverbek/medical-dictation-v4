@@ -145,13 +145,15 @@ app = Flask(__name__, template_folder='backend/templates')
 # Initialize transcription service
 transcription_service = SuperiorMedicalTranscription()
 
-# Initialize medical expert agents system (OpenAI only for reliability)
+# Initialize medical expert agents system (using embedded class)
 try:
     medical_experts = MedicalExpertAgents()
     EXPERTS_AVAILABLE = True
-    print("🤖 Medical Expert Agents (OpenAI Only) initialized successfully!")
+    print("✅ Embedded Medical Expert Agents initialized successfully!")
 except Exception as e:
-    print(f"⚠️ Medical Expert Agents not available: {e}")
+    print(f"⚠️ Medical Expert Agents initialization failed: {e}")
+    import traceback
+    print(f"🔍 DEBUG: Full initialization error: {traceback.format_exc()}")
     medical_experts = None
     EXPERTS_AVAILABLE = False
 
