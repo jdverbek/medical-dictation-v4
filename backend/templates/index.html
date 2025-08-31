@@ -164,16 +164,26 @@
             </div>
             
             <div id="output" style="display: none;">
-                <h3>📝 Transcriptie:</h3>
-                <textarea id="transcript" rows="4" readonly></textarea>
-                
-                <!-- Raw Transcript Toggle -->
-                <div style="margin: 10px 0;">
-                    <button type="button" onclick="toggleRawTranscript()" style="background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 3px; font-size: 12px;">
-                        🔍 Toon Ruwe Transcript
+                <!-- Transcription Toggle Button -->
+                <div style="margin: 10px 0; text-align: center;">
+                    <button type="button" onclick="toggleTranscription()" id="transcriptToggleBtn" style="background: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 14px;">
+                        📝 Toon Transcriptie
                     </button>
-                    <div id="rawTranscriptContainer" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-left: 3px solid #6c757d;">
-                        <textarea id="rawTranscript" rows="3" readonly style="width: 100%; font-family: monospace; font-size: 12px; color: #666; border: none; background: transparent; resize: none;"></textarea>
+                </div>
+                
+                <!-- Transcription Section (HIDDEN BY DEFAULT) -->
+                <div id="transcriptionSection" style="display: none;">
+                    <h3>📝 Transcriptie:</h3>
+                    <textarea id="transcript" rows="4" readonly></textarea>
+                    
+                    <!-- Raw Transcript Toggle -->
+                    <div style="margin: 10px 0;">
+                        <button type="button" onclick="toggleRawTranscript()" style="background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 3px; font-size: 12px;">
+                            🔍 Toon Ruwe Transcript
+                        </button>
+                        <div id="rawTranscriptContainer" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-left: 3px solid #6c757d;">
+                            <textarea id="rawTranscript" rows="3" readonly style="width: 100%; font-family: monospace; font-size: 12px; color: #666; border: none; background: transparent; resize: none;"></textarea>
+                        </div>
                     </div>
                 </div>
                 
@@ -205,6 +215,50 @@
                 
                 <h3>📋 Medisch Rapport:</h3>
                 <textarea id="report" rows="8" readonly></textarea>
+                
+                <!-- Treatment Comparison Section -->
+                <div id="treatmentComparisonSection" style="margin: 20px 0; padding: 15px; background: #fff8e1; border-radius: 8px; border-left: 4px solid #ff9800;">
+                    <h3 style="margin-top: 0;">💊 Behandeling Vergelijking:</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">
+                        <!-- Your Dictated Treatment -->
+                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #4caf50;">
+                            <h4 style="margin-top: 0; color: #2e7d32;">🎤 Jouw Gedicteerde Behandeling:</h4>
+                            <div id="dictatedTreatment" style="font-size: 14px; line-height: 1.5;">
+                                <em>Wordt geëxtraheerd uit transcriptie...</em>
+                            </div>
+                        </div>
+                        
+                        <!-- AI Recommended Treatment -->
+                        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3;">
+                            <h4 style="margin-top: 0; color: #1565c0;">🤖 AI Agent Aanbevelingen:</h4>
+                            <div id="aiRecommendedTreatment" style="font-size: 14px; line-height: 1.5;">
+                                <em>Wordt gegenereerd door Expert Agent 3...</em>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Treatment Differences -->
+                    <div id="treatmentDifferences" style="background: #fff3e0; padding: 10px; border-radius: 5px; border-left: 3px solid #ff9800;">
+                        <h5 style="margin-top: 0; color: #e65100;">⚠️ Belangrijke Verschillen:</h5>
+                        <ul id="differencesList" style="margin: 0; padding-left: 20px; font-size: 13px;">
+                            <li><em>Vergelijking wordt uitgevoerd...</em></li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div style="margin-top: 15px; text-align: center;">
+                        <button onclick="acceptDictatedTreatment()" style="background: #4caf50; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin: 0 5px; font-size: 12px;">
+                            ✅ Gebruik Mijn Behandeling
+                        </button>
+                        <button onclick="acceptAITreatment()" style="background: #2196f3; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin: 0 5px; font-size: 12px;">
+                            🤖 Gebruik AI Aanbeveling
+                        </button>
+                        <button onclick="combineTreatments()" style="background: #ff9800; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin: 0 5px; font-size: 12px;">
+                            🔄 Combineer Beide
+                        </button>
+                    </div>
+                </div>
                 
                 <h3>🎵 Audio Playback:</h3>
                 <audio id="audioPlayer" controls class="audio-player" style="width: 100%;"></audio>
@@ -352,11 +406,55 @@
             .catch(error => {
                 console.error('API niet bereikbaar:', error);
             });
+            
+        // Treatment comparison functions
+        function acceptDictatedTreatment() {
+            const dictated = document.getElementById('dictatedTreatment').textContent;
+            document.getElementById('report').value = document.getElementById('report').value.replace(
+                /BEHANDELING:[\s\S]*?(?=\n\n|$)/,
+                `BEHANDELING:\n${dictated}`
+            );
+            alert('✅ Jouw gedicteerde behandeling is gebruikt in het rapport');
+        }
+        
+        function acceptAITreatment() {
+            const aiRecommended = document.getElementById('aiRecommendedTreatment').textContent;
+            document.getElementById('report').value = document.getElementById('report').value.replace(
+                /BEHANDELING:[\s\S]*?(?=\n\n|$)/,
+                `BEHANDELING:\n${aiRecommended}`
+            );
+            alert('🤖 AI aanbeveling is gebruikt in het rapport');
+        }
+        
+        function combineTreatments() {
+            const dictated = document.getElementById('dictatedTreatment').textContent;
+            const aiRecommended = document.getElementById('aiRecommendedTreatment').textContent;
+            const combined = `JOUW BEHANDELING:\n${dictated}\n\nAI AANBEVELINGEN:\n${aiRecommended}`;
+            document.getElementById('report').value = document.getElementById('report').value.replace(
+                /BEHANDELING:[\s\S]*?(?=\n\n|$)/,
+                `BEHANDELING:\n${combined}`
+            );
+            alert('🔄 Beide behandelingen zijn gecombineerd in het rapport');
+        }
     </script>
 </body>
 </html>
 
 
+        
+        // Toggle transcription visibility
+        function toggleTranscription() {
+            const section = document.getElementById('transcriptionSection');
+            const button = document.getElementById('transcriptToggleBtn');
+            
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                button.textContent = '📝 Verberg Transcriptie';
+            } else {
+                section.style.display = 'none';
+                button.textContent = '📝 Toon Transcriptie';
+            }
+        }
         
         // Toggle raw transcript visibility
         function toggleRawTranscript() {

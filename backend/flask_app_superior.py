@@ -25,15 +25,94 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(hours=2)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
-# Initialize superior transcription system
+# Inidef extract_treatment_from_transcript(transcript):
+    """Extract treatment plan from transcript"""
+    import re
+    
+    # Look for treatment-related keywords
+    treatment_patterns = [
+        r'behandeling[:\s]+(.*?)(?=\n|$)',
+        r'medicatie[:\s]+(.*?)(?=\n|$)',
+        r'therapie[:\s]+(.*?)(?=\n|$)',
+        r'voorschrift[:\s]+(.*?)(?=\n|$)',
+        r'dosering[:\s]+(.*?)(?=\n|$)',
+        r'plan[:\s]+(.*?)(?=\n|$)'
+    ]
+    
+    treatments = []
+    for pattern in treatment_patterns:
+        matches = re.findall(pattern, transcript, re.IGNORECASE | re.MULTILINE)
+        treatments.extend(matches)
+    
+    if treatments:
+        return '; '.join([t.strip() for t in treatments if t.strip()])
+    else:
+        # If no specific treatment found, extract sentences with drug names
+        drug_patterns = [
+            r'[A-Z][a-z]+(?:ol|pril|ine|ide|ium|card|xtra|pine)\s+\d+(?:\.\d+)?\s*mg',
+            r'arixtra|cedocard|metoprolol|lisinopril|atorvastatine'
+        ]
+        
+        sentences = transcript.split('.')
+        treatment_sentences = []
+        
+        for sentence in sentences:
+            for drug_pattern in drug_patterns:
+                if re.search(drug_pattern, sentence, re.IGNORECASE):
+                    treatment_sentences.append(sentence.strip())
+                    break
+        
+        return '; '.join(treatment_sentences) if treatment_sentences else "Geen specifieke behandeling gedetecteerd"
+
+def compare_treatments(dictated, ai_recommended):
+    """Compare dictated treatment with AI recommendations"""
+    differences = []
+    
+    if not dictated or dictated == "Geen specifieke behandeling gedetecteerd":
+        differences.append("Geen behandeling gedicteerd - alleen AI aanbevelingen beschikbaar")
+        return differences
+    
+    if not ai_recommended or ai_recommended == "Geen AI aanbevelingen beschikbaar":
+        differences.append("AI aanbevelingen niet beschikbaar")
+        return differences
+    
+    # Simple comparison - in real implementation this would be more sophisticated
+    dictated_lower = dictated.lower()
+    ai_lower = ai_recommended.lower()
+    
+    # Check for drug differences
+    if 'arixtra' in dictated_lower and 'arixtra' not in ai_lower:
+        differences.append("Je dicteerde Arixtra, AI beveelt dit niet aan")
+    elif 'arixtra' not in dictated_lower and 'arixtra' in ai_lower:
+        differences.append("AI beveelt Arixtra aan, maar je dicteerde dit niet")
+    
+    if 'cedocard' in dictated_lower and 'cedocard' not in ai_lower:
+        differences.append("Je dicteerde Cedocard, AI beveelt dit niet aan")
+    elif 'cedocard' not in dictated_lower and 'cedocard' in ai_lower:
+        differences.append("AI beveelt Cedocard aan, maar je dicteerde dit niet")
+    
+    # Check for dosage differences
+    import re
+    dictated_doses = re.findall(r'\d+(?:\.\d+)?\s*mg', dictated_lower)
+    ai_doses = re.findall(r'\d+(?:\.\d+)?\s*mg', ai_lower)
+    
+    if dictated_doses != ai_doses:
+        differences.append(f"Dosering verschil: jij {dictated_doses}, AI {ai_doses}")
+    
+    if not differences:
+        differences.append("Behandelingen zijn grotendeels vergelijkbaar")
+    
+    return differences
+
+# Initialize transcription systemstem
 transcription_system = SuperiorMedicalTranscription()
 
-# Initialize medical expert agents system (optional)
+# Initialize medical expert agents system (OpenAI only for reliability)
 try:
-    from medical_expert_agents import MedicalExpertAgents
+    from medical_expert_agents_fixed import MedicalExpertAgents
     medical_experts = MedicalExpertAgents()
     EXPERTS_AVAILABLE = True
-    print("🤖 Medical Expert Agents initialized successfully!")
+    print("🤖 Medical Expert Agents (OpenAI Only) initialized successfully!")
 except Exception as e:
     print(f"⚠️ Medical Expert Agents not available: {e}")
     medical_experts = None
@@ -124,8 +203,8 @@ init_db()
 
 @app.route('/')
 def index():
-    """Main interface"""
-    return render_template('index.html')
+    """Main interface with enhanced template"""
+    return render_template('enhanced_index.html')
 
 @app.route('/transcribe', methods=['POST'])
 @rate_limit(max_requests=20, window=300)
@@ -278,6 +357,50 @@ def api_transcribe():
         
         print(f"🔍 API DEBUG: Generated report preview: {report[:100]}...")
         
+        # Extract treatment from transcript for comparison
+        dictated_treatment = extract_treatment_from_transcript(improved_transcript)
+        
+        # Get AI treatment recommendations
+        ai_treatment = ""
+        treatment_differences = []
+        
+        if EXPERTS_AVAILABLE and medical_experts and expert_analysis:
+            try:
+                # Extract AI treatment recommendations from Agent 3
+                agent_3_data = expert_analysis.get('agent_3_treatment_protocol', {})
+                treatment_plan = agent_3_data.get('treatment_plan', {})
+                
+                # Format AI treatment recommendations
+                ai_medications = treatment_plan.get('medications', [])
+                ai_actions = treatment_plan.get('immediate_actions', [])
+                ai_monitoring = treatment_plan.get('monitoring', [])
+                
+                ai_treatment_parts = []
+                if ai_actions:
+                    ai_treatment_parts.append(f"Directe acties: {'; '.join(ai_actions)}")
+                if ai_medications:
+                    med_strings = []
+                    for med in ai_medications:
+                        if isinstance(med, dict):
+                            med_str = f"{med.get('name', 'Unknown')} {med.get('dose', '')} {med.get('frequency', '')}"
+                            med_strings.append(med_str.strip())
+                        else:
+                            med_strings.append(str(med))
+                    ai_treatment_parts.append(f"Medicatie: {'; '.join(med_strings)}")
+                if ai_monitoring:
+                    ai_treatment_parts.append(f"Monitoring: {'; '.join(ai_monitoring)}")
+                
+                ai_treatment = ' | '.join(ai_treatment_parts) if ai_treatment_parts else "Geen specifieke AI aanbevelingen"
+                
+                # Compare treatments
+                if dictated_treatment and ai_treatment:
+                    treatment_differences = compare_treatments(dictated_treatment, ai_treatment)
+                
+            except Exception as e:
+                print(f"⚠️ Treatment comparison failed: {e}")
+                ai_treatment = "AI aanbevelingen niet beschikbaar"
+                treatment_differences = ["Vergelijking niet mogelijk"]
+        
         return jsonify({
             'success': True,
             'transcript': improved_transcript,  # Show improved transcript
@@ -285,6 +408,11 @@ def api_transcribe():
             'report': report,
             'patient_id': patient_id,
             'verslag_type': verslag_type,
+            'treatment_comparison': {
+                'dictated_treatment': dictated_treatment,
+                'ai_treatment': ai_treatment,
+                'differences': treatment_differences
+            },
             'expert_analysis': {
                 'quality_score': expert_analysis.get('agent_1_quality_control', {}).get('quality_score', 0),
                 'primary_diagnosis': expert_analysis.get('agent_2_diagnostic_expert', {}).get('primary_diagnosis', {}),

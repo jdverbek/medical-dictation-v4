@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Dictation v4.0 - Expert AI System</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .record-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: block;
+            margin: 20px auto;
+        }
+        .record-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+        .record-btn.recording {
+            background: #27ae60;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .upload-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            width: 100%;
+        }
+        .upload-btn:hover {
+            background: #2980b9;
+        }
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        .audio-player {
+            margin: 15px 0;
+        }
+        .expert-dashboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .expert-metric {
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .toggle-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        .toggle-btn:hover {
+            background: #5a6268;
+        }
+        .hidden {
+            display: none;
+        }
+        .treatment-comparison {
+            margin: 20px 0;
+            padding: 20px;
+            background: #fff8e1;
+            border-radius: 8px;
+            border-left: 4px solid #ff9800;
+        }
+        .treatment-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .treatment-box {
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        .dictated-treatment {
+            background: #e8f5e8;
+            border-left-color: #4caf50;
+        }
+        .ai-treatment {
+            background: #e3f2fd;
+            border-left-color: #2196f3;
+        }
+        .differences-box {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #ff9800;
+            margin-bottom: 15px;
+        }
+        .action-buttons {
+            text-align: center;
+        }
+        .action-btn {
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            margin: 0 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .accept-dictated {
+            background: #4caf50;
+            color: white;
+        }
+        .accept-ai {
+            background: #2196f3;
+            color: white;
+        }
+        .combine-treatments {
+            background: #ff9800;
+            color: white;
+        }
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .raw-transcript-section {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f1f3f4;
+            border-radius: 8px;
+            border-left: 4px solid #9e9e9e;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border-left: 4px solid #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 Medical Dictation v4.0</h1>
+        <div class="subtitle">Expert AI System met 3 Gespecialiseerde Agents</div>
+        
+        <form id="transcriptionForm">
+            <div class="form-group">
+                <label for="reportType">📋 Verslag Type:</label>
+                <select id="reportType" name="verslag_type" required>
+                    <option value="TTE">🫀 TTE (Transthoracale Echo)</option>
+                    <option value="SPOEDCONSULT">🚨 Spoedconsult</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="patientId">👤 Patiënt ID:</label>
+                <input type="text" id="patientId" name="patient_id" placeholder="Bijv. P12345" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="audioFile">🎵 Audio Bestand:</label>
+                <input type="file" id="audioFile" name="audio" accept="audio/*" required>
+            </div>
+            
+            <button type="button" id="recordBtn" class="record-btn">🎤 Start Opname</button>
+            <div id="recordingStatus" style="text-align: center; color: #7f8c8d; margin-bottom: 20px;"></div>
+            
+            <button type="submit" class="upload-btn">🚀 Verwerk Audio</button>
+        </form>
+        
+        <div id="results" class="results">
+            <div id="loading" class="loading">
+                <h3>🤖 Expert AI Agents aan het werk...</h3>
+                <p>Agent 1: Transcript Quality Control<br>
+                Agent 2: Diagnostic Expert<br>
+                Agent 3: Treatment Protocol</p>
+            </div>
+            
+            <div id="output" style="display: none;">
+                <!-- Expert Analysis Dashboard -->
+                <div class="expert-dashboard">
+                    <div style="background: #e8f5e8; padding: 10px; border-radius: 5px; text-align: center;">
+                        <div style="font-size: 12px; color: #2e7d32;">🔍 Kwaliteit</div>
+                        <div id="qualityScore" style="font-size: 18px; font-weight: bold; color: #4caf50;">-</div>
+                    </div>
+                    <div style="background: #e3f2fd; padding: 10px; border-radius: 5px; text-align: center;">
+                        <div style="font-size: 12px; color: #1565c0;">🩺 Diagnose</div>
+                        <div id="primaryDiagnosis" style="font-size: 14px; font-weight: bold; color: #2196f3;">-</div>
+                    </div>
+                    <div style="background: #fff3e0; padding: 10px; border-radius: 5px; text-align: center;">
+                        <div style="font-size: 12px; color: #e65100;">⚡ Urgentie</div>
+                        <div id="urgencyLevel" style="font-size: 14px; font-weight: bold; color: #f57c00;">-</div>
+                    </div>
+                    <div style="background: #f3e5f5; padding: 10px; border-radius: 5px; text-align: center;">
+                        <div style="font-size: 12px; color: #4a148c;">🔧 Correcties</div>
+                        <div id="correctionsMade" style="font-size: 18px; font-weight: bold; color: #7b1fa2;">-</div>
+                    </div>
+                </div>
+                <div id="agentStatus" style="font-size: 12px; color: #6c757d; text-align: center; margin-bottom: 20px;">
+                    3 Expert AI Agents: Quality Control, Diagnostic Expert, Treatment Protocol
+                </div>
+                
+                <!-- Transcript Section (Always visible, improved) -->
+                <h3>📝 Verbeterde Transcriptie:</h3>
+                <textarea id="transcript" rows="4" readonly style="background: #f8f9fa;"></textarea>
+                
+                <!-- Raw Transcript Section (Hidden by default) -->
+                <button type="button" class="toggle-btn" onclick="toggleRawTranscript()">🔍 Toon Ruwe Transcript</button>
+                <div id="rawTranscriptContainer" class="raw-transcript-section hidden">
+                    <h4>🎤 Originele Whisper Transcriptie (onbewerkt):</h4>
+                    <textarea id="rawTranscript" rows="4" readonly style="background: #f1f3f4; font-family: monospace; font-size: 12px;"></textarea>
+                    <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">
+                        <em>Dit is de ruwe output van Whisper voordat de AI agents verbeteringen hebben aangebracht.</em>
+                    </p>
+                </div>
+                
+                <!-- Treatment Comparison Section -->
+                <div id="treatmentComparisonSection" class="treatment-comparison">
+                    <h3 style="margin-top: 0;">💊 Behandeling Vergelijking:</h3>
+                    
+                    <div class="treatment-grid">
+                        <!-- Your Dictated Treatment -->
+                        <div class="treatment-box dictated-treatment">
+                            <h4 style="margin-top: 0; color: #2e7d32;">🎤 Jouw Gedicteerde Behandeling:</h4>
+                            <div id="dictatedTreatment" style="font-size: 14px; line-height: 1.5; min-height: 60px;">
+                                <em>Wordt geëxtraheerd uit transcriptie...</em>
+                            </div>
+                        </div>
+                        
+                        <!-- AI Recommended Treatment -->
+                        <div class="treatment-box ai-treatment">
+                            <h4 style="margin-top: 0; color: #1565c0;">🤖 AI Agent Aanbevelingen:</h4>
+                            <div id="aiRecommendedTreatment" style="font-size: 14px; line-height: 1.5; min-height: 60px;">
+                                <em>Wordt gegenereerd door Expert Agent 3...</em>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Treatment Differences -->
+                    <div id="treatmentDifferences" class="differences-box">
+                        <h5 style="margin-top: 0; color: #e65100;">⚠️ Belangrijke Verschillen:</h5>
+                        <ul id="differencesList" style="margin: 0; padding-left: 20px; font-size: 13px;">
+                            <li><em>Vergelijking wordt uitgevoerd...</em></li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="action-buttons">
+                        <button onclick="acceptDictatedTreatment()" class="action-btn accept-dictated">
+                            ✅ Gebruik Mijn Behandeling
+                        </button>
+                        <button onclick="acceptAITreatment()" class="action-btn accept-ai">
+                            🤖 Gebruik AI Aanbeveling
+                        </button>
+                        <button onclick="combineTreatments()" class="action-btn combine-treatments">
+                            🔄 Combineer Beide
+                        </button>
+                    </div>
+                </div>
+                
+                <h3>📋 Medisch Rapport:</h3>
+                <textarea id="report" rows="12" readonly style="background: #f8f9fa;"></textarea>
+                
+                <h3>🎵 Audio Playback:</h3>
+                <audio id="audioPlayer" controls class="audio-player" style="width: 100%;"></audio>
+                
+                <div id="metadata" style="margin-top: 15px; font-size: 14px; color: #7f8c8d;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        const recordBtn = document.getElementById('recordBtn');
+        const recordingStatus = document.getElementById('recordingStatus');
+        const form = document.getElementById('transcriptionForm');
+        const results = document.getElementById('results');
+        const loading = document.getElementById('loading');
+        const output = document.getElementById('output');
+
+        // Recording functionality
+        recordBtn.addEventListener('click', async () => {
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
+                        
+                        // Create a file input and set the recorded file
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(audioFile);
+                        document.getElementById('audioFile').files = dataTransfer.files;
+                        
+                        // Create audio URL for playback
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        document.getElementById('audioPlayer').src = audioUrl;
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    recordBtn.textContent = '⏹️ Stop Opname';
+                    recordBtn.classList.add('recording');
+                    recordingStatus.textContent = 'Opname bezig...';
+                } catch (error) {
+                    alert('Fout bij toegang tot microfoon: ' + error.message);
+                }
+            } else {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+                recordBtn.textContent = '🎤 Start Opname';
+                recordBtn.classList.remove('recording');
+                recordingStatus.textContent = 'Opname voltooid!';
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const audioFile = document.getElementById('audioFile').files[0];
+            if (!audioFile) {
+                alert('Selecteer een audio bestand of maak een opname.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('audio', audioFile);
+            formData.append('patient_id', document.getElementById('patientId').value);
+            formData.append('verslag_type', document.getElementById('reportType').value);
+
+            // Show loading
+            results.style.display = 'block';
+            loading.style.display = 'block';
+            output.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Show results
+                    document.getElementById('transcript').value = result.transcript;
+                    document.getElementById('rawTranscript').value = result.raw_transcript || result.transcript;
+                    document.getElementById('report').value = result.report;
+                    
+                    // Set audio player if not already set from recording
+                    if (!document.getElementById('audioPlayer').src) {
+                        const audioUrl = URL.createObjectURL(audioFile);
+                        document.getElementById('audioPlayer').src = audioUrl;
+                    }
+                    
+                    // Show expert analysis
+                    const expertAnalysis = result.expert_analysis || {};
+                    document.getElementById('qualityScore').textContent = expertAnalysis.quality_score || '-';
+                    document.getElementById('primaryDiagnosis').textContent = 
+                        expertAnalysis.primary_diagnosis?.name || '-';
+                    document.getElementById('urgencyLevel').textContent = 
+                        expertAnalysis.urgency_level || '-';
+                    document.getElementById('correctionsMade').textContent = 
+                        expertAnalysis.corrections_made || '0';
+                    
+                    // Update agent status
+                    document.getElementById('agentStatus').textContent = 
+                        `${expertAnalysis.agents_used || 3} AI Agents: Quality Control, Diagnostic Expert, Treatment Protocol`;
+                    
+                    // Show treatment comparison
+                    const treatmentComparison = result.treatment_comparison || {};
+                    document.getElementById('dictatedTreatment').textContent = 
+                        treatmentComparison.dictated_treatment || 'Geen behandeling gedetecteerd in transcriptie';
+                    document.getElementById('aiRecommendedTreatment').textContent = 
+                        treatmentComparison.ai_treatment || 'AI aanbevelingen niet beschikbaar';
+                    
+                    // Show differences
+                    const differencesList = document.getElementById('differencesList');
+                    differencesList.innerHTML = '';
+                    const differences = treatmentComparison.differences || ['Geen verschillen gedetecteerd'];
+                    differences.forEach(diff => {
+                        const li = document.createElement('li');
+                        li.textContent = diff;
+                        differencesList.appendChild(li);
+                    });
+                    
+                    // Show enhanced metadata
+                    const metadata = document.getElementById('metadata');
+                    metadata.innerHTML = `
+                        <strong>🎉 Verwerking voltooid!</strong><br>
+                        <strong>Type:</strong> ${result.verslag_type}<br>
+                        <strong>Kwaliteit Score:</strong> ${expertAnalysis.quality_score || 'N/A'}/100<br>
+                        <strong>AI Correcties:</strong> ${expertAnalysis.corrections_made || 0} verbeteringen<br>
+                        <strong>Urgentie:</strong> ${expertAnalysis.urgency_level || 'Onbekend'}<br>
+                        <strong>Patiënt ID:</strong> ${result.patient_id}<br>
+                        <strong>Agents:</strong> ${expertAnalysis.agents_used || 3} Expert AI Systems
+                    `;
+
+                    loading.style.display = 'none';
+                    output.style.display = 'block';
+                } else {
+                    throw new Error(result.error || 'Onbekende fout');
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                results.innerHTML = `
+                    <div class="status error">
+                        <strong>Fout:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        });
+
+        // Toggle raw transcript visibility
+        function toggleRawTranscript() {
+            const container = document.getElementById('rawTranscriptContainer');
+            const button = event.target;
+            
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                button.textContent = '🔍 Verberg Ruwe Transcript';
+            } else {
+                container.classList.add('hidden');
+                button.textContent = '🔍 Toon Ruwe Transcript';
+            }
+        }
+        
+        // Treatment comparison functions
+        function acceptDictatedTreatment() {
+            const dictated = document.getElementById('dictatedTreatment').textContent;
+            const currentReport = document.getElementById('report').value;
+            
+            // Replace or add treatment section
+            if (currentReport.includes('BEHANDELING:')) {
+                document.getElementById('report').value = currentReport.replace(
+                    /BEHANDELING:[\s\S]*?(?=\n\n[A-Z]|$)/,
+                    `BEHANDELING:\n${dictated}\n\n`
+                );
+            } else {
+                document.getElementById('report').value = currentReport + `\n\nBEHANDELING:\n${dictated}`;
+            }
+            
+            showStatus('✅ Jouw gedicteerde behandeling is gebruikt in het rapport', 'success');
+        }
+        
+        function acceptAITreatment() {
+            const aiRecommended = document.getElementById('aiRecommendedTreatment').textContent;
+            const currentReport = document.getElementById('report').value;
+            
+            // Replace or add treatment section
+            if (currentReport.includes('BEHANDELING:')) {
+                document.getElementById('report').value = currentReport.replace(
+                    /BEHANDELING:[\s\S]*?(?=\n\n[A-Z]|$)/,
+                    `BEHANDELING:\n${aiRecommended}\n\n`
+                );
+            } else {
+                document.getElementById('report').value = currentReport + `\n\nBEHANDELING:\n${aiRecommended}`;
+            }
+            
+            showStatus('🤖 AI aanbeveling is gebruikt in het rapport', 'success');
+        }
+        
+        function combineTreatments() {
+            const dictated = document.getElementById('dictatedTreatment').textContent;
+            const aiRecommended = document.getElementById('aiRecommendedTreatment').textContent;
+            const combined = `JOUW BEHANDELING:\n${dictated}\n\nAI AANBEVELINGEN:\n${aiRecommended}`;
+            const currentReport = document.getElementById('report').value;
+            
+            // Replace or add treatment section
+            if (currentReport.includes('BEHANDELING:')) {
+                document.getElementById('report').value = currentReport.replace(
+                    /BEHANDELING:[\s\S]*?(?=\n\n[A-Z]|$)/,
+                    `BEHANDELING:\n${combined}\n\n`
+                );
+            } else {
+                document.getElementById('report').value = currentReport + `\n\nBEHANDELING:\n${combined}`;
+            }
+            
+            showStatus('🔄 Beide behandelingen zijn gecombineerd in het rapport', 'success');
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>${message}</strong>`;
+            
+            // Insert after treatment comparison section
+            const treatmentSection = document.getElementById('treatmentComparisonSection');
+            treatmentSection.parentNode.insertBefore(statusDiv, treatmentSection.nextSibling);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                statusDiv.remove();
+            }, 3000);
+        }
+
+        // Check API status on load
+        fetch('/health')
+            .then(response => response.json())
+            .then(data => {
+                console.log('API Status:', data);
+            })
+            .catch(error => {
+                console.error('API niet bereikbaar:', error);
+            });
+    </script>
+</body>
+</html>
+
