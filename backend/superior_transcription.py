@@ -51,7 +51,7 @@ class SuperiorMedicalTranscription:
             if report_type == "LIVE_CONSULTATIE":
                 # Use GPT-4o for live consultations with special prompt
                 transcript = openai.Audio.transcribe(
-                    model="gpt-4o-audio-preview",  # Use GPT-4o for live consultations
+                    model="gpt-4o-transcribe",  # Correct model name for live consultations
                     file=audio_file_obj,
                     language="nl",
                     prompt="""Je bent een medische secretaresse die aanwezig is bij een cardiologische consultatie waarbij een patiënt op bezoek komt bij de arts. Je hoort een conversatie tussen 2 of meerdere personen (soms zijn familieleden mee) en maakt een gedetailleerde samenvatting van de consultatie. Focus je vooral op de anamnese/symptomen, probeer deze zo getrouw mogelijk neer te pennen. Let op: soms zal de conversatie gestoord worden doordat de arts gebeld wordt of iemand binnenkomt; hier moet je goed bedacht op zijn (de context zal plots niet meer kloppen)."""
