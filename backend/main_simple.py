@@ -19,16 +19,12 @@ from openai import AsyncOpenAI
 import anthropic
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
-from pydantic import BaseSettings
 
 # Configuration
-class Settings(BaseSettings):
-    openai_api_key: str = ""
-    anthropic_api_key: str = ""
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+class Settings:
+    def __init__(self):
+        self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
+        self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
 
 settings = Settings()
 
