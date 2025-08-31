@@ -73,62 +73,151 @@ class MedicalExpertAgents:
     def orchestrate_medical_analysis(self, transcript: str, patient_context: str = "") -> Dict[str, Any]:
         """Orchestrate all 3 agents for comprehensive medical analysis"""
         print("🤖 Starting multi-agent medical analysis...")
+        print(f"🔍 DEBUG: Analyzing transcript: {transcript[:200]}...")
         
         # Agent 1: Quality Control
         print("🔍 Running Agent 1: Quality Control...")
         agent_1_result = {"improved_transcript": transcript, "quality_score": 75, "corrections": []}
         
-        # Agent 2: Diagnostic Expert  
+        # Agent 2: Diagnostic Expert - REAL ANALYSIS
         print("🩺 Running Agent 2: Diagnostic Expert...")
-        agent_2_result = {"primary_diagnosis": {"name": "Analysis pending"}, "urgency_level": "medium"}
+        diagnostic_prompt = f"""Analyseer deze Nederlandse medische transcriptie en identificeer de primaire diagnose:
+
+TRANSCRIPTIE: {transcript}
+
+Geef alleen een diagnose als deze duidelijk uit de transcriptie blijkt. Als er geen duidelijke diagnose te maken is, zeg dan "Geen specifieke diagnose geïdentificeerd".
+
+Antwoord in JSON format:
+{{
+    "primary_diagnosis": "exacte diagnose uit transcriptie of 'Geen specifieke diagnose geïdentificeerd'",
+    "urgency_level": "low/medium/high/critical gebaseerd op symptomen",
+    "key_symptoms": ["lijst van symptomen uit transcriptie"],
+    "confidence": 0.0-1.0
+}}"""
         
-        # Agent 3: Treatment Protocol
-        print("💊 Running Agent 3: Treatment Protocol...")
-        agent_3_result = {
-            "treatment_plan": {
-                "immediate_actions": [
-                    "Start Metoprolol 25 mg BID oraal voor rate controle, target hartfrequentie <110 bpm",
-                    "Opname cardiologie voor monitoring van hemodynamiek en ritmecontrole",
-                    "Bloedafname morgen nuchter: kreatinine, elektrolyten, TSH, INR",
-                    "ECG morgen ter evaluatie ritme en frequentie"
-                ],
-                "medications": [
-                    {
-                        "name": "Metoprolol",
-                        "dose": "25 mg",
-                        "frequency": "BID",
-                        "indication": "Rate controle VKF",
-                        "target_value": "HR <110 bpm",
-                        "esc_class": "I",
-                        "esc_evidence": "A"
-                    },
-                    {
-                        "name": "Apixaban", 
-                        "dose": "5 mg",
-                        "frequency": "BID",
-                        "indication": "Anticoagulatie VKF",
-                        "target_value": "CHA2DS2-VASc ≥2",
-                        "esc_class": "I",
-                        "esc_evidence": "A"
-                    }
-                ],
-                "monitoring": [
-                    "Controle hartfrequentie en bloeddruk dagelijks",
-                    "Labo morgen: kreatinine, kalium, natrium, TSH",
-                    "ECG morgen en bij klinische veranderingen"
-                ],
-                "follow_up": "Dag 1: Start Metoprolol, opname, labo en ECG. Week 1: Titratie medicatie, CHA2DS2-VASc score"
-            },
-            "esc_guideline_class": "Class I, Level A",
-            "evidence_level": "Level A - Strong Evidence",
-            "esc_2024_citations": ["ESC 2024 Guidelines on Atrial Fibrillation - Section 4.3.1 Rate Control"],
-            "quality_indicators": {
-                "guideline_adherence": "100% ESC 2024 compliant",
-                "evidence_strength": "strong",
-                "safety_profile": "low risk",
-                "target_achievement": "Concrete targets defined"
+        diagnostic_response = self._call_gpt4(diagnostic_prompt, json_mode=True)
+        
+        try:
+            if diagnostic_response and diagnostic_response.startswith('{'):
+                agent_2_result = json.loads(diagnostic_response)
+            else:
+                agent_2_result = {
+                    "primary_diagnosis": "Analyse niet beschikbaar",
+                    "urgency_level": "unknown",
+                    "key_symptoms": [],
+                    "confidence": 0.0
+                }
+        except:
+            agent_2_result = {
+                "primary_diagnosis": "Analyse niet beschikbaar", 
+                "urgency_level": "unknown",
+                "key_symptoms": [],
+                "confidence": 0.0
             }
-        }
+        
+        # Agent 3: Treatment Protocol - BASED ON ACTUAL DIAGNOSIS
+        print("💊 Running Agent 3: Treatment Protocol...")
+        diagnosis = agent_2_result.get("primary_diagnosis", "Geen diagnose")
+        symptoms = agent_2_result.get("key_symptoms", [])
+        
+        if diagnosis == "Geen specifieke diagnose geïdentificeerd" or diagnosis == "Analyse niet beschikbaar":
+            # No specific treatment if no clear diagnosis
+            agent_3_result = {
+                "treatment_plan": {
+                    "immediate_actions": ["Verdere diagnostische evaluatie aanbevolen"],
+                    "medications": [],
+                    "monitoring": ["Symptomen monitoren"],
+                    "follow_up": "Controle bij behandelend arts voor verdere evaluatie"
+                },
+                "esc_guideline_class": "Geen specifieke richtlijn van toepassing",
+                "evidence_level": "N/A",
+                "esc_2024_citations": ["Algemene medische evaluatie"],
+                "quality_indicators": {
+                    "guideline_adherence": "Conservatieve benadering",
+                    "evidence_strength": "N/A",
+                    "safety_profile": "Veilig - geen onnodige interventies",
+                    "target_achievement": "Verdere evaluatie vereist"
+                }
+            }
+        else:
+            # Provide treatment based on actual diagnosis
+            treatment_prompt = f"""Geef concrete behandelingsadvies voor deze patiënt volgens ESC 2024 richtlijnen:
+
+DIAGNOSE: {diagnosis}
+SYMPTOMEN: {', '.join(symptoms)}
+TRANSCRIPTIE CONTEXT: {transcript}
+
+Geef ALLEEN behandeling die relevant is voor de geïdentificeerde diagnose. Gebruik de meest recente ESC 2024 richtlijnen.
+
+Antwoord in JSON format met concrete aanbevelingen:
+{{
+    "treatment_plan": {{
+        "immediate_actions": ["specifieke acties gebaseerd op diagnose"],
+        "medications": [
+            {{
+                "name": "medicijnnaam",
+                "dose": "dosering",
+                "frequency": "frequentie", 
+                "indication": "indicatie voor deze diagnose",
+                "esc_class": "I/IIa/IIb/III",
+                "esc_evidence": "A/B/C"
+            }}
+        ],
+        "monitoring": ["specifieke monitoring voor deze conditie"],
+        "follow_up": "vervolgplan voor deze diagnose"
+    }},
+    "esc_guideline_class": "ESC 2024 class voor deze conditie",
+    "evidence_level": "Evidence level voor deze behandeling",
+    "esc_2024_citations": ["Relevante ESC 2024 sectie"],
+    "quality_indicators": {{
+        "guideline_adherence": "ESC 2024 compliant voor {diagnosis}",
+        "evidence_strength": "strong/moderate/weak",
+        "safety_profile": "risicoprofiel",
+        "target_achievement": "concrete targets voor {diagnosis}"
+    }}
+}}"""
+            
+            treatment_response = self._call_gpt4(treatment_prompt, json_mode=True)
+            
+            try:
+                if treatment_response and treatment_response.startswith('{'):
+                    agent_3_result = json.loads(treatment_response)
+                else:
+                    agent_3_result = {
+                        "treatment_plan": {
+                            "immediate_actions": [f"Standaard zorg voor {diagnosis}"],
+                            "medications": [],
+                            "monitoring": ["Reguliere controle"],
+                            "follow_up": "Volgens standaard protocol"
+                        },
+                        "esc_guideline_class": "Standaard zorg",
+                        "evidence_level": "Klinische praktijk",
+                        "esc_2024_citations": ["Algemene richtlijnen"],
+                        "quality_indicators": {
+                            "guideline_adherence": f"Standaard zorg voor {diagnosis}",
+                            "evidence_strength": "moderate",
+                            "safety_profile": "standaard risico",
+                            "target_achievement": "klinische verbetering"
+                        }
+                    }
+            except:
+                agent_3_result = {
+                    "treatment_plan": {
+                        "immediate_actions": [f"Behandeling overwegen voor {diagnosis}"],
+                        "medications": [],
+                        "monitoring": ["Symptomen monitoren"],
+                        "follow_up": "Controle bij specialist"
+                    },
+                    "esc_guideline_class": "Individuele beoordeling",
+                    "evidence_level": "Klinische ervaring", 
+                    "esc_2024_citations": ["Individuele patiëntenzorg"],
+                    "quality_indicators": {
+                        "guideline_adherence": "Gepersonaliseerde zorg",
+                        "evidence_strength": "individueel",
+                        "safety_profile": "voorzichtige benadering",
+                        "target_achievement": "symptoomverlichting"
+                    }
+                }
         
         print("✅ Multi-agent analysis complete!")
         
@@ -137,7 +226,7 @@ class MedicalExpertAgents:
             "agent_2_diagnostic_expert": agent_2_result,
             "agent_3_treatment_protocol": agent_3_result,
             "analysis_timestamp": datetime.datetime.now().isoformat(),
-            "confidence_score": 0.9
+            "confidence_score": agent_2_result.get("confidence", 0.7)
         }
 
 app = Flask(__name__, template_folder='backend/templates')
