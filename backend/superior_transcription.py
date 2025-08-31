@@ -6,11 +6,11 @@ Based on analysis of the superior v2 app
 import os
 import io
 import datetime
-from openai import OpenAI
+import openai
 
 class SuperiorMedicalTranscription:
     def __init__(self):
-        self.client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+        openai.api_key = os.environ.get('OPENAI_API_KEY')
     
     def detect_audio_format(self, file_content, filename):
         """Detect actual audio format from file content"""
@@ -42,8 +42,8 @@ class SuperiorMedicalTranscription:
             # Detect actual format
             content_type, filename = self.detect_audio_format(file_content, audio_file.filename)
             
-            # Transcribe with Whisper
-            transcript = self.client.audio.transcriptions.create(
+            # Transcribe with Whisper using older API
+            transcript = openai.Audio.transcribe(
                 model="whisper-1",
                 file=(filename, file_content, content_type),
                 temperature=0.0
@@ -89,9 +89,9 @@ class SuperiorMedicalTranscription:
         return False
     
     def call_gpt(self, messages, model="gpt-4o", temperature=0.0):
-        """Call GPT with error handling"""
+        """Call GPT with error handling using older API"""
         try:
-            response = self.client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model=model,
                 messages=messages,
                 temperature=temperature
