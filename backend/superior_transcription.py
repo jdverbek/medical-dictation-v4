@@ -12,7 +12,22 @@ import tempfile
 
 class SuperiorMedicalTranscription:
     def __init__(self):
-        openai.api_key = os.environ.get('OPENAI_API_KEY')
+        # Initialize separate OpenAI client for audio transcription
+        # Use standard OpenAI API endpoint for audio, not the Manus proxy
+        try:
+            from openai import OpenAI
+            self.audio_client = OpenAI(
+                api_key=os.environ.get('OPENAI_API_KEY'),
+                base_url="https://api.openai.com/v1"  # Force standard OpenAI API for audio
+            )
+            print("🎤 Audio transcription client initialized with standard OpenAI API")
+        except ImportError:
+            # Fallback to legacy OpenAI client
+            import openai
+            openai.api_key = os.environ.get('OPENAI_API_KEY')
+            openai.api_base = "https://api.openai.com/v1"  # Force standard API
+            self.audio_client = None
+            print("🎤 Using legacy OpenAI client for audio transcription")
     
     def convert_audio_to_wav(self, file_content, original_filename):
         """Convert audio file to WAV format using ffmpeg for gpt-4o-transcribe compatibility"""
@@ -147,32 +162,57 @@ class SuperiorMedicalTranscription:
             print(f"DEBUG: Using content type: {content_type}")
             print(f"DEBUG: Using filename: {filename}")
             
-            # Use gpt-4o-transcribe for all report types for consistent quality
+            # Use gpt-4o-transcribe for all report types as requested
             try:
-                if report_type == "LIVE_CONSULTATIE":
-                    # Use GPT-4o for live consultations with special prompt
-                    transcript = openai.Audio.transcribe(
-                        model="gpt-4o-transcribe",
-                        file=audio_file_obj,
-                        language="nl",
-                        prompt="""Je bent een medische secretaresse die aanwezig is bij een cardiologische consultatie waarbij een patiënt op bezoek komt bij de arts. Je hoort een conversatie tussen 2 of meerdere personen (soms zijn familieleden mee) en maakt een gedetailleerde samenvatting van de consultatie. Focus je vooral op de anamnese/symptomen, probeer deze zo getrouw mogelijk neer te pennen. Let op: soms zal de conversatie gestoord worden doordat de arts gebeld wordt of iemand binnenkomt; hier moet je goed bedacht op zijn (de context zal plots niet meer kloppen)."""
-                    )
-                elif report_type == "CONSULTATIE":
-                    # Use GPT-4o-transcribe for structured consultation format
-                    transcript = openai.Audio.transcribe(
-                        model="gpt-4o-transcribe",
-                        file=audio_file_obj,
-                        language="nl",
-                        prompt="Dit is een Nederlandse medische dictatie van een cardioloog voor een gestructureerde consultatie. Gebruik correcte medische terminologie en behoud alle details voor het consultatieverslag."
-                    )
+                if self.audio_client:
+                    # Use new OpenAI v1.0+ client
+                    if report_type == "LIVE_CONSULTATIE":
+                        # Use gpt-4o-transcribe for live consultations with special prompt
+                        transcript = self.audio_client.audio.transcriptions.create(
+                            model="gpt-4o-transcribe",
+                            file=audio_file_obj,
+                            language="nl",
+                            prompt="""Je bent een medische secretaresse die aanwezig is bij een cardiologische consultatie waarbij een patiënt op bezoek komt bij de arts. Je hoort een conversatie tussen 2 of meerdere personen (soms zijn familieleden mee) en maakt een gedetailleerde samenvatting van de consultatie. Focus je vooral op de anamnese/symptomen, probeer deze zo getrouw mogelijk neer te pennen. Let op: soms zal de conversatie gestoord worden doordat de arts gebeld wordt of iemand binnenkomt; hier moet je goed bedacht op zijn (de context zal plots niet meer kloppen)."""
+                        )
+                    elif report_type == "CONSULTATIE":
+                        # Use gpt-4o-transcribe for structured consultation format
+                        transcript = self.audio_client.audio.transcriptions.create(
+                            model="gpt-4o-transcribe",
+                            file=audio_file_obj,
+                            language="nl",
+                            prompt="Dit is een Nederlandse medische dictatie van een cardioloog voor een gestructureerde consultatie. Gebruik correcte medische terminologie en behoud alle details voor het consultatieverslag."
+                        )
+                    else:
+                        # Use gpt-4o-transcribe for TTE and SPOEDCONSULT
+                        transcript = self.audio_client.audio.transcriptions.create(
+                            model="gpt-4o-transcribe",
+                            file=audio_file_obj,
+                            language="nl",
+                            prompt="Dit is een Nederlandse medische transcriptie van een cardioloog. Gebruik correcte medische terminologie."
+                        )
                 else:
-                    # Use GPT-4o-transcribe for TTE and SPOEDCONSULT
-                    transcript = openai.Audio.transcribe(
-                        model="gpt-4o-transcribe",
-                        file=audio_file_obj,
-                        language="nl",
-                        prompt="Dit is een Nederlandse medische transcriptie van een cardioloog. Gebruik correcte medische terminologie."
-                    )
+                    # Use legacy OpenAI client
+                    if report_type == "LIVE_CONSULTATIE":
+                        transcript = openai.Audio.transcribe(
+                            model="gpt-4o-transcribe",
+                            file=audio_file_obj,
+                            language="nl",
+                            prompt="""Je bent een medische secretaresse die aanwezig is bij een cardiologische consultatie waarbij een patiënt op bezoek komt bij de arts. Je hoort een conversatie tussen 2 of meerdere personen (soms zijn familieleden mee) en maakt een gedetailleerde samenvatting van de consultatie. Focus je vooral op de anamnese/symptomen, probeer deze zo getrouw mogelijk neer te pennen. Let op: soms zal de conversatie gestoord worden doordat de arts gebeld wordt of iemand binnenkomt; hier moet je goed bedacht op zijn (de context zal plots niet meer kloppen)."""
+                        )
+                    elif report_type == "CONSULTATIE":
+                        transcript = openai.Audio.transcribe(
+                            model="gpt-4o-transcribe",
+                            file=audio_file_obj,
+                            language="nl",
+                            prompt="Dit is een Nederlandse medische dictatie van een cardioloog voor een gestructureerde consultatie. Gebruik correcte medische terminologie en behoud alle details voor het consultatieverslag."
+                        )
+                    else:
+                        transcript = openai.Audio.transcribe(
+                            model="gpt-4o-transcribe",
+                            file=audio_file_obj,
+                            language="nl",
+                            prompt="Dit is een Nederlandse medische transcriptie van een cardioloog. Gebruik correcte medische terminologie."
+                        )
                     
             except Exception as transcription_error:
                 error_msg = str(transcription_error).lower()
