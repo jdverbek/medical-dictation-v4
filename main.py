@@ -140,12 +140,33 @@ Antwoord in JSON format:
             sys.stdout.flush()
             
             try:
-                if diagnostic_response and diagnostic_response.startswith('{'):
-                    agent_2_result = json.loads(diagnostic_response)
-                    print(f"✅ Agent 2 completed! Diagnosis: {agent_2_result.get('primary_diagnosis', 'Unknown')}")
+                if diagnostic_response:
+                    # Clean up the response - remove markdown code blocks if present
+                    cleaned_response = diagnostic_response.strip()
+                    if cleaned_response.startswith('```json'):
+                        cleaned_response = cleaned_response[7:]  # Remove ```json
+                    if cleaned_response.endswith('```'):
+                        cleaned_response = cleaned_response[:-3]  # Remove closing ```
+                    cleaned_response = cleaned_response.strip()
+                    
+                    print(f"🔍 DEBUG: Cleaned JSON response: {cleaned_response[:200]}...")
                     sys.stdout.flush()
+                    
+                    if cleaned_response.startswith('{'):
+                        agent_2_result = json.loads(cleaned_response)
+                        print(f"✅ Agent 2 completed! Diagnosis: {agent_2_result.get('primary_diagnosis', 'Unknown')}")
+                        sys.stdout.flush()
+                    else:
+                        print("⚠️ Agent 2: Cleaned response doesn't start with {, using fallback")
+                        sys.stdout.flush()
+                        agent_2_result = {
+                            "primary_diagnosis": "Analyse niet beschikbaar",
+                            "urgency_level": "unknown",
+                            "key_symptoms": [],
+                            "confidence": 0.0
+                        }
                 else:
-                    print("⚠️ Agent 2: No valid JSON response, using fallback")
+                    print("⚠️ Agent 2: No response from GPT-4, using fallback")
                     sys.stdout.flush()
                     agent_2_result = {
                         "primary_diagnosis": "Analyse niet beschikbaar",
@@ -241,12 +262,44 @@ Antwoord in JSON format met concrete aanbevelingen:
                 sys.stdout.flush()
                 
                 try:
-                    if treatment_response and treatment_response.startswith('{'):
-                        agent_3_result = json.loads(treatment_response)
-                        print("✅ Agent 3 completed with specific treatment recommendations!")
+                    if treatment_response:
+                        # Clean up the response - remove markdown code blocks if present
+                        cleaned_response = treatment_response.strip()
+                        if cleaned_response.startswith('```json'):
+                            cleaned_response = cleaned_response[7:]  # Remove ```json
+                        if cleaned_response.endswith('```'):
+                            cleaned_response = cleaned_response[:-3]  # Remove closing ```
+                        cleaned_response = cleaned_response.strip()
+                        
+                        print(f"🔍 DEBUG: Cleaned treatment JSON: {cleaned_response[:200]}...")
                         sys.stdout.flush()
+                        
+                        if cleaned_response.startswith('{'):
+                            agent_3_result = json.loads(cleaned_response)
+                            print("✅ Agent 3 completed with specific treatment recommendations!")
+                            sys.stdout.flush()
+                        else:
+                            print("⚠️ Agent 3: Cleaned response doesn't start with {, using fallback")
+                            sys.stdout.flush()
+                            agent_3_result = {
+                                "treatment_plan": {
+                                    "immediate_actions": [f"Standaard zorg voor {diagnosis}"],
+                                    "medications": [],
+                                    "monitoring": ["Reguliere controle"],
+                                    "follow_up": "Volgens standaard protocol"
+                                },
+                                "esc_guideline_class": "Standaard zorg",
+                                "evidence_level": "Klinische praktijk",
+                                "esc_2024_citations": ["Algemene richtlijnen"],
+                                "quality_indicators": {
+                                    "guideline_adherence": f"Standaard zorg voor {diagnosis}",
+                                    "evidence_strength": "moderate",
+                                    "safety_profile": "standaard risico",
+                                    "target_achievement": "klinische verbetering"
+                                }
+                            }
                     else:
-                        print("⚠️ Agent 3: No valid JSON response, using fallback")
+                        print("⚠️ Agent 3: No response from GPT-4, using fallback")
                         sys.stdout.flush()
                         agent_3_result = {
                             "treatment_plan": {
