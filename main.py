@@ -275,9 +275,64 @@ Antwoord in JSON format met concrete aanbevelingen:
                         sys.stdout.flush()
                         
                         if cleaned_response.startswith('{'):
-                            agent_3_result = json.loads(cleaned_response)
-                            print("✅ Agent 3 completed with specific treatment recommendations!")
-                            sys.stdout.flush()
+                            try:
+                                agent_3_result = json.loads(cleaned_response)
+                                print("✅ Agent 3 completed with specific treatment recommendations!")
+                                sys.stdout.flush()
+                            except json.JSONDecodeError as json_error:
+                                print(f"⚠️ Agent 3 JSON parsing failed: {json_error}")
+                                print(f"🔍 DEBUG: Problematic JSON around char {json_error.pos}: {cleaned_response[max(0, json_error.pos-50):json_error.pos+50]}")
+                                sys.stdout.flush()
+                                
+                                # Try to extract key information manually from the malformed JSON
+                                immediate_actions = []
+                                medications = []
+                                monitoring = []
+                                
+                                # Extract immediate actions
+                                if '"immediate_actions"' in cleaned_response:
+                                    try:
+                                        import re
+                                        actions_match = re.search(r'"immediate_actions":\s*\[(.*?)\]', cleaned_response, re.DOTALL)
+                                        if actions_match:
+                                            actions_text = actions_match.group(1)
+                                            # Extract quoted strings
+                                            action_matches = re.findall(r'"([^"]*)"', actions_text)
+                                            immediate_actions = action_matches[:5]  # Limit to first 5
+                                    except:
+                                        pass
+                                
+                                # Extract medications
+                                if '"medications"' in cleaned_response:
+                                    try:
+                                        # Look for medication names in the response
+                                        med_keywords = ['Furosemide', 'Metoprolol', 'Lisinopril', 'Digoxin', 'Warfarin', 'Apixaban', 'Bisoprolol']
+                                        for keyword in med_keywords:
+                                            if keyword.lower() in cleaned_response.lower():
+                                                medications.append(f"{keyword} (zie volledige response)")
+                                    except:
+                                        pass
+                                
+                                # Create fallback result with extracted info
+                                agent_3_result = {
+                                    "treatment_plan": {
+                                        "immediate_actions": immediate_actions if immediate_actions else [f"Standaard acute behandeling voor {diagnosis}"],
+                                        "medications": medications if medications else [],
+                                        "monitoring": ["Hemodynamische monitoring", "Symptoom evaluatie"],
+                                        "follow_up": f"Vervolgplan voor {diagnosis}"
+                                    },
+                                    "guideline_source": "Meest recente richtlijnen (JSON parsing gefaald)",
+                                    "evidence_level": "Klinische praktijk",
+                                    "guideline_citations": ["Standaard behandelingsprotocol"],
+                                    "quality_indicators": {
+                                        "guideline_adherence": f"Behandeling voor {diagnosis} (gedeeltelijk geëxtraheerd)",
+                                        "evidence_strength": "moderate",
+                                        "safety_profile": "standaard risico",
+                                        "target_achievement": f"klinische verbetering voor {diagnosis}"
+                                    }
+                                }
+                                print("🔧 Agent 3 used fallback with partial extraction!")
+                                sys.stdout.flush()
                         else:
                             print("⚠️ Agent 3: Cleaned response doesn't start with {, using fallback")
                             sys.stdout.flush()
@@ -288,9 +343,9 @@ Antwoord in JSON format met concrete aanbevelingen:
                                     "monitoring": ["Reguliere controle"],
                                     "follow_up": "Volgens standaard protocol"
                                 },
-                                "esc_guideline_class": "Standaard zorg",
+                                "guideline_source": "Standaard zorg",
                                 "evidence_level": "Klinische praktijk",
-                                "esc_2024_citations": ["Algemene richtlijnen"],
+                                "guideline_citations": ["Algemene richtlijnen"],
                                 "quality_indicators": {
                                     "guideline_adherence": f"Standaard zorg voor {diagnosis}",
                                     "evidence_strength": "moderate",
@@ -308,9 +363,9 @@ Antwoord in JSON format met concrete aanbevelingen:
                                 "monitoring": ["Reguliere controle"],
                                 "follow_up": "Volgens standaard protocol"
                             },
-                            "esc_guideline_class": "Standaard zorg",
+                            "guideline_source": "Standaard zorg",
                             "evidence_level": "Klinische praktijk",
-                            "esc_2024_citations": ["Algemene richtlijnen"],
+                            "guideline_citations": ["Algemene richtlijnen"],
                             "quality_indicators": {
                                 "guideline_adherence": f"Standaard zorg voor {diagnosis}",
                                 "evidence_strength": "moderate",
