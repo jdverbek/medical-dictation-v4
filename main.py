@@ -124,7 +124,7 @@ class MedicalExpertAgents:
             # Agent 2: Diagnostic Expert - REAL ANALYSIS
             print("🩺 Running Agent 2: Diagnostic Expert...")
             sys.stdout.flush()
-            diagnostic_prompt = f"""Analyseer deze Nederlandse medische transcriptie en identificeer de primaire diagnose:
+            diagnostic_prompt = f"""Je bent cardioloog. Analyseer deze Nederlandse medische transcriptie en identificeer de primaire diagnose:
 
 TRANSCRIPTIE: {transcript}
 
@@ -224,7 +224,7 @@ Antwoord in JSON format:
                 print(f"🔍 DEBUG: Specific diagnosis found, generating treatment for: {diagnosis}")
                 sys.stdout.flush()
                 # Provide treatment based on actual diagnosis
-                treatment_prompt = f"""Geef concrete behandelingsadvies voor deze patiënt volgens de meest recente medische richtlijnen:
+                treatment_prompt = f"""Je bent cardioloog. Geef concrete behandelingsadvies voor deze patiënt volgens de meest recente medische richtlijnen:
 
 DIAGNOSE: {diagnosis}
 SYMPTOMEN: {', '.join(symptoms)}
