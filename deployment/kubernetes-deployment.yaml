@@ -1,0 +1,392 @@
+# deployment/kubernetes-deployment.yaml - Production Kubernetes Deployment
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: medical-dictation
+  labels:
+    name: medical-dictation
+
+---
+# ConfigMap for application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: medical-config
+  namespace: medical-dictation
+data:
+  DATABASE_URL: "postgresql+asyncpg://medical:medical@postgres-service:5432/medical_db"
+  REDIS_URL: "redis://redis-service:6379"
+  LOG_LEVEL: "INFO"
+  MAX_CONNECTIONS: "100"
+  CACHE_TTL: "3600"
+
+---
+# Secret for sensitive data
+apiVersion: v1
+kind: Secret
+metadata:
+  name: medical-secrets
+  namespace: medical-dictation
+type: Opaque
+data:
+  OPENAI_API_KEY: # Base64 encoded
+  ANTHROPIC_API_KEY: # Base64 encoded
+  SECRET_KEY: # Base64 encoded
+
+---
+# PostgreSQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: medical-dictation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_DB
+          value: medical_db
+        - name: POSTGRES_USER
+          value: medical
+        - name: POSTGRES_PASSWORD
+          value: medical
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - medical
+            - -d
+            - medical_db
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - medical
+            - -d
+            - medical_db
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+
+---
+# PostgreSQL PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: medical-dictation
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: medical-dictation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        command: ["redis-server", "--appendonly", "yes", "--maxmemory", "2gb", "--maxmemory-policy", "allkeys-lru"]
+        ports:
+        - containerPort: 6379
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# FastAPI Backend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medical-backend
+  namespace: medical-dictation
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: medical-backend
+  template:
+    metadata:
+      labels:
+        app: medical-backend
+    spec:
+      containers:
+      - name: backend
+        image: medical-dictation-backend:v4.0
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: medical-config
+        - secretRef:
+            name: medical-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# React Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medical-frontend
+  namespace: medical-dictation
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: medical-frontend
+  template:
+    metadata:
+      labels:
+        app: medical-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: medical-dictation-frontend:v4.0
+        ports:
+        - containerPort: 3000
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# Services
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: medical-dictation
+spec:
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: medical-dictation
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: medical-backend-service
+  namespace: medical-dictation
+spec:
+  selector:
+    app: medical-backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: medical-frontend-service
+  namespace: medical-dictation
+spec:
+  selector:
+    app: medical-frontend
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: ClusterIP
+
+---
+# Ingress for external access
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: medical-ingress
+  namespace: medical-dictation
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/client-max-body-size: "50m"
+spec:
+  tls:
+  - hosts:
+    - medical.yourdomain.com
+    secretName: medical-tls
+  rules:
+  - host: medical.yourdomain.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: medical-backend-service
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: medical-frontend-service
+            port:
+              number: 3000
+
+---
+# Horizontal Pod Autoscaler for Backend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: medical-backend-hpa
+  namespace: medical-dictation
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: medical-backend
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Horizontal Pod Autoscaler for Frontend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: medical-frontend-hpa
+  namespace: medical-dictation
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: medical-frontend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+
