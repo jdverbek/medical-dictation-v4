@@ -25,7 +25,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(hours=2)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
-# Inidef extract_treatment_from_transcript(transcript):
+def extract_treatment_from_transcript(transcript):
     """Extract treatment plan from transcript"""
     import re
     
