@@ -53,14 +53,9 @@ class MedicalExpertAgents:
                 kwargs = {
                     "model": "gpt-5-mini-2025-08-07",
                     "messages": messages,
-                    "temperature": 0.1
+                    "temperature": 0.1,
+                    "max_completion_tokens": max_tokens  # GPT-5-mini requires max_completion_tokens
                 }
-                
-                # Use max_completion_tokens for newer models if available
-                try:
-                    kwargs["max_completion_tokens"] = max_tokens
-                except:
-                    kwargs["max_tokens"] = max_tokens
                 
                 if json_mode:
                     kwargs["response_format"] = {"type": "json_object"}
@@ -87,12 +82,27 @@ class MedicalExpertAgents:
                 messages.append({"role": "user", "content": prompt})
                 
                 print(f"🔍 DEBUG: About to call legacy OpenAI API...")
-                response = openai.ChatCompletion.create(
-                    model="gpt-5-mini-2025-08-07",
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=0.1
-                )
+                
+                # Try max_completion_tokens first for GPT-5-mini
+                try:
+                    response = openai.ChatCompletion.create(
+                        model="gpt-5-mini-2025-08-07",
+                        messages=messages,
+                        max_completion_tokens=max_tokens,  # GPT-5-mini requires max_completion_tokens
+                        temperature=0.1
+                    )
+                except Exception as param_error:
+                    if "max_completion_tokens" in str(param_error):
+                        # Fallback to max_tokens if max_completion_tokens not supported
+                        print(f"🔍 DEBUG: max_completion_tokens not supported, trying max_tokens...")
+                        response = openai.ChatCompletion.create(
+                            model="gpt-5-mini-2025-08-07",
+                            messages=messages,
+                            max_tokens=max_tokens,
+                            temperature=0.1
+                        )
+                    else:
+                        raise param_error
                 
                 result = response.choices[0].message.content.strip()
                 print(f"🔍 DEBUG: Legacy OpenAI API call successful, response length: {len(result)}")
