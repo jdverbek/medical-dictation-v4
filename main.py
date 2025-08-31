@@ -29,14 +29,14 @@ class MedicalExpertAgents:
             raise ValueError("OPENAI_API_KEY environment variable is required")
         
         print("🤖 Initializing 3 Expert Medical Agents (OpenAI Only)...")
-        print("🔍 Agent 1: Transcript Quality Control (GPT-4o-mini)")
-        print("🩺 Agent 2: Diagnostic Expert (GPT-4o-mini)")  
-        print("💊 Agent 3: Treatment Protocol (GPT-4o-mini)")
+        print("🔍 Agent 1: Transcript Quality Control (GPT-5-mini)")
+        print("🩺 Agent 2: Diagnostic Expert (GPT-5-mini)")  
+        print("💊 Agent 3: Treatment Protocol (GPT-5-mini)")
     
     def _call_gpt4(self, prompt: str, system_prompt: str = "", max_tokens: int = 1000, json_mode: bool = False) -> str:
-        """Call GPT-4o-mini with proper error handling using OpenAI API (compatible with old and new versions)"""
+        """Call GPT-5-mini with proper error handling using OpenAI API (compatible with old and new versions)"""
         try:
-            print(f"🔍 DEBUG: Calling GPT-4o-mini with prompt length: {len(prompt)}")
+            print(f"🔍 DEBUG: Calling GPT-5-mini with prompt length: {len(prompt)}")
             print(f"🔍 DEBUG: OpenAI API Key available: {bool(os.environ.get('OPENAI_API_KEY'))}")
             
             # Try new OpenAI v1.0+ import first
@@ -51,11 +51,16 @@ class MedicalExpertAgents:
                 messages.append({"role": "user", "content": prompt})
                 
                 kwargs = {
-                    "model": "gpt-4o-mini",
+                    "model": "gpt-5-mini-2025-08-07",
                     "messages": messages,
-                    "max_tokens": max_tokens,
                     "temperature": 0.1
                 }
+                
+                # Use max_completion_tokens for newer models if available
+                try:
+                    kwargs["max_completion_tokens"] = max_tokens
+                except:
+                    kwargs["max_tokens"] = max_tokens
                 
                 if json_mode:
                     kwargs["response_format"] = {"type": "json_object"}
@@ -64,7 +69,7 @@ class MedicalExpertAgents:
                 response = client.chat.completions.create(**kwargs)
                 result = response.choices[0].message.content.strip()
                 print(f"🔍 DEBUG: OpenAI v1.0+ API call successful, response length: {len(result)}")
-                print(f"🔍 DEBUG: GPT-4o-mini response preview: {result[:200]}...")
+                print(f"🔍 DEBUG: GPT-5-mini response preview: {result[:200]}...")
                 return result
                 
             except ImportError as import_error:
@@ -83,7 +88,7 @@ class MedicalExpertAgents:
                 
                 print(f"🔍 DEBUG: About to call legacy OpenAI API...")
                 response = openai.ChatCompletion.create(
-                    model="gpt-4o-mini",
+                    model="gpt-5-mini-2025-08-07",
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=0.1
@@ -91,11 +96,11 @@ class MedicalExpertAgents:
                 
                 result = response.choices[0].message.content.strip()
                 print(f"🔍 DEBUG: Legacy OpenAI API call successful, response length: {len(result)}")
-                print(f"🔍 DEBUG: GPT-4o-mini response preview: {result[:200]}...")
+                print(f"🔍 DEBUG: GPT-5-mini response preview: {result[:200]}...")
                 return result
             
         except Exception as e:
-            print(f"⚠️ GPT-4o-mini API error: {e}")
+            print(f"⚠️ GPT-5-mini API error: {e}")
             import traceback
             print(f"🔍 DEBUG: Full API error traceback: {traceback.format_exc()}")
             return ""
