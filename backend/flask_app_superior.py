@@ -14,7 +14,6 @@ import time
 import logging
 from functools import wraps
 from superior_transcription import SuperiorMedicalTranscription
-from medical_expert_agents import MedicalExpertAgents
 
 app = Flask(__name__, template_folder='templates')
 
@@ -29,8 +28,16 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 # Initialize superior transcription system
 transcription_system = SuperiorMedicalTranscription()
 
-# Initialize medical expert agents system
-medical_experts = MedicalExpertAgents()
+# Initialize medical expert agents system (optional)
+try:
+    from medical_expert_agents import MedicalExpertAgents
+    medical_experts = MedicalExpertAgents()
+    EXPERTS_AVAILABLE = True
+    print("🤖 Medical Expert Agents initialized successfully!")
+except Exception as e:
+    print(f"⚠️ Medical Expert Agents not available: {e}")
+    medical_experts = None
+    EXPERTS_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(
@@ -235,15 +242,26 @@ def api_transcribe():
         
         transcript = transcription_result['transcript']
         
-        # 🚀 RUN 3 EXPERT MEDICAL AGENTS
-        print(f"🤖 API DEBUG: Starting 3 Expert Medical Agents analysis...")
-        expert_analysis = medical_experts.orchestrate_medical_analysis(
-            transcript=transcript,
-            patient_context=f"Patient ID: {patient_id}, Report Type: {verslag_type}"
-        )
+        # 🚀 RUN 3 EXPERT MEDICAL AGENTS (if available)
+        expert_analysis = {}
+        improved_transcript = transcript
         
-        # Use improved transcript from Agent 1
-        improved_transcript = expert_analysis.get('agent_1_quality_control', {}).get('improved_transcript', transcript)
+        if EXPERTS_AVAILABLE and medical_experts:
+            try:
+                print(f"🤖 API DEBUG: Starting 3 Expert Medical Agents analysis...")
+                expert_analysis = medical_experts.orchestrate_medical_analysis(
+                    transcript=transcript,
+                    patient_context=f"Patient ID: {patient_id}, Report Type: {verslag_type}"
+                )
+                
+                # Use improved transcript from Agent 1
+                improved_transcript = expert_analysis.get('agent_1_quality_control', {}).get('improved_transcript', transcript)
+                print(f"🤖 API DEBUG: Expert analysis completed successfully!")
+            except Exception as e:
+                print(f"⚠️ API DEBUG: Expert analysis failed: {e}")
+                expert_analysis = {}
+        else:
+            print(f"⚠️ API DEBUG: Expert agents not available, using basic processing")
         
         # Generate report
         print(f"🔍 API DEBUG: About to generate report for type: '{verslag_type}'")
