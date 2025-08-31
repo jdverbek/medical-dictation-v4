@@ -14,6 +14,7 @@ import time
 import logging
 from functools import wraps
 from superior_transcription import SuperiorMedicalTranscription
+from medical_expert_agents import MedicalExpertAgents
 
 app = Flask(__name__, template_folder='templates')
 
@@ -27,6 +28,9 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 # Initialize superior transcription system
 transcription_system = SuperiorMedicalTranscription()
+
+# Initialize medical expert agents system
+medical_experts = MedicalExpertAgents()
 
 # Configure logging
 logging.basicConfig(
@@ -231,27 +235,47 @@ def api_transcribe():
         
         transcript = transcription_result['transcript']
         
+        # 🚀 RUN 3 EXPERT MEDICAL AGENTS
+        print(f"🤖 API DEBUG: Starting 3 Expert Medical Agents analysis...")
+        expert_analysis = medical_experts.orchestrate_medical_analysis(
+            transcript=transcript,
+            patient_context=f"Patient ID: {patient_id}, Report Type: {verslag_type}"
+        )
+        
+        # Use improved transcript from Agent 1
+        improved_transcript = expert_analysis.get('agent_1_quality_control', {}).get('improved_transcript', transcript)
+        
         # Generate report
         print(f"🔍 API DEBUG: About to generate report for type: '{verslag_type}'")
         
         if verslag_type == 'TTE':
             print("🔍 API DEBUG: Generating TTE report...")
-            report = transcription_system.generate_tte_report(transcript, patient_id)
+            report = transcription_system.generate_tte_report(improved_transcript, patient_id)
         elif verslag_type == 'SPOEDCONSULT':
             print("🔍 API DEBUG: Generating SPOEDCONSULT report...")
-            report = transcription_system.generate_spoedconsult_report(transcript, patient_id)
+            report = transcription_system.generate_spoedconsult_report(improved_transcript, patient_id)
         else:
             print(f"🔍 API DEBUG: Unknown type '{verslag_type}', defaulting to TTE...")
-            report = transcription_system.generate_tte_report(transcript, patient_id)
+            report = transcription_system.generate_tte_report(improved_transcript, patient_id)
         
         print(f"🔍 API DEBUG: Generated report preview: {report[:100]}...")
         
         return jsonify({
             'success': True,
-            'transcript': transcript,
+            'transcript': improved_transcript,  # Show improved transcript
+            'raw_transcript': transcript,  # Keep original for debugging
             'report': report,
             'patient_id': patient_id,
-            'verslag_type': verslag_type
+            'verslag_type': verslag_type,
+            'expert_analysis': {
+                'quality_score': expert_analysis.get('agent_1_quality_control', {}).get('quality_score', 0),
+                'primary_diagnosis': expert_analysis.get('agent_2_diagnostic_expert', {}).get('primary_diagnosis', {}),
+                'treatment_plan': expert_analysis.get('agent_3_treatment_protocol', {}).get('treatment_plan', {}),
+                'safety_alerts': expert_analysis.get('agent_1_quality_control', {}).get('safety_alerts', []),
+                'urgency_level': expert_analysis.get('agent_2_diagnostic_expert', {}).get('urgency_level', 'unknown'),
+                'corrections_made': len(expert_analysis.get('agent_1_quality_control', {}).get('corrections', [])),
+                'agents_used': expert_analysis.get('orchestration_summary', {}).get('agents_used', 3)
+            }
         })
         
     except Exception as e:

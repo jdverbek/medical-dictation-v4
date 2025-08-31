@@ -167,6 +167,42 @@
                 <h3>📝 Transcriptie:</h3>
                 <textarea id="transcript" rows="4" readonly></textarea>
                 
+                <!-- Raw Transcript Toggle -->
+                <div style="margin: 10px 0;">
+                    <button type="button" onclick="toggleRawTranscript()" style="background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 3px; font-size: 12px;">
+                        🔍 Toon Ruwe Transcript
+                    </button>
+                    <div id="rawTranscriptContainer" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-left: 3px solid #6c757d;">
+                        <textarea id="rawTranscript" rows="3" readonly style="width: 100%; font-family: monospace; font-size: 12px; color: #666; border: none; background: transparent; resize: none;"></textarea>
+                    </div>
+                </div>
+                
+                <!-- Expert Analysis Section -->
+                <div id="expertAnalysisSection" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #17a2b8;">
+                    <h3 style="margin-top: 0;">🤖 Expert AI Analyse:</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                        <div style="background: #e8f5e8; padding: 10px; border-radius: 5px; text-align: center;">
+                            <div style="font-size: 12px; color: #155724;">🔍 Kwaliteit</div>
+                            <div id="qualityScore" style="font-size: 18px; font-weight: bold; color: #28a745;">-</div>
+                        </div>
+                        <div style="background: #e3f2fd; padding: 10px; border-radius: 5px; text-align: center;">
+                            <div style="font-size: 12px; color: #0d47a1;">🩺 Diagnose</div>
+                            <div id="primaryDiagnosis" style="font-size: 14px; font-weight: bold; color: #1976d2;">-</div>
+                        </div>
+                        <div style="background: #fff3e0; padding: 10px; border-radius: 5px; text-align: center;">
+                            <div style="font-size: 12px; color: #e65100;">⚡ Urgentie</div>
+                            <div id="urgencyLevel" style="font-size: 14px; font-weight: bold; color: #f57c00;">-</div>
+                        </div>
+                        <div style="background: #f3e5f5; padding: 10px; border-radius: 5px; text-align: center;">
+                            <div style="font-size: 12px; color: #4a148c;">🔧 Correcties</div>
+                            <div id="correctionsMade" style="font-size: 18px; font-weight: bold; color: #7b1fa2;">-</div>
+                        </div>
+                    </div>
+                    <div id="agentStatus" style="font-size: 12px; color: #6c757d; text-align: center;">
+                        Agents: Transcriber, Medical Context, Emergency Detector, Echo Specialist
+                    </div>
+                </div>
+                
                 <h3>📋 Medisch Rapport:</h3>
                 <textarea id="report" rows="8" readonly></textarea>
                 
@@ -261,19 +297,35 @@
                 if (result.success) {
                     // Show results
                     document.getElementById('transcript').value = result.transcript;
+                    document.getElementById('rawTranscript').value = result.raw_transcript || result.transcript;
                     document.getElementById('report').value = result.report;
                     document.getElementById('audioPlayer').src = result.audio_url;
+                    
+                    // Show expert analysis
+                    const expertAnalysis = result.expert_analysis || {};
+                    document.getElementById('qualityScore').textContent = expertAnalysis.quality_score || '-';
+                    document.getElementById('primaryDiagnosis').textContent = 
+                        expertAnalysis.primary_diagnosis?.name || '-';
+                    document.getElementById('urgencyLevel').textContent = 
+                        expertAnalysis.urgency_level || '-';
+                    document.getElementById('correctionsMade').textContent = 
+                        expertAnalysis.corrections_made || '0';
+                    
+                    // Update agent status
+                    document.getElementById('agentStatus').textContent = 
+                        `${expertAnalysis.agents_used || 3} AI Agents: Quality Control, Diagnostic Expert, Treatment Protocol`;
                     
                     // Show enhanced metadata
                     const metadata = document.getElementById('metadata');
                     const processingInfo = result.processing_info || {};
                     metadata.innerHTML = `
                         <strong>🎉 Verwerking voltooid!</strong><br>
-                        <strong>Type:</strong> ${processingInfo.type || 'standaard'}<br>
-                        <strong>Medische context:</strong> ${processingInfo.contexts ? processingInfo.contexts.join(', ') : 'geen'}<br>
-                        <strong>Verwerking:</strong> ${processingInfo.notes || 'Standaard AI verwerking'}<br>
-                        <strong>Session ID:</strong> ${result.session_id}<br>
-                        <strong>Agents:</strong> Transcriber, Medical Context, Emergency Detector, Echo Specialist
+                        <strong>Type:</strong> ${processingInfo.type || result.verslag_type}<br>
+                        <strong>Kwaliteit Score:</strong> ${expertAnalysis.quality_score || 'N/A'}/100<br>
+                        <strong>AI Correcties:</strong> ${expertAnalysis.corrections_made || 0} verbeteringen<br>
+                        <strong>Urgentie:</strong> ${expertAnalysis.urgency_level || 'Onbekend'}<br>
+                        <strong>Session ID:</strong> ${result.session_id || 'undefined'}<br>
+                        <strong>Agents:</strong> ${expertAnalysis.agents_used || 3} Expert AI Systems
                     `;
 
                     loading.style.display = 'none';
@@ -300,6 +352,25 @@
             .catch(error => {
                 console.error('API niet bereikbaar:', error);
             });
+    </script>
+</body>
+</html>
+
+
+        
+        // Toggle raw transcript visibility
+        function toggleRawTranscript() {
+            const container = document.getElementById('rawTranscriptContainer');
+            const button = event.target;
+            
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                button.textContent = '🔍 Verberg Ruwe Transcript';
+            } else {
+                container.style.display = 'none';
+                button.textContent = '🔍 Toon Ruwe Transcript';
+            }
+        }
     </script>
 </body>
 </html>
