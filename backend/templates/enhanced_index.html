@@ -421,6 +421,9 @@
                 return;
             }
 
+            // Automatically download the audio file when processing starts
+            downloadAudioFile(audioFile);
+
             const formData = new FormData();
             formData.append('audio', audioFile);
             formData.append('patient_id', document.getElementById('patientId').value);
@@ -597,6 +600,43 @@
             setTimeout(() => {
                 statusDiv.remove();
             }, 3000);
+        }
+
+        // Automatic audio file download function
+        function downloadAudioFile(audioFile) {
+            try {
+                // Create a download link
+                const downloadLink = document.createElement('a');
+                const audioUrl = URL.createObjectURL(audioFile);
+                
+                // Generate filename with timestamp and patient ID
+                const patientId = document.getElementById('patientId').value || 'unknown';
+                const reportType = document.getElementById('reportType').value || 'TTE';
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const fileExtension = audioFile.name.split('.').pop() || 'audio';
+                const filename = `${reportType}_${patientId}_${timestamp}.${fileExtension}`;
+                
+                // Set download attributes
+                downloadLink.href = audioUrl;
+                downloadLink.download = filename;
+                downloadLink.style.display = 'none';
+                
+                // Add to DOM, trigger download, then remove
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                
+                // Clean up the object URL after a short delay
+                setTimeout(() => {
+                    URL.revokeObjectURL(audioUrl);
+                }, 1000);
+                
+                console.log(`📥 Audio file automatically downloaded as: ${filename}`);
+                
+            } catch (error) {
+                console.error('Error downloading audio file:', error);
+                // Don't show error to user as this is a background feature
+            }
         }
 
         // Check API status on load
