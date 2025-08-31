@@ -13,6 +13,7 @@ import io
 from datetime import datetime
 import openai
 import anthropic
+from medical_intelligence import MedicalOrchestratorV2
 
 # Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -29,6 +30,9 @@ if OPENAI_API_KEY:
 anthropic_client = None
 if ANTHROPIC_API_KEY:
     anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+# Initialize medical intelligence system
+medical_orchestrator = MedicalOrchestratorV2()
 
 # In-memory storage
 audio_storage = {}
@@ -157,7 +161,7 @@ Gebruik alleen informatie uit de transcriptie. Schrijf in professioneel Nederlan
 
 @app.route('/api/transcribe', methods=['POST'])
 def transcribe_audio_endpoint():
-    """Main transcription endpoint with AI intelligence"""
+    """Main transcription endpoint with advanced medical intelligence"""
     
     try:
         # Get form data
@@ -183,24 +187,46 @@ def transcribe_audio_endpoint():
         print(f"Starting transcription for session {session_id}")
         transcript = transcribe_audio_sync(audio_data)
         
-        # Step 2: Improve with GPT-4 (multi-agent simulation)
-        print(f"Improving transcript for session {session_id}")
-        improved_transcript = improve_transcript_sync(transcript, patient_id, report_type)
+        # Step 2: Advanced medical intelligence processing
+        print(f"Applying medical intelligence for session {session_id}")
+        medical_result = medical_orchestrator.process_medical_transcript(
+            transcript, patient_id, report_type
+        )
         
-        # Step 3: Generate medical report
-        print(f"Generating report for session {session_id}")
-        report = generate_medical_report_sync(improved_transcript, patient_id, report_type)
+        # Step 3: Generate final report based on medical intelligence
+        print(f"Generating final report for session {session_id}")
+        
+        if medical_result['type'] == 'emergency_consult':
+            # Emergency consultation
+            final_transcript = medical_result['expanded_consultation']
+            final_report = medical_result['expanded_consultation']
+            processing_notes = f"🚨 Spoedconsult gedetecteerd: {', '.join(medical_result['emergency_keywords'])}"
+            
+        elif medical_result['type'] == 'echo_report':
+            # Professional echo report
+            final_transcript = medical_result['original_transcript']
+            final_report = medical_result['structured_report']
+            processing_notes = f"📊 Professioneel {report_type} rapport gegenereerd"
+            
+        else:
+            # Regular medical processing with context
+            final_transcript = medical_result['improved_transcript']
+            final_report = generate_medical_report_sync(final_transcript, patient_id, report_type)
+            processing_notes = f"🧠 Medische context toegepast: {', '.join(medical_result['contexts'])}"
         
         # Store result
         result = {
-            'transcript': improved_transcript,
-            'report': report,
+            'transcript': final_transcript,
+            'report': final_report,
             'session_id': session_id,
-            'confidence': 0.9,
+            'confidence': 0.95,  # Higher confidence with medical intelligence
             'processing_metadata': {
-                'agents_used': ['transcriber', 'gpt_improver', 'report_generator'],
+                'agents_used': ['transcriber', 'medical_context', 'emergency_detector', 'echo_specialist'],
+                'medical_contexts': medical_result.get('contexts', []),
+                'processing_type': medical_result['type'],
+                'processing_notes': processing_notes,
                 'iterations': 1,
-                'improvements_made': 1 if improved_transcript != transcript else 0
+                'improvements_made': 1
             }
         }
         
@@ -211,7 +237,12 @@ def transcribe_audio_endpoint():
             "transcript": result['transcript'],
             "report": result['report'],
             "audio_url": f"/api/audio/{session_id}",
-            "session_id": session_id
+            "session_id": session_id,
+            "processing_info": {
+                "type": medical_result['type'],
+                "contexts": medical_result.get('contexts', []),
+                "notes": processing_notes
+            }
         })
         
     except Exception as e:

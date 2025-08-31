@@ -136,6 +136,7 @@
                     <option value="ECG">ECG</option>
                     <option value="Holter">Holter Monitor</option>
                     <option value="Consult">Consultatie</option>
+                    <option value="Spoedconsult">🚨 Spoedconsult</option>
                 </select>
             </div>
 
@@ -263,12 +264,16 @@
                     document.getElementById('report').value = result.report;
                     document.getElementById('audioPlayer').src = result.audio_url;
                     
-                    // Show metadata
+                    // Show enhanced metadata
                     const metadata = document.getElementById('metadata');
+                    const processingInfo = result.processing_info || {};
                     metadata.innerHTML = `
-                        <strong>Verwerking voltooid!</strong><br>
-                        Session ID: ${result.session_id}<br>
-                        Agents gebruikt: Transcriber, GPT-4 Improver, Report Generator
+                        <strong>🎉 Verwerking voltooid!</strong><br>
+                        <strong>Type:</strong> ${processingInfo.type || 'standaard'}<br>
+                        <strong>Medische context:</strong> ${processingInfo.contexts ? processingInfo.contexts.join(', ') : 'geen'}<br>
+                        <strong>Verwerking:</strong> ${processingInfo.notes || 'Standaard AI verwerking'}<br>
+                        <strong>Session ID:</strong> ${result.session_id}<br>
+                        <strong>Agents:</strong> Transcriber, Medical Context, Emergency Detector, Echo Specialist
                     `;
 
                     loading.style.display = 'none';
