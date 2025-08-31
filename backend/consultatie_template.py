@@ -45,11 +45,11 @@ Draaierigheid/flauwtes/bewustzijnsverlies: (ja/neen)
 Bij elk van de bovenstaande: beschrijving (kwalitatief: hoe voelt het), wat lokt het uit (vb. Inspanning), etc.
 
 4. Klinisch onderzoek
-Retrosternale last: (ja/neen)
-Dyspneu: (ja/neen)
-Palpitaties: (ja/neen)
-Zwelling onderste ledematen: (ja/neen)
-Draaierigheid/syncope: (ja/neen)
+Algehele aanblik: goed
+Cor: regelmatig, geen souffle
+Longen: zuiver
+Perifeer: geen oedemen
+Jugulairen: niet gestuwd
 
 5. Aanvullend onderzoek
 
