@@ -14,6 +14,7 @@ from datetime import datetime
 import openai
 import anthropic
 from medical_intelligence import MedicalIntelligenceOrchestrator
+from advanced_transcription import transcription_engine
 
 # Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -66,7 +67,7 @@ def api_info():
     })
 
 def transcribe_audio_sync(audio_data):
-    """Synchronous transcription using Whisper (older API)"""
+    """Best-in-class transcription using optimized Whisper with medical context"""
     if not OPENAI_API_KEY:
         return "OpenAI API not configured"
     
@@ -76,22 +77,25 @@ def transcribe_audio_sync(audio_data):
         with open(temp_filename, 'wb') as f:
             f.write(audio_data)
         
-        # Use older OpenAI API
+        # Use Whisper-1 with MAXIMUM medical optimization
         with open(temp_filename, 'rb') as audio_file:
             response = openai.Audio.transcribe(
-                model="whisper-1",
+                model="whisper-1",  # Best available model
                 file=audio_file,
-                language="nl",
-                temperature=0.0,
-                prompt="Medische dictatie in het Nederlands. Let op medische terminologie."
+                language="nl",  # Dutch language optimization
+                temperature=0.0,  # Most deterministic output
+                # Comprehensive medical prompt for better recognition
+                prompt="""Nederlandse medische transcriptie. Medische termen: atriumfibrillatie, voorkamerfibrillatie, echocardiografie, retrosternale pijn, dyspnoe, troponine, NT-proBNP, serumcreatinine, Cedocard, Arixtra, coronarografie, biventriculaire functie, systolische souffle, crepitaties, AV-blok, repolarisatiestoornissen, tricuspidalisklep insufficiëntie, mitralisklep, LVEF, spoedgevallen, subcutaan, mg/dl, mmHg."""
             )
         
         # Clean up temp file
         os.remove(temp_filename)
         
+        print(f"✅ Whisper transcription: {len(response.text)} characters")
         return response.text
+        
     except Exception as e:
-        print(f"Transcription failed: {e}")
+        print(f"❌ Transcription failed: {e}")
         return f"Transcription error: {str(e)}"
 
 def improve_transcript_sync(transcript, patient_id, report_type):
@@ -183,9 +187,9 @@ def transcribe_audio_endpoint():
         # Store audio for playback
         audio_storage[session_id] = audio_data
         
-        # Step 1: Initial transcription
-        print(f"Starting transcription for session {session_id}")
-        transcript = transcribe_audio_sync(audio_data)
+        # Step 1: BEST-IN-CLASS transcription
+        print(f"🎤 Starting ADVANCED transcription for session {session_id}")
+        transcript = transcription_engine.transcribe_best_quality(audio_data)
         
         # Step 2: Apply REAL medical intelligence
         print(f"Applying REAL medical intelligence for session {session_id}")
