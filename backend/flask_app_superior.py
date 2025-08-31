@@ -215,6 +215,11 @@ def api_transcribe():
         verslag_type = request.form.get('verslag_type', 'TTE')
         patient_id = request.form.get('patient_id', '')
         
+        # DEBUG: Log what template was selected in API
+        print(f"🔍 API DEBUG: Template selected = '{verslag_type}'")
+        print(f"🔍 API DEBUG: Patient ID = '{patient_id}'")
+        print(f"🔍 API DEBUG: Audio filename = '{audio_file.filename}'")
+        
         # Transcribe audio
         transcription_result = transcription_system.transcribe_audio(audio_file)
         
@@ -227,12 +232,19 @@ def api_transcribe():
         transcript = transcription_result['transcript']
         
         # Generate report
+        print(f"🔍 API DEBUG: About to generate report for type: '{verslag_type}'")
+        
         if verslag_type == 'TTE':
+            print("🔍 API DEBUG: Generating TTE report...")
             report = transcription_system.generate_tte_report(transcript, patient_id)
         elif verslag_type == 'SPOEDCONSULT':
+            print("🔍 API DEBUG: Generating SPOEDCONSULT report...")
             report = transcription_system.generate_spoedconsult_report(transcript, patient_id)
         else:
+            print(f"🔍 API DEBUG: Unknown type '{verslag_type}', defaulting to TTE...")
             report = transcription_system.generate_tte_report(transcript, patient_id)
+        
+        print(f"🔍 API DEBUG: Generated report preview: {report[:100]}...")
         
         return jsonify({
             'success': True,
