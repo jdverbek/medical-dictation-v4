@@ -34,35 +34,65 @@ class MedicalExpertAgents:
         print("💊 Agent 3: Treatment Protocol (GPT-4)")
     
     def _call_gpt4(self, prompt: str, system_prompt: str = "", max_tokens: int = 1000, json_mode: bool = False) -> str:
-        """Call GPT-4 with proper error handling using OpenAI 1.0+ API"""
+        """Call GPT-4 with proper error handling using OpenAI API (compatible with old and new versions)"""
         try:
-            from openai import OpenAI
-            client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
-            
             print(f"🔍 DEBUG: Calling GPT-4 with prompt length: {len(prompt)}")
             print(f"🔍 DEBUG: OpenAI API Key available: {bool(os.environ.get('OPENAI_API_KEY'))}")
             
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
-            
-            response_format = {"type": "json_object"} if json_mode else None
-            
-            print(f"🔍 DEBUG: About to call OpenAI API with model gpt-4.1-mini...")
-            response = client.chat.completions.create(
-                model="gpt-4.1-mini",
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=0.1,
-                response_format=response_format
-            )
-            
-            result = response.choices[0].message.content.strip()
-            print(f"🔍 DEBUG: GPT-4 response length: {len(result)}")
-            print(f"🔍 DEBUG: GPT-4 response preview: {result[:200]}...")
-            
-            return result
+            # Try new OpenAI v1.0+ import first
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+                print(f"🔍 DEBUG: Using OpenAI v1.0+ client")
+                
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": prompt})
+                
+                kwargs = {
+                    "model": "gpt-4.1-mini",
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                    "temperature": 0.1
+                }
+                
+                if json_mode:
+                    kwargs["response_format"] = {"type": "json_object"}
+                
+                print(f"🔍 DEBUG: About to call OpenAI v1.0+ API...")
+                response = client.chat.completions.create(**kwargs)
+                result = response.choices[0].message.content.strip()
+                print(f"🔍 DEBUG: OpenAI v1.0+ API call successful, response length: {len(result)}")
+                print(f"🔍 DEBUG: GPT-4 response preview: {result[:200]}...")
+                return result
+                
+            except ImportError as import_error:
+                print(f"🔍 DEBUG: OpenAI v1.0+ import failed: {import_error}")
+                print(f"🔍 DEBUG: Trying legacy OpenAI v0.x import...")
+                
+                # Fallback to old OpenAI v0.x import
+                import openai
+                openai.api_key = os.environ.get('OPENAI_API_KEY')
+                print(f"🔍 DEBUG: Using legacy OpenAI v0.x client")
+                
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": prompt})
+                
+                print(f"🔍 DEBUG: About to call legacy OpenAI API...")
+                response = openai.ChatCompletion.create(
+                    model="gpt-4.1-mini",
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=0.1
+                )
+                
+                result = response.choices[0].message.content.strip()
+                print(f"🔍 DEBUG: Legacy OpenAI API call successful, response length: {len(result)}")
+                print(f"🔍 DEBUG: GPT-4 response preview: {result[:200]}...")
+                return result
             
         except Exception as e:
             print(f"⚠️ GPT-4 API error: {e}")
