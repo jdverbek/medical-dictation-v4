@@ -14,7 +14,6 @@ import time
 import logging
 from functools import wraps
 from backend.superior_transcription import SuperiorMedicalTranscription
-from backend.medical_intelligence import MedicalIntelligence
 from backend.medical_expert_agents import MedicalExpertAgents
 
 app = Flask(__name__, template_folder='backend/templates')
@@ -31,9 +30,6 @@ except Exception as e:
     print(f"⚠️ Medical Expert Agents not available: {e}")
     medical_experts = None
     EXPERTS_AVAILABLE = False
-
-# Initialize medical intelligence
-medical_intelligence = MedicalIntelligence()
 
 # Configure session with secure settings (from v2)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
