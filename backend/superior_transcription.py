@@ -47,27 +47,27 @@ class SuperiorMedicalTranscription:
             audio_file_obj = io.BytesIO(file_content)
             audio_file_obj.name = filename
             
-            # Use different models and prompts based on report type
+            # Use gpt-4o-transcribe for all report types for consistent quality
             if report_type == "LIVE_CONSULTATIE":
                 # Use GPT-4o for live consultations with special prompt
                 transcript = openai.Audio.transcribe(
-                    model="gpt-4o-transcribe",  # Correct model name for live consultations
+                    model="gpt-4o-transcribe",
                     file=audio_file_obj,
                     language="nl",
                     prompt="""Je bent een medische secretaresse die aanwezig is bij een cardiologische consultatie waarbij een patiënt op bezoek komt bij de arts. Je hoort een conversatie tussen 2 of meerdere personen (soms zijn familieleden mee) en maakt een gedetailleerde samenvatting van de consultatie. Focus je vooral op de anamnese/symptomen, probeer deze zo getrouw mogelijk neer te pennen. Let op: soms zal de conversatie gestoord worden doordat de arts gebeld wordt of iemand binnenkomt; hier moet je goed bedacht op zijn (de context zal plots niet meer kloppen)."""
                 )
             elif report_type == "CONSULTATIE":
-                # Use Whisper for structured consultation format
+                # Use GPT-4o-transcribe for structured consultation format
                 transcript = openai.Audio.transcribe(
-                    model="whisper-1",
+                    model="gpt-4o-transcribe",
                     file=audio_file_obj,
                     language="nl",
                     prompt="Dit is een Nederlandse medische dictatie van een cardioloog voor een gestructureerde consultatie. Gebruik correcte medische terminologie en behoud alle details voor het consultatieverslag."
                 )
             else:
-                # Use standard Whisper for TTE and SPOEDCONSULT
+                # Use GPT-4o-transcribe for TTE and SPOEDCONSULT
                 transcript = openai.Audio.transcribe(
-                    model="whisper-1",
+                    model="gpt-4o-transcribe",
                     file=audio_file_obj,
                     language="nl",
                     prompt="Dit is een Nederlandse medische transcriptie van een cardioloog. Gebruik correcte medische terminologie."
