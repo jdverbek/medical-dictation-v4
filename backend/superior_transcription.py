@@ -308,9 +308,9 @@ Je bent een ervaren cardioloog die een spoedconsult brief moet schrijven op basi
 BELANGRIJK: Dit is GEEN TTE verslag! Dit is een SPOEDCONSULT BRIEF!
 
 SPOEDCONSULT INTELLIGENTIE:
-- "nieuwe vkf" → volledige voorkamerfibrillatie uitleg met behandeling
+- Analyseer de keywords en genereer relevante medische content
 - "opname" → complete opname indicatie met beleid
-- "standaardbehandeling" → specifieke medicatie en dosering
+- "standaardbehandeling" → specifieke medicatie en dosering gebaseerd op diagnose
 - "ACS" → acuut coronair syndroom protocol
 - "arixtra" in ACS context → Arixtra (NIET xarelto)
 - "cedocard" voor angina → Cedocard
@@ -328,24 +328,24 @@ BEVINDINGEN:
 [Relevante onderzoeken en resultaten - GEEN TTE secties!]
 
 DIAGNOSE:
-[Primaire en secundaire diagnoses]
+[Primaire en secundaire diagnoses ALLEEN gebaseerd op vermelde keywords]
 
 BELEID:
-[Specifieke behandeling en medicatie]
+[Specifieke behandeling en medicatie ALLEEN voor geïdentificeerde condities]
 
 FOLLOW-UP:
 [Vervolgafspraken en monitoring]
 
 KEYWORDS EXPANSIE REGELS:
-- "nieuwe vkf" → "Patiënt presenteert zich met nieuwe voorkamerfibrillatie. ECG toont irregulaire RR-intervallen zonder P-golven. Hemodynamisch stabiel."
+- Analyseer keywords en genereer alleen relevante content
 - "opname" → "Opname geïndiceerd voor monitoring en verdere diagnostiek/behandeling"
-- "standaardbehandeling" → Specifieke medicatie met doseringen
+- "standaardbehandeling" → Specifieke medicatie en doseringen voor geïdentificeerde conditie
 - "coronarografie" → "Coronarografie gepland voor evaluatie coronaire anatomie"
 
 MEDICATIE CONTEXT-AWARENESS:
 - ACS + anticoagulatie = Arixtra (niet Xarelto)
 - Angina + nitraten = Cedocard
-- VKF + anticoagulatie = context-afhankelijk
+- Alleen medicatie voorschrijven voor daadwerkelijk geïdentificeerde condities
 
 STRIKT VERBODEN:
 - GEEN TTE secties (linker ventrikel, kleppen, etc.)
