@@ -26,7 +26,7 @@ class SuperiorMedicalTranscription:
         return content_type, filename
     
     def transcribe_audio(self, audio_file, report_type="TTE"):
-        """Superior audio transcription with WebM detection and error handling"""
+        """Superior audio transcription with enhanced WebM support and error handling for gpt-4o-transcribe"""
         try:
             # Reset file pointer to beginning
             audio_file.seek(0)
@@ -40,38 +40,74 @@ class SuperiorMedicalTranscription:
             print(f"DEBUG: Report type: {report_type}")
             print(f"DEBUG: First 20 bytes: {file_content[:20]}")
             
-            # Detect actual format
+            # Enhanced audio format validation for gpt-4o-transcribe
+            if len(file_content) == 0:
+                return {
+                    'success': False,
+                    'error': "⚠️ Audio bestand is leeg. Upload een geldig audio bestand."
+                }
+            
+            if len(file_content) > 25 * 1024 * 1024:  # 25MB limit for OpenAI
+                return {
+                    'success': False,
+                    'error': f"⚠️ Audio bestand te groot ({len(file_content)/1024/1024:.1f}MB). Maximum is 25MB voor gpt-4o-transcribe."
+                }
+            
+            # Detect actual format with enhanced WebM support
             content_type, filename = self.detect_audio_format(file_content, audio_file.filename)
             
             # Create a file-like object for the older API
             audio_file_obj = io.BytesIO(file_content)
             audio_file_obj.name = filename
             
+            print(f"DEBUG: Using content type: {content_type}")
+            print(f"DEBUG: Using filename: {filename}")
+            
             # Use gpt-4o-transcribe for all report types for consistent quality
-            if report_type == "LIVE_CONSULTATIE":
-                # Use GPT-4o for live consultations with special prompt
-                transcript = openai.Audio.transcribe(
-                    model="gpt-4o-transcribe",
-                    file=audio_file_obj,
-                    language="nl",
-                    prompt="""Je bent een medische secretaresse die aanwezig is bij een cardiologische consultatie waarbij een patiënt op bezoek komt bij de arts. Je hoort een conversatie tussen 2 of meerdere personen (soms zijn familieleden mee) en maakt een gedetailleerde samenvatting van de consultatie. Focus je vooral op de anamnese/symptomen, probeer deze zo getrouw mogelijk neer te pennen. Let op: soms zal de conversatie gestoord worden doordat de arts gebeld wordt of iemand binnenkomt; hier moet je goed bedacht op zijn (de context zal plots niet meer kloppen)."""
-                )
-            elif report_type == "CONSULTATIE":
-                # Use GPT-4o-transcribe for structured consultation format
-                transcript = openai.Audio.transcribe(
-                    model="gpt-4o-transcribe",
-                    file=audio_file_obj,
-                    language="nl",
-                    prompt="Dit is een Nederlandse medische dictatie van een cardioloog voor een gestructureerde consultatie. Gebruik correcte medische terminologie en behoud alle details voor het consultatieverslag."
-                )
-            else:
-                # Use GPT-4o-transcribe for TTE and SPOEDCONSULT
-                transcript = openai.Audio.transcribe(
-                    model="gpt-4o-transcribe",
-                    file=audio_file_obj,
-                    language="nl",
-                    prompt="Dit is een Nederlandse medische transcriptie van een cardioloog. Gebruik correcte medische terminologie."
-                )
+            try:
+                if report_type == "LIVE_CONSULTATIE":
+                    # Use GPT-4o for live consultations with special prompt
+                    transcript = openai.Audio.transcribe(
+                        model="gpt-4o-transcribe",
+                        file=audio_file_obj,
+                        language="nl",
+                        prompt="""Je bent een medische secretaresse die aanwezig is bij een cardiologische consultatie waarbij een patiënt op bezoek komt bij de arts. Je hoort een conversatie tussen 2 of meerdere personen (soms zijn familieleden mee) en maakt een gedetailleerde samenvatting van de consultatie. Focus je vooral op de anamnese/symptomen, probeer deze zo getrouw mogelijk neer te pennen. Let op: soms zal de conversatie gestoord worden doordat de arts gebeld wordt of iemand binnenkomt; hier moet je goed bedacht op zijn (de context zal plots niet meer kloppen)."""
+                    )
+                elif report_type == "CONSULTATIE":
+                    # Use GPT-4o-transcribe for structured consultation format
+                    transcript = openai.Audio.transcribe(
+                        model="gpt-4o-transcribe",
+                        file=audio_file_obj,
+                        language="nl",
+                        prompt="Dit is een Nederlandse medische dictatie van een cardioloog voor een gestructureerde consultatie. Gebruik correcte medische terminologie en behoud alle details voor het consultatieverslag."
+                    )
+                else:
+                    # Use GPT-4o-transcribe for TTE and SPOEDCONSULT
+                    transcript = openai.Audio.transcribe(
+                        model="gpt-4o-transcribe",
+                        file=audio_file_obj,
+                        language="nl",
+                        prompt="Dit is een Nederlandse medische transcriptie van een cardioloog. Gebruik correcte medische terminologie."
+                    )
+                    
+            except Exception as transcription_error:
+                error_msg = str(transcription_error).lower()
+                
+                if "corrupted" in error_msg or "unsupported" in error_msg:
+                    return {
+                        'success': False,
+                        'error': f"⚠️ Audio Format Probleem\n\nHet .webm bestand kan niet worden verwerkt door gpt-4o-transcribe.\n\nMogelijke oplossingen:\n1. Converteer naar .wav of .mp3 format\n2. Gebruik een andere audio recorder\n3. Controleer of het bestand niet beschadigd is\n\nTechnische details:\n- Bestand: {filename}\n- Grootte: {len(file_content)} bytes\n- Error: {transcription_error}"
+                    }
+                elif "file size" in error_msg or "too large" in error_msg:
+                    return {
+                        'success': False,
+                        'error': f"⚠️ Bestand te groot voor gpt-4o-transcribe\n\nHuidige grootte: {len(file_content)/1024/1024:.1f}MB\nMaximum: 25MB\n\nVerkort de opname of comprimeer het bestand."
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': f"⚠️ Transcriptie fout: {transcription_error}\n\nProbeer opnieuw of gebruik een ander audio format."
+                    }
             
             # Get the transcript text
             corrected_transcript = transcript.text if hasattr(transcript, 'text') else str(transcript)
