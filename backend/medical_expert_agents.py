@@ -32,6 +32,10 @@ class MedicalExpertAgents:
             from openai import OpenAI
             client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
             
+            print(f"🔍 DEBUG: Calling GPT-4 with prompt length: {len(prompt)}")
+            print(f"🔍 DEBUG: System prompt length: {len(system_prompt)}")
+            print(f"🔍 DEBUG: OpenAI API Key available: {bool(os.environ.get('OPENAI_API_KEY'))}")
+            
             messages = []
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
@@ -39,6 +43,7 @@ class MedicalExpertAgents:
             
             response_format = {"type": "json_object"} if json_mode else None
             
+            print(f"🔍 DEBUG: About to call OpenAI API with model gpt-4.1-mini...")
             response = client.chat.completions.create(
                 model="gpt-4.1-mini",  # Use available model
                 messages=messages,
@@ -47,10 +52,16 @@ class MedicalExpertAgents:
                 response_format=response_format
             )
             
-            return response.choices[0].message.content.strip()
+            result = response.choices[0].message.content.strip()
+            print(f"🔍 DEBUG: GPT-4 response length: {len(result)}")
+            print(f"🔍 DEBUG: GPT-4 response preview: {result[:200]}...")
+            
+            return result
             
         except Exception as e:
             print(f"⚠️ GPT-4 API error: {e}")
+            import traceback
+            print(f"🔍 DEBUG: Full API error traceback: {traceback.format_exc()}")
             return ""
     
     def agent_1_quality_control(self, transcript: str) -> Dict[str, Any]:

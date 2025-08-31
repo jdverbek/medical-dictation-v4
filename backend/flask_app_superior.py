@@ -327,19 +327,42 @@ def api_transcribe():
         expert_analysis = {}
         improved_transcript = transcript
         
+        print(f"🔍 DEBUG: EXPERTS_AVAILABLE = {EXPERTS_AVAILABLE}")
+        print(f"🔍 DEBUG: medical_experts = {medical_experts}")
+        
         if EXPERTS_AVAILABLE and medical_experts:
             try:
                 print(f"🤖 API DEBUG: Starting 3 Expert Medical Agents analysis...")
+                print(f"🔍 DEBUG: Transcript length: {len(transcript)} chars")
+                print(f"🔍 DEBUG: Transcript preview: {transcript[:200]}...")
+                
                 expert_analysis = medical_experts.orchestrate_medical_analysis(
                     transcript=transcript,
                     patient_context=f"Patient ID: {patient_id}, Report Type: {verslag_type}"
                 )
+                
+                print(f"🔍 DEBUG: Expert analysis keys: {list(expert_analysis.keys())}")
+                
+                # Debug Agent 3 specifically
+                agent_3_data = expert_analysis.get('agent_3_treatment_protocol', {})
+                print(f"🔍 DEBUG: Agent 3 data keys: {list(agent_3_data.keys())}")
+                
+                treatment_plan = agent_3_data.get('treatment_plan', {})
+                print(f"🔍 DEBUG: Treatment plan keys: {list(treatment_plan.keys())}")
+                
+                immediate_actions = treatment_plan.get('immediate_actions', [])
+                print(f"🔍 DEBUG: Immediate actions: {immediate_actions}")
+                
+                medications = treatment_plan.get('medications', [])
+                print(f"🔍 DEBUG: Medications: {medications}")
                 
                 # Use improved transcript from Agent 1
                 improved_transcript = expert_analysis.get('agent_1_quality_control', {}).get('improved_transcript', transcript)
                 print(f"🤖 API DEBUG: Expert analysis completed successfully!")
             except Exception as e:
                 print(f"⚠️ API DEBUG: Expert analysis failed: {e}")
+                import traceback
+                print(f"🔍 DEBUG: Full traceback: {traceback.format_exc()}")
                 expert_analysis = {}
         else:
             print(f"⚠️ API DEBUG: Expert agents not available, using basic processing")
