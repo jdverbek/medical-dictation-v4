@@ -219,13 +219,13 @@ Antwoord in JSON format:
                 print(f"🔍 DEBUG: Specific diagnosis found, generating treatment for: {diagnosis}")
                 sys.stdout.flush()
                 # Provide treatment based on actual diagnosis
-                treatment_prompt = f"""Geef concrete behandelingsadvies voor deze patiënt volgens ESC 2024 richtlijnen:
+                treatment_prompt = f"""Geef concrete behandelingsadvies voor deze patiënt volgens de meest recente medische richtlijnen:
 
 DIAGNOSE: {diagnosis}
 SYMPTOMEN: {', '.join(symptoms)}
 TRANSCRIPTIE CONTEXT: {transcript}
 
-Geef ALLEEN behandeling die relevant is voor de geïdentificeerde diagnose. Gebruik de meest recente ESC 2024 richtlijnen.
+Geef ALLEEN behandeling die relevant is voor de geïdentificeerde diagnose. Gebruik de meest recente internationale richtlijnen voor deze specifieke conditie.
 
 Antwoord in JSON format met concrete aanbevelingen:
 {{
@@ -237,18 +237,18 @@ Antwoord in JSON format met concrete aanbevelingen:
                 "dose": "dosering",
                 "frequency": "frequentie", 
                 "indication": "indicatie voor deze diagnose",
-                "esc_class": "I/IIa/IIb/III",
-                "esc_evidence": "A/B/C"
+                "guideline_class": "I/IIa/IIb/III (indien van toepassing)",
+                "evidence_level": "A/B/C (indien van toepassing)"
             }}
         ],
         "monitoring": ["specifieke monitoring voor deze conditie"],
         "follow_up": "vervolgplan voor deze diagnose"
     }},
-    "esc_guideline_class": "ESC 2024 class voor deze conditie",
+    "guideline_source": "Relevante richtlijn voor deze conditie",
     "evidence_level": "Evidence level voor deze behandeling",
-    "esc_2024_citations": ["Relevante ESC 2024 sectie"],
+    "guideline_citations": ["Relevante richtlijnsectie"],
     "quality_indicators": {{
-        "guideline_adherence": "ESC 2024 compliant voor {diagnosis}",
+        "guideline_adherence": "Compliant met meest recente richtlijnen voor {diagnosis}",
         "evidence_strength": "strong/moderate/weak",
         "safety_profile": "risicoprofiel",
         "target_achievement": "concrete targets voor {diagnosis}"
@@ -756,11 +756,11 @@ def api_transcribe():
                 agent_3_data = expert_analysis.get('agent_3_treatment_protocol', {})
                 treatment_plan = agent_3_data.get('treatment_plan', {})
                 
-                # Format AI treatment recommendations with ESC 2024 citations and concrete details
+                # Format AI treatment recommendations with current guidelines and concrete details
                 ai_medications = treatment_plan.get('medications', [])
                 ai_actions = treatment_plan.get('immediate_actions', [])
                 ai_monitoring = treatment_plan.get('monitoring', [])
-                esc_citations = agent_3_data.get('esc_2024_citations', [])
+                guideline_citations = agent_3_data.get('guideline_citations', [])
                 quality_indicators = agent_3_data.get('quality_indicators', {})
                 clinical_pathway = agent_3_data.get('clinical_pathway', {})
                 
@@ -774,13 +774,13 @@ def api_transcribe():
                         if isinstance(med, dict):
                             med_str = f"{med.get('name', 'Unknown')} {med.get('dose', '')} {med.get('frequency', '')}"
                             target = med.get('target_value', '')
-                            esc_class = med.get('esc_class', '')
-                            esc_evidence = med.get('esc_evidence', '')
+                            guideline_class = med.get('guideline_class', '')
+                            evidence_level = med.get('evidence_level', '')
                             
                             if target:
                                 med_str += f" (target: {target})"
-                            if esc_class and esc_evidence:
-                                med_str += f" [ESC Class {esc_class}, Level {esc_evidence}]"
+                            if guideline_class and evidence_level:
+                                med_str += f" [Class {guideline_class}, Level {evidence_level}]"
                             
                             med_strings.append(med_str.strip())
                         else:
@@ -800,9 +800,9 @@ def api_transcribe():
                     if pathway_parts:
                         ai_treatment_parts.append(f"⏰ Planning: {'; '.join(pathway_parts)}")
                 
-                # Add ESC 2024 compliance information
-                if esc_citations:
-                    ai_treatment_parts.append(f"📚 ESC 2024: {'; '.join(esc_citations[:2])}")  # Show first 2 citations
+                # Add guideline compliance information
+                if guideline_citations:
+                    ai_treatment_parts.append(f"📚 Richtlijnen: {'; '.join(guideline_citations[:2])}")  # Show first 2 citations
                 
                 if quality_indicators:
                     guideline_adherence = quality_indicators.get('guideline_adherence', 'unknown')
@@ -841,8 +841,8 @@ def api_transcribe():
                 'urgency_level': expert_analysis.get('agent_2_diagnostic_expert', {}).get('urgency_level', 'unknown'),
                 'corrections_made': len(expert_analysis.get('agent_1_quality_control', {}).get('corrections', [])),
                 'agents_used': expert_analysis.get('orchestration_summary', {}).get('agents_used', 3),
-                'esc_2024_citations': expert_analysis.get('agent_3_treatment_protocol', {}).get('esc_2024_citations', []),
-                'esc_guideline_class': expert_analysis.get('agent_3_treatment_protocol', {}).get('esc_guideline_class', 'Unknown'),
+                'guideline_citations': expert_analysis.get('agent_3_treatment_protocol', {}).get('guideline_citations', []),
+                'guideline_source': expert_analysis.get('agent_3_treatment_protocol', {}).get('guideline_source', 'Unknown'),
                 'evidence_level': expert_analysis.get('agent_3_treatment_protocol', {}).get('evidence_level', 'Unknown'),
                 'quality_indicators': expert_analysis.get('agent_3_treatment_protocol', {}).get('quality_indicators', {})
             }
