@@ -43,9 +43,13 @@ class SuperiorMedicalTranscription:
             content_type, filename = self.detect_audio_format(file_content, audio_file.filename)
             
             # Transcribe with Whisper using older API
+            # Create a file-like object for the older API
+            audio_file_obj = io.BytesIO(file_content)
+            audio_file_obj.name = filename
+            
             transcript = openai.Audio.transcribe(
                 model="whisper-1",
-                file=(filename, file_content, content_type),
+                file=audio_file_obj,
                 temperature=0.0
             )
             corrected_transcript = transcript.text
