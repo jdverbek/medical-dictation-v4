@@ -5,7 +5,7 @@ Medical Dictation v4.0 - Flask Version
 Minimal dependencies, maximum compatibility
 """
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, render_template
 import os
 import uuid
 import json
@@ -19,7 +19,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 # Flask app
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 # Initialize AI clients (older API style)
@@ -34,6 +34,11 @@ if ANTHROPIC_API_KEY:
 audio_storage = {}
 transcription_results = {}
 
+@app.route('/', methods=['GET'])
+def index():
+    """Main web interface"""
+    return render_template('index.html')
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -47,9 +52,9 @@ def health_check():
         }
     })
 
-@app.route('/', methods=['GET'])
-def root():
-    """Root endpoint"""
+@app.route('/api', methods=['GET'])
+def api_info():
+    """API information endpoint"""
     return jsonify({
         "message": "Medical Dictation v4.0 Flask API", 
         "status": "running",
