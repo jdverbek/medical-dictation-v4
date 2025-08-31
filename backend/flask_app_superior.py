@@ -17,6 +17,9 @@ from superior_transcription import SuperiorMedicalTranscription
 
 app = Flask(__name__, template_folder='templates')
 
+# Initialize transcription service
+transcription_service = SuperiorMedicalTranscription()
+
 # Configure session with secure settings (from v2)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS

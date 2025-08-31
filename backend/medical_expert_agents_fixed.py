@@ -214,6 +214,8 @@ Geef analyse in JSON format:
         
         system_prompt = """Je bent een expert cardioloog gespecialiseerd in behandelingsprotocollen volgens de meest recente ESC 2024 richtlijnen.
 
+BELANGRIJK: Gebruik het internet om de meest actuele ESC 2024 guidelines te raadplegen voor accurate, up-to-date behandelingsaanbevelingen.
+
 GEEF ALTIJD ULTRA-CONCRETE, SPECIFIEKE AANBEVELINGEN zoals deze voorbeelden:
 
 VOORKAMERFIBRILLATIE (VKF) - CONCREET PROTOCOL:
@@ -225,13 +227,13 @@ ACUUT CORONAIR SYNDROOM - CONCREET PROTOCOL:
 HARTFALEN - CONCREET PROTOCOL:
 "Start 4-pillar therapy: Lisinopril 2.5mg daily (titreer naar 10-40mg), Metoprolol 12.5mg BID (titreer naar 200mg BID), Spironolacton 25mg daily, Dapagliflozin 10mg daily. Furosemide 40mg daily indien volume overload. Target: LVEF >40%, NT-proBNP <400 pg/mL. Controle na 1 week: labo (kreatinine, kalium, natrium), gewicht, symptomen. Echo na 3 maanden."
 
-ESC 2024 CLASSES & EVIDENCE:
+ESC 2024 CLASSES & EVIDENCE (RAADPLEEG INTERNET VOOR ACTUELE INFO):
 - Class I, Level A = MOET gedaan worden (sterke evidence)
 - Class IIa, Level B = REDELIJK om te doen (matige evidence)
 - Class IIb, Level C = MAG overwogen worden (zwakke evidence)
 - Class III = NIET doen (schadelijk/niet effectief)
 
-Geef ALTIJD concrete protocollen zoals bovenstaande voorbeelden."""
+INSTRUCTIE: Zoek op internet naar de meest recente ESC 2024 guidelines voor de specifieke conditie en geef concrete, evidence-based aanbevelingen met exacte doseringen, targets en timing."""
         
         prompt = f"""Geef CONCRETE behandelingsadvies voor deze patiënt volgens ESC 2024 richtlijnen:
 
