@@ -248,6 +248,38 @@ class IntelligentMedicalReportGenerator:
         
         return analysis
     
+    def generate_consultation_summary(self, transcript: str, patient_id: str) -> str:
+        """Generate consultation summary for live consultations"""
+        return f"""CONSULTATIE SAMENVATTING
+
+PATIËNT ID: {patient_id}
+DATUM: {datetime.now().strftime('%d-%m-%Y')}
+TYPE: Live Cardiologische Consultatie
+
+GESPREKSVERLOOP:
+{transcript}
+
+ANAMNESE:
+[Geëxtraheerd uit bovenstaand gesprek - symptomen, klachten, voorgeschiedenis]
+
+SYMPTOMEN:
+[Hoofdklachten zoals besproken tijdens consultatie]
+
+LICHAMELIJK ONDERZOEK:
+[Indien vermeld in gesprek]
+
+CONCLUSIE:
+[Samenvatting van bevindingen en indruk]
+
+BELEID:
+[Behandelplan zoals besproken met patiënt]
+
+VERVOLGAFSPRAKEN:
+[Zoals afgesproken in consultatie]
+
+Cardioloog: [Naam]
+Datum: {datetime.now().strftime('%d-%m-%Y')}"""
+    
     def generate_intelligent_report(self, text: str, patient_id: str, analysis: Dict[str, Any]) -> str:
         """Generate intelligent medical report based on content analysis"""
         
@@ -334,21 +366,34 @@ class MedicalIntelligenceOrchestrator:
     def process_medical_audio_transcript(self, transcript: str, patient_id: str, report_type: str) -> Dict[str, Any]:
         """Process medical transcript with real intelligence"""
         
-        # Step 1: Intelligent transcription correction
-        corrected_transcript, corrections = self.transcription_corrector.correct_transcription(transcript)
+        # Step 1: Intelligent transcription correction (skip for live consultations)
+        if report_type == "LIVE_CONSULTATIE":
+            # For live consultations, minimal correction as GPT-4o already processed it
+            corrected_transcript = transcript
+            corrections = []
+        else:
+            # Full correction for TTE and SPOEDCONSULT
+            corrected_transcript, corrections = self.transcription_corrector.correct_transcription(transcript)
         
         # Step 2: Analyze medical content
         analysis = self.report_generator.analyze_medical_content(corrected_transcript)
         
-        # Step 3: Generate intelligent report
-        intelligent_report = self.report_generator.generate_intelligent_report(
-            corrected_transcript, patient_id, analysis
-        )
+        # Step 3: Generate intelligent report based on type
+        if report_type == "LIVE_CONSULTATIE":
+            intelligent_report = self.report_generator.generate_consultation_summary(
+                corrected_transcript, patient_id
+            )
+        else:
+            intelligent_report = self.report_generator.generate_intelligent_report(
+                corrected_transcript, patient_id, analysis
+            )
         
         # Step 4: Determine processing type
         contexts = self.transcription_corrector.detect_clinical_context(corrected_transcript)
         
-        if 'emergency' in contexts and ('coronarografie' in corrected_transcript.lower() or 'retrosternale pijn' in corrected_transcript.lower()):
+        if report_type == "LIVE_CONSULTATIE":
+            processing_type = 'live_consultation'
+        elif 'emergency' in contexts and ('coronarografie' in corrected_transcript.lower() or 'retrosternale pijn' in corrected_transcript.lower()):
             processing_type = 'acs_emergency'
         elif 'echocardiografie' in corrected_transcript.lower():
             processing_type = 'echo_report'

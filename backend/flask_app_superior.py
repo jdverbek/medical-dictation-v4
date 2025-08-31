@@ -310,9 +310,8 @@ def api_transcribe():
         print(f"🔍 API DEBUG: Patient ID = '{patient_id}'")
         print(f"🔍 API DEBUG: Audio filename = '{audio_file.filename}'")
         
-        # Transcribe audio
-        transcription_result = transcription_system.transcribe_audio(audio_file)
-        
+        # Transcribe audio with report type
+        transcription_result = transcription_service.transcribe_audio(audio_file, verslag_type)        
         if not transcription_result['success']:
             return jsonify({
                 'success': False, 

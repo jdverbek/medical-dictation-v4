@@ -25,7 +25,7 @@ class SuperiorMedicalTranscription:
         
         return content_type, filename
     
-    def transcribe_audio(self, audio_file):
+    def transcribe_audio(self, audio_file, report_type="TTE"):
         """Superior audio transcription with WebM detection and error handling"""
         try:
             # Reset file pointer to beginning
@@ -37,24 +37,38 @@ class SuperiorMedicalTranscription:
             
             print(f"DEBUG: File size: {len(file_content)} bytes")
             print(f"DEBUG: File name: {audio_file.filename}")
+            print(f"DEBUG: Report type: {report_type}")
             print(f"DEBUG: First 20 bytes: {file_content[:20]}")
             
             # Detect actual format
             content_type, filename = self.detect_audio_format(file_content, audio_file.filename)
             
-            # Transcribe with Whisper using older API
             # Create a file-like object for the older API
             audio_file_obj = io.BytesIO(file_content)
             audio_file_obj.name = filename
             
-            transcript = openai.Audio.transcribe(
-                model="whisper-1",
-                file=audio_file_obj,
-                temperature=0.0
-            )
-            corrected_transcript = transcript.text
+            # Use different models and prompts based on report type
+            if report_type == "LIVE_CONSULTATIE":
+                # Use GPT-4o for live consultations with special prompt
+                transcript = openai.Audio.transcribe(
+                    model="gpt-4o-audio-preview",  # Use GPT-4o for live consultations
+                    file=audio_file_obj,
+                    language="nl",
+                    prompt="""Je bent een medische secretaresse die aanwezig is bij een cardiologische consultatie waarbij een patiënt op bezoek komt bij de arts. Je hoort een conversatie tussen 2 of meerdere personen (soms zijn familieleden mee) en maakt een gedetailleerde samenvatting van de consultatie. Focus je vooral op de anamnese/symptomen, probeer deze zo getrouw mogelijk neer te pennen. Let op: soms zal de conversatie gestoord worden doordat de arts gebeld wordt of iemand binnenkomt; hier moet je goed bedacht op zijn (de context zal plots niet meer kloppen)."""
+                )
+            else:
+                # Use standard Whisper for TTE and SPOEDCONSULT
+                transcript = openai.Audio.transcribe(
+                    model="whisper-1",
+                    file=audio_file_obj,
+                    language="nl",
+                    prompt="Dit is een Nederlandse medische transcriptie van een cardioloog. Gebruik correcte medische terminologie."
+                )
             
-            # Check if transcription is empty or too short
+            # Get the transcript text
+            corrected_transcript = transcript.text if hasattr(transcript, 'text') else str(transcript)
+            
+            # Validation check
             if not corrected_transcript or len(corrected_transcript.strip()) < 10:
                 return {
                     'success': False,

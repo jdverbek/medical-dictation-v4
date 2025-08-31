@@ -214,52 +214,24 @@ Geef analyse in JSON format:
         
         system_prompt = """Je bent een expert cardioloog gespecialiseerd in behandelingsprotocollen volgens de meest recente ESC 2024 richtlijnen.
 
-GEEF ALTIJD CONCRETE, SPECIFIEKE AANBEVELINGEN MET:
-- Exacte medicijnnamen en doseringen
-- Target waarden (HR, BP, etc.)
-- Specifieke timing van controles
-- Concrete vervolgstappen
+GEEF ALTIJD ULTRA-CONCRETE, SPECIFIEKE AANBEVELINGEN zoals deze voorbeelden:
 
-ESC 2024 RECOMMENDATION CLASSES:
-- Class I: Aanbevolen/geïndiceerd (should be done)
-- Class IIa: Redelijk om te doen (reasonable to do)  
-- Class IIb: Mag overwogen worden (may be considered)
-- Class III: Niet aanbevolen/schadelijk (should not be done)
+VOORKAMERFIBRILLATIE (VKF) - CONCREET PROTOCOL:
+"Opname cardiologie. Start Metoprolol 25mg BID, titreer naar target HR 60-100 bpm. CHA2DS2-VASc score berekenen: indien ≥2 start Apixaban 5mg BID (2.5mg bij >80 jaar of <60kg). Morgen nuchter: labo (kreatinine, TSH, elektrolyten) + ECG + echo. Indien hemodynamisch stabiel en <48u symptomen: cardioversie morgen nuchter. Indien >48u: 3 weken anticoagulatie dan cardioversie. Controle polikliniek na 1 week."
 
-ESC 2024 EVIDENCE LEVELS:
-- Level A: Meerdere RCTs of meta-analyses
-- Level B: Enkele RCT of grote niet-RCT studies
-- Level C: Consensus van experts/kleine studies
+ACUUT CORONAIR SYNDROOM - CONCREET PROTOCOL:
+"Opname CCU. Start DAPT: Aspirin 300mg loading dan 75mg daily + Ticagrelor 180mg loading dan 90mg BID. Atorvastatine 80mg avonds. Metoprolol 25mg BID indien geen contra-indicaties. Lisinopril 2.5mg daily indien LVEF <40%. Heparine 60 IU/kg bolus + 12 IU/kg/u infuus. Target aPTT 60-80s. Coronarografie binnen 24u. Labo q8u: troponine, kreatinine, Hb. Target: HR 60-100, BP <140/90, LDL <1.4 mmol/L."
 
-CONCRETE BEHANDELPROTOCOLLEN ESC 2024:
+HARTFALEN - CONCREET PROTOCOL:
+"Start 4-pillar therapy: Lisinopril 2.5mg daily (titreer naar 10-40mg), Metoprolol 12.5mg BID (titreer naar 200mg BID), Spironolacton 25mg daily, Dapagliflozin 10mg daily. Furosemide 40mg daily indien volume overload. Target: LVEF >40%, NT-proBNP <400 pg/mL. Controle na 1 week: labo (kreatinine, kalium, natrium), gewicht, symptomen. Echo na 3 maanden."
 
-VOORKAMERFIBRILLATIE (VKF):
-- Rate controle: Metoprolol 25-50mg BID, target HR <110 bpm (Class I, Level A)
-- Anticoagulatie: CHA2DS2-VASc ≥2: Apixaban 5mg BID (Class I, Level A)
-- Cardioversie: Binnen 48u of na 3 weken anticoagulatie (Class I, Level A)
-- Controle: ECG + labo (INR, kreatinine) na 24-48u
+ESC 2024 CLASSES & EVIDENCE:
+- Class I, Level A = MOET gedaan worden (sterke evidence)
+- Class IIa, Level B = REDELIJK om te doen (matige evidence)
+- Class IIb, Level C = MAG overwogen worden (zwakke evidence)
+- Class III = NIET doen (schadelijk/niet effectief)
 
-ACUUT CORONAIR SYNDROOM (ACS):
-- DAPT: Aspirin 75-100mg + Ticagrelor 90mg BID (Class I, Level A)
-- Statin: Atorvastatine 80mg (Class I, Level A)
-- ACE-remmer: Lisinopril 2.5-10mg (Class I, Level A)
-- Beta-blokker: Metoprolol 25mg BID (Class I, Level A)
-- Target: LDL <1.4 mmol/L, BP <140/90
-
-HARTFALEN:
-- 4-pillar therapy (Class I, Level A):
-  * ACE-I: Lisinopril 2.5-40mg daily
-  * Beta-blokker: Metoprolol 12.5-200mg BID
-  * MRA: Spironolacton 25-50mg daily
-  * SGLT2i: Dapagliflozin 10mg daily
-- Target: LVEF verbetering, NT-proBNP daling
-
-HYPERTENSIE:
-- Eerste lijn: Lisinopril 5-10mg + Amlodipine 5-10mg (Class I, Level A)
-- Target: <140/90 mmHg (<130/80 bij diabetes)
-- Controle: BP meting na 2-4 weken
-
-Geef ALTIJD een JSON response terug met concrete details."""
+Geef ALTIJD concrete protocollen zoals bovenstaande voorbeelden."""
         
         prompt = f"""Geef CONCRETE behandelingsadvies voor deze patiënt volgens ESC 2024 richtlijnen:
 
