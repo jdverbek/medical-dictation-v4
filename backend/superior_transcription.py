@@ -7,26 +7,93 @@ import os
 import io
 import datetime
 import openai
+import subprocess
+import tempfile
 
 class SuperiorMedicalTranscription:
     def __init__(self):
         openai.api_key = os.environ.get('OPENAI_API_KEY')
     
+    def convert_audio_to_wav(self, file_content, original_filename):
+        """Convert audio file to WAV format using ffmpeg for gpt-4o-transcribe compatibility"""
+        try:
+            print(f"DEBUG: Converting {original_filename} to WAV format...")
+            
+            # Create temporary files
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as temp_input:
+                temp_input.write(file_content)
+                temp_input_path = temp_input.name
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_output:
+                temp_output_path = temp_output.name
+            
+            # Convert using ffmpeg
+            cmd = [
+                'ffmpeg', '-i', temp_input_path,
+                '-acodec', 'pcm_s16le',  # PCM 16-bit little-endian
+                '-ar', '16000',          # 16kHz sample rate (good for speech)
+                '-ac', '1',              # Mono channel
+                '-y',                    # Overwrite output file
+                temp_output_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                # Read converted file
+                with open(temp_output_path, 'rb') as f:
+                    converted_content = f.read()
+                
+                print(f"DEBUG: Conversion successful! Original: {len(file_content)} bytes, Converted: {len(converted_content)} bytes")
+                
+                # Cleanup
+                os.unlink(temp_input_path)
+                os.unlink(temp_output_path)
+                
+                return {
+                    'success': True,
+                    'content': converted_content,
+                    'filename': original_filename.replace('.webm', '.wav').replace('.mp4', '.wav'),
+                    'content_type': 'audio/wav'
+                }
+            else:
+                print(f"DEBUG: FFmpeg conversion failed: {result.stderr}")
+                # Cleanup
+                os.unlink(temp_input_path)
+                if os.path.exists(temp_output_path):
+                    os.unlink(temp_output_path)
+                
+                return {
+                    'success': False,
+                    'error': f"Audio conversie gefaald: {result.stderr}"
+                }
+                
+        except subprocess.TimeoutExpired:
+            return {
+                'success': False,
+                'error': "Audio conversie timeout (>30s). Bestand te groot of complex."
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f"Audio conversie error: {str(e)}"
+            }
+    
     def detect_audio_format(self, file_content, filename):
         """Detect actual audio format from file content"""
         # Check if file is WebM (common issue with browser recordings)
         if file_content.startswith(b'\x1a\x45\xdf\xa3'):
-            print("DEBUG: File is WebM format, adjusting content type")
-            content_type = 'audio/webm'
-            filename = filename.replace('.wav', '.webm')
+            print("DEBUG: File is WebM format, will convert to WAV")
+            return 'audio/webm', filename, True  # needs_conversion = True
+        elif filename.lower().endswith('.webm'):
+            print("DEBUG: File has .webm extension, will convert to WAV")
+            return 'audio/webm', filename, True  # needs_conversion = True
         else:
             # Default to original content type
-            content_type = 'audio/wav'
-        
-        return content_type, filename
+            return 'audio/wav', filename, False  # needs_conversion = False
     
     def transcribe_audio(self, audio_file, report_type="TTE"):
-        """Superior audio transcription with enhanced WebM support and error handling for gpt-4o-transcribe"""
+        """Superior audio transcription with automatic WebM conversion and enhanced error handling"""
         try:
             # Reset file pointer to beginning
             audio_file.seek(0)
@@ -53,10 +120,27 @@ class SuperiorMedicalTranscription:
                     'error': f"⚠️ Audio bestand te groot ({len(file_content)/1024/1024:.1f}MB). Maximum is 25MB voor gpt-4o-transcribe."
                 }
             
-            # Detect actual format with enhanced WebM support
-            content_type, filename = self.detect_audio_format(file_content, audio_file.filename)
+            # Detect actual format with conversion detection
+            content_type, filename, needs_conversion = self.detect_audio_format(file_content, audio_file.filename)
             
-            # Create a file-like object for the older API
+            # Automatic conversion for WebM files
+            if needs_conversion:
+                print("DEBUG: 🔄 Starting automatic audio conversion...")
+                conversion_result = self.convert_audio_to_wav(file_content, filename)
+                
+                if not conversion_result['success']:
+                    return {
+                        'success': False,
+                        'error': f"⚠️ Automatische conversie gefaald\n\n{conversion_result['error']}\n\nProbeer handmatig te converteren naar .wav of .mp3 format."
+                    }
+                
+                # Use converted content
+                file_content = conversion_result['content']
+                filename = conversion_result['filename']
+                content_type = conversion_result['content_type']
+                print(f"DEBUG: ✅ Conversion successful! Using converted WAV file ({len(file_content)} bytes)")
+            
+            # Create a file-like object for the API
             audio_file_obj = io.BytesIO(file_content)
             audio_file_obj.name = filename
             
