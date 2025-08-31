@@ -72,16 +72,24 @@ class MedicalExpertAgents:
     
     def orchestrate_medical_analysis(self, transcript: str, patient_context: str = "") -> Dict[str, Any]:
         """Orchestrate all 3 agents for comprehensive medical analysis"""
+        import sys
         print("🤖 Starting multi-agent medical analysis...")
+        sys.stdout.flush()
         print(f"🔍 DEBUG: Analyzing transcript: {transcript[:200]}...")
+        sys.stdout.flush()
         
-        # Agent 1: Quality Control
-        print("🔍 Running Agent 1: Quality Control...")
-        agent_1_result = {"improved_transcript": transcript, "quality_score": 75, "corrections": []}
-        
-        # Agent 2: Diagnostic Expert - REAL ANALYSIS
-        print("🩺 Running Agent 2: Diagnostic Expert...")
-        diagnostic_prompt = f"""Analyseer deze Nederlandse medische transcriptie en identificeer de primaire diagnose:
+        try:
+            # Agent 1: Quality Control
+            print("🔍 Running Agent 1: Quality Control...")
+            sys.stdout.flush()
+            agent_1_result = {"improved_transcript": transcript, "quality_score": 75, "corrections": []}
+            print("✅ Agent 1 completed!")
+            sys.stdout.flush()
+            
+            # Agent 2: Diagnostic Expert - REAL ANALYSIS
+            print("🩺 Running Agent 2: Diagnostic Expert...")
+            sys.stdout.flush()
+            diagnostic_prompt = f"""Analyseer deze Nederlandse medische transcriptie en identificeer de primaire diagnose:
 
 TRANSCRIPTIE: {transcript}
 
@@ -94,54 +102,73 @@ Antwoord in JSON format:
     "key_symptoms": ["lijst van symptomen uit transcriptie"],
     "confidence": 0.0-1.0
 }}"""
-        
-        diagnostic_response = self._call_gpt4(diagnostic_prompt, json_mode=True)
-        
-        try:
-            if diagnostic_response and diagnostic_response.startswith('{'):
-                agent_2_result = json.loads(diagnostic_response)
-            else:
+            
+            print("🔍 DEBUG: About to call OpenAI API for diagnostic analysis...")
+            sys.stdout.flush()
+            diagnostic_response = self._call_gpt4(diagnostic_prompt, json_mode=True)
+            print(f"🔍 DEBUG: GPT-4 diagnostic response preview: {diagnostic_response[:100] if diagnostic_response else 'None'}...")
+            sys.stdout.flush()
+            
+            try:
+                if diagnostic_response and diagnostic_response.startswith('{'):
+                    agent_2_result = json.loads(diagnostic_response)
+                    print(f"✅ Agent 2 completed! Diagnosis: {agent_2_result.get('primary_diagnosis', 'Unknown')}")
+                    sys.stdout.flush()
+                else:
+                    print("⚠️ Agent 2: No valid JSON response, using fallback")
+                    sys.stdout.flush()
+                    agent_2_result = {
+                        "primary_diagnosis": "Analyse niet beschikbaar",
+                        "urgency_level": "unknown",
+                        "key_symptoms": [],
+                        "confidence": 0.0
+                    }
+            except Exception as e:
+                print(f"⚠️ Agent 2 JSON parsing failed: {e}")
+                sys.stdout.flush()
                 agent_2_result = {
-                    "primary_diagnosis": "Analyse niet beschikbaar",
+                    "primary_diagnosis": "Analyse niet beschikbaar", 
                     "urgency_level": "unknown",
                     "key_symptoms": [],
                     "confidence": 0.0
                 }
-        except:
-            agent_2_result = {
-                "primary_diagnosis": "Analyse niet beschikbaar", 
-                "urgency_level": "unknown",
-                "key_symptoms": [],
-                "confidence": 0.0
-            }
-        
-        # Agent 3: Treatment Protocol - BASED ON ACTUAL DIAGNOSIS
-        print("💊 Running Agent 3: Treatment Protocol...")
-        diagnosis = agent_2_result.get("primary_diagnosis", "Geen diagnose")
-        symptoms = agent_2_result.get("key_symptoms", [])
-        
-        if diagnosis == "Geen specifieke diagnose geïdentificeerd" or diagnosis == "Analyse niet beschikbaar":
-            # No specific treatment if no clear diagnosis
-            agent_3_result = {
-                "treatment_plan": {
-                    "immediate_actions": ["Verdere diagnostische evaluatie aanbevolen"],
-                    "medications": [],
-                    "monitoring": ["Symptomen monitoren"],
-                    "follow_up": "Controle bij behandelend arts voor verdere evaluatie"
-                },
-                "esc_guideline_class": "Geen specifieke richtlijn van toepassing",
-                "evidence_level": "N/A",
-                "esc_2024_citations": ["Algemene medische evaluatie"],
-                "quality_indicators": {
-                    "guideline_adherence": "Conservatieve benadering",
-                    "evidence_strength": "N/A",
-                    "safety_profile": "Veilig - geen onnodige interventies",
-                    "target_achievement": "Verdere evaluatie vereist"
+            
+            # Agent 3: Treatment Protocol - BASED ON ACTUAL DIAGNOSIS
+            print("💊 Running Agent 3: Treatment Protocol...")
+            sys.stdout.flush()
+            diagnosis = agent_2_result.get("primary_diagnosis", "Geen diagnose")
+            symptoms = agent_2_result.get("key_symptoms", [])
+            print(f"🔍 DEBUG: Agent 3 working with diagnosis: {diagnosis}")
+            sys.stdout.flush()
+            
+            if diagnosis == "Geen specifieke diagnose geïdentificeerd" or diagnosis == "Analyse niet beschikbaar":
+                print("🔍 DEBUG: No clear diagnosis, using conservative approach")
+                sys.stdout.flush()
+                # No specific treatment if no clear diagnosis
+                agent_3_result = {
+                    "treatment_plan": {
+                        "immediate_actions": ["Verdere diagnostische evaluatie aanbevolen"],
+                        "medications": [],
+                        "monitoring": ["Symptomen monitoren"],
+                        "follow_up": "Controle bij behandelend arts voor verdere evaluatie"
+                    },
+                    "esc_guideline_class": "Geen specifieke richtlijn van toepassing",
+                    "evidence_level": "N/A",
+                    "esc_2024_citations": ["Algemene medische evaluatie"],
+                    "quality_indicators": {
+                        "guideline_adherence": "Conservatieve benadering",
+                        "evidence_strength": "N/A",
+                        "safety_profile": "Veilig - geen onnodige interventies",
+                        "target_achievement": "Verdere evaluatie vereist"
+                    }
                 }
-            }
-        else:
-            # Provide treatment based on actual diagnosis
-            treatment_prompt = f"""Geef concrete behandelingsadvies voor deze patiënt volgens ESC 2024 richtlijnen:
+                print("✅ Agent 3 completed with conservative approach!")
+                sys.stdout.flush()
+            else:
+                print(f"🔍 DEBUG: Specific diagnosis found, generating treatment for: {diagnosis}")
+                sys.stdout.flush()
+                # Provide treatment based on actual diagnosis
+                treatment_prompt = f"""Geef concrete behandelingsadvies voor deze patiënt volgens ESC 2024 richtlijnen:
 
 DIAGNOSE: {diagnosis}
 SYMPTOMEN: {', '.join(symptoms)}
@@ -176,58 +203,92 @@ Antwoord in JSON format met concrete aanbevelingen:
         "target_achievement": "concrete targets voor {diagnosis}"
     }}
 }}"""
-            
-            treatment_response = self._call_gpt4(treatment_prompt, json_mode=True)
-            
-            try:
-                if treatment_response and treatment_response.startswith('{'):
-                    agent_3_result = json.loads(treatment_response)
-                else:
+                
+                print("🔍 DEBUG: About to call OpenAI API for treatment recommendations...")
+                sys.stdout.flush()
+                treatment_response = self._call_gpt4(treatment_prompt, json_mode=True)
+                print(f"🔍 DEBUG: GPT-4 treatment response preview: {treatment_response[:100] if treatment_response else 'None'}...")
+                sys.stdout.flush()
+                
+                try:
+                    if treatment_response and treatment_response.startswith('{'):
+                        agent_3_result = json.loads(treatment_response)
+                        print("✅ Agent 3 completed with specific treatment recommendations!")
+                        sys.stdout.flush()
+                    else:
+                        print("⚠️ Agent 3: No valid JSON response, using fallback")
+                        sys.stdout.flush()
+                        agent_3_result = {
+                            "treatment_plan": {
+                                "immediate_actions": [f"Standaard zorg voor {diagnosis}"],
+                                "medications": [],
+                                "monitoring": ["Reguliere controle"],
+                                "follow_up": "Volgens standaard protocol"
+                            },
+                            "esc_guideline_class": "Standaard zorg",
+                            "evidence_level": "Klinische praktijk",
+                            "esc_2024_citations": ["Algemene richtlijnen"],
+                            "quality_indicators": {
+                                "guideline_adherence": f"Standaard zorg voor {diagnosis}",
+                                "evidence_strength": "moderate",
+                                "safety_profile": "standaard risico",
+                                "target_achievement": "klinische verbetering"
+                            }
+                        }
+                except Exception as e:
+                    print(f"⚠️ Agent 3 JSON parsing failed: {e}")
+                    sys.stdout.flush()
                     agent_3_result = {
                         "treatment_plan": {
-                            "immediate_actions": [f"Standaard zorg voor {diagnosis}"],
+                            "immediate_actions": [f"Behandeling overwegen voor {diagnosis}"],
                             "medications": [],
-                            "monitoring": ["Reguliere controle"],
-                            "follow_up": "Volgens standaard protocol"
+                            "monitoring": ["Symptomen monitoren"],
+                            "follow_up": "Controle bij specialist"
                         },
-                        "esc_guideline_class": "Standaard zorg",
-                        "evidence_level": "Klinische praktijk",
-                        "esc_2024_citations": ["Algemene richtlijnen"],
+                        "esc_guideline_class": "Individuele beoordeling",
+                        "evidence_level": "Klinische ervaring", 
+                        "esc_2024_citations": ["Individuele patiëntenzorg"],
                         "quality_indicators": {
-                            "guideline_adherence": f"Standaard zorg voor {diagnosis}",
-                            "evidence_strength": "moderate",
-                            "safety_profile": "standaard risico",
-                            "target_achievement": "klinische verbetering"
+                            "guideline_adherence": "Gepersonaliseerde zorg",
+                            "evidence_strength": "individueel",
+                            "safety_profile": "voorzichtige benadering",
+                            "target_achievement": "symptoomverlichting"
                         }
                     }
-            except:
-                agent_3_result = {
-                    "treatment_plan": {
-                        "immediate_actions": [f"Behandeling overwegen voor {diagnosis}"],
-                        "medications": [],
-                        "monitoring": ["Symptomen monitoren"],
-                        "follow_up": "Controle bij specialist"
-                    },
-                    "esc_guideline_class": "Individuele beoordeling",
-                    "evidence_level": "Klinische ervaring", 
-                    "esc_2024_citations": ["Individuele patiëntenzorg"],
-                    "quality_indicators": {
-                        "guideline_adherence": "Gepersonaliseerde zorg",
-                        "evidence_strength": "individueel",
-                        "safety_profile": "voorzichtige benadering",
-                        "target_achievement": "symptoomverlichting"
-                    }
-                }
-        
-        print("✅ Multi-agent analysis complete!")
-        
-        return {
-            "agent_1_quality_control": agent_1_result,
-            "agent_2_diagnostic_expert": agent_2_result,
-            "agent_3_treatment_protocol": agent_3_result,
-            "analysis_timestamp": datetime.datetime.now().isoformat(),
-            "confidence_score": agent_2_result.get("confidence", 0.7)
-        }
+            
+            print("✅ Multi-agent analysis complete!")
+            sys.stdout.flush()
+            
+            result = {
+                "agent_1_quality_control": agent_1_result,
+                "agent_2_diagnostic_expert": agent_2_result,
+                "agent_3_treatment_protocol": agent_3_result,
+                "analysis_timestamp": datetime.datetime.now().isoformat(),
+                "confidence_score": agent_2_result.get("confidence", 0.7)
+            }
+            
+            print(f"🔍 DEBUG: Returning analysis with keys: {list(result.keys())}")
+            sys.stdout.flush()
+            return result
+            
+        except Exception as e:
+            print(f"🚨 CRITICAL ERROR in orchestrate_medical_analysis: {e}")
+            sys.stdout.flush()
+            import traceback
+            print(f"🔍 DEBUG: Full error traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
+            
+            # Return safe fallback
+            return {
+                "agent_1_quality_control": {"improved_transcript": transcript, "quality_score": 0, "corrections": []},
+                "agent_2_diagnostic_expert": {"primary_diagnosis": "Error in analysis", "urgency_level": "unknown", "key_symptoms": [], "confidence": 0.0},
+                "agent_3_treatment_protocol": {
+                    "treatment_plan": {"immediate_actions": ["Technische fout - handmatige evaluatie vereist"], "medications": [], "monitoring": [], "follow_up": ""},
+                    "esc_guideline_class": "N/A", "evidence_level": "N/A", "esc_2024_citations": [], "quality_indicators": {}
+                },
+                "analysis_timestamp": datetime.datetime.now().isoformat(),
+                "confidence_score": 0.0
+            }
 
 app = Flask(__name__, template_folder='backend/templates')
 
