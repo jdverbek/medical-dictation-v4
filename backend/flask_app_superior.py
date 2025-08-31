@@ -125,6 +125,10 @@ def transcribe():
         verslag_type = request.form.get('verslag_type', 'TTE')
         patient_id = request.form.get('patient_id', '').strip()
         
+        # DEBUG: Log what template was selected
+        print(f"🔍 DEBUG: Template selected = '{verslag_type}'")
+        print(f"🔍 DEBUG: Patient ID = '{patient_id}'")
+        
         # Check if audio file is present
         if 'audio' not in request.files:
             return render_template('index.html', 
@@ -149,19 +153,26 @@ def transcribe():
         corrected_transcript = transcription_result['transcript']
         
         # Generate report based on type
+        print(f"🔍 DEBUG: About to generate report for type: '{verslag_type}'")
+        
         if verslag_type == 'TTE':
+            print("🔍 DEBUG: Generating TTE report...")
             structured_report = transcription_system.generate_tte_report(
                 corrected_transcript, patient_id
             )
         elif verslag_type == 'SPOEDCONSULT':
+            print("🔍 DEBUG: Generating SPOEDCONSULT report...")
             structured_report = transcription_system.generate_spoedconsult_report(
                 corrected_transcript, patient_id
             )
         else:
+            print(f"🔍 DEBUG: Unknown type '{verslag_type}', defaulting to TTE...")
             # Default TTE
             structured_report = transcription_system.generate_tte_report(
                 corrected_transcript, patient_id
             )
+        
+        print(f"🔍 DEBUG: Generated report preview: {structured_report[:100]}...")
         
         # Store in database
         try:
