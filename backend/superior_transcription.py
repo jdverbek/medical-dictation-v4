@@ -291,6 +291,8 @@ DICTAAT:
         spoedconsult_instruction = f"""
 Je bent een ervaren cardioloog die een spoedconsult brief moet schrijven op basis van zeer korte keywords.
 
+BELANGRIJK: Dit is GEEN TTE verslag! Dit is een SPOEDCONSULT BRIEF!
+
 SPOEDCONSULT INTELLIGENTIE:
 - "nieuwe vkf" → volledige voorkamerfibrillatie uitleg met behandeling
 - "opname" → complete opname indicatie met beleid
@@ -299,17 +301,17 @@ SPOEDCONSULT INTELLIGENTIE:
 - "arixtra" in ACS context → Arixtra (NIET xarelto)
 - "cedocard" voor angina → Cedocard
 
-TEMPLATE STRUCTUUR:
+VERPLICHTE TEMPLATE STRUCTUUR (GEEN TTE!):
 
 SPOEDCONSULT BRIEF
 Patiënt ID: {patient_id}
 Datum: {today}
 
 PRESENTATIE:
-[Uitgebreide beschrijving gebaseerd op keywords]
+[Uitgebreide beschrijving gebaseerd op keywords - GEEN echo bevindingen!]
 
 BEVINDINGEN:
-[Relevante onderzoeken en resultaten]
+[Relevante onderzoeken en resultaten - GEEN TTE secties!]
 
 DIAGNOSE:
 [Primaire en secundaire diagnoses]
@@ -331,22 +333,51 @@ MEDICATIE CONTEXT-AWARENESS:
 - Angina + nitraten = Cedocard
 - VKF + anticoagulatie = context-afhankelijk
 
+STRIKT VERBODEN:
+- GEEN TTE secties (linker ventrikel, kleppen, etc.)
+- GEEN biochemie secties
+- GEEN echo bevindingen
+- ALLEEN spoedconsult brief format!
+
 DICTAAT KEYWORDS:
 {transcript}
 """
         
         try:
-            # Generate spoedconsult report
+            # Generate spoedconsult report WITHOUT quality control review
+            # (to avoid TTE template contamination)
             report = self.call_gpt([
                 {"role": "system", "content": spoedconsult_instruction},
-                {"role": "user", "content": "Genereer een volledige spoedconsult brief op basis van de keywords."}
+                {"role": "user", "content": "Genereer een volledige spoedconsult brief volgens de EXACTE template structuur. GEEN TTE verslag!"}
             ])
             
-            # Perform quality control review
-            final_report = self.quality_control_review(report, transcript)
+            # Simple medical terminology correction only (no template changes)
+            corrected_report = self.simple_medical_correction(report, transcript)
             
-            return final_report
+            return corrected_report
             
         except Exception as e:
             return f"Error generating spoedconsult report: {str(e)}"
+    
+    def simple_medical_correction(self, report, original_transcript):
+        """Simple medical terminology correction without template changes"""
+        
+        # Basic medical term corrections
+        corrections = {
+            'artredicotentie': 'atriumfibrillatie',
+            'voorkamervipulatie': 'voorkamerfibrillatie', 
+            'zeeuwtachtigjarige': '80-jarige',
+            'serocreatinine': 'serumcreatinine',
+            'NC-program T': 'NT-proBNP',
+            'sedocar': 'Cedocard',
+            'arixtra': 'Arixtra',
+            'mgpg': 'mg/dl',
+            'kmpg': 'mmHg'
+        }
+        
+        corrected_report = report
+        for wrong, correct in corrections.items():
+            corrected_report = corrected_report.replace(wrong, correct)
+        
+        return corrected_report
 
