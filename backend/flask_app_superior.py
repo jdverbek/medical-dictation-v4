@@ -112,7 +112,7 @@ transcription_system = SuperiorMedicalTranscription()
 
 # Initialize medical expert agents system (OpenAI only for reliability)
 try:
-    from medical_expert_agents_fixed import MedicalExpertAgents
+    from medical_expert_agents import MedicalExpertAgents
     medical_experts = MedicalExpertAgents()
     EXPERTS_AVAILABLE = True
     print("🤖 Medical Expert Agents (OpenAI Only) initialized successfully!")
