@@ -11,9 +11,7 @@ import uuid
 import json
 import io
 from datetime import datetime
-import asyncio
-import threading
-from openai import OpenAI
+import openai
 import anthropic
 
 # Configuration
@@ -24,13 +22,11 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
-# Initialize AI clients
-openai_client = None
-anthropic_client = None
-
+# Initialize AI clients (older API style)
 if OPENAI_API_KEY:
-    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    openai.api_key = OPENAI_API_KEY
 
+anthropic_client = None
 if ANTHROPIC_API_KEY:
     anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -46,7 +42,7 @@ def health_check():
         "timestamp": datetime.utcnow().isoformat(),
         "version": "4.0.0-flask",
         "services": {
-            "openai": "configured" if openai_client else "not configured",
+            "openai": "configured" if OPENAI_API_KEY else "not configured",
             "anthropic": "configured" if anthropic_client else "not configured"
         }
     })
@@ -61,31 +57,42 @@ def root():
     })
 
 def transcribe_audio_sync(audio_data):
-    """Synchronous transcription using Whisper"""
-    if not openai_client:
+    """Synchronous transcription using Whisper (older API)"""
+    if not OPENAI_API_KEY:
         return "OpenAI API not configured"
     
     try:
-        response = openai_client.audio.transcriptions.create(
-            model="whisper-1",
-            file=("audio.webm", audio_data, "audio/webm"),
-            language="nl",
-            temperature=0.0,
-            prompt="Medische dictatie in het Nederlands. Let op medische terminologie."
-        )
+        # Save audio to temporary file for older API
+        temp_filename = f"/tmp/audio_{uuid.uuid4()}.webm"
+        with open(temp_filename, 'wb') as f:
+            f.write(audio_data)
+        
+        # Use older OpenAI API
+        with open(temp_filename, 'rb') as audio_file:
+            response = openai.Audio.transcribe(
+                model="whisper-1",
+                file=audio_file,
+                language="nl",
+                temperature=0.0,
+                prompt="Medische dictatie in het Nederlands. Let op medische terminologie."
+            )
+        
+        # Clean up temp file
+        os.remove(temp_filename)
+        
         return response.text
     except Exception as e:
         print(f"Transcription failed: {e}")
         return f"Transcription error: {str(e)}"
 
 def improve_transcript_sync(transcript, patient_id, report_type):
-    """Improve transcript using GPT-4"""
-    if not openai_client:
+    """Improve transcript using GPT-4 (older API)"""
+    if not OPENAI_API_KEY:
         return transcript
     
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
             messages=[{
                 "role": "system",
                 "content": f"""Je bent een medische transcriptie expert. Verbeter de transcriptie voor een {report_type} rapport:
@@ -108,8 +115,8 @@ Geef alleen de verbeterde transcriptie terug, geen uitleg."""
         return transcript
 
 def generate_medical_report_sync(transcript, patient_id, report_type):
-    """Generate structured medical report"""
-    if not openai_client:
+    """Generate structured medical report (older API)"""
+    if not OPENAI_API_KEY:
         return f"MEDISCH RAPPORT\n\nPatiënt ID: {patient_id}\nType: {report_type}\n\nTranscriptie:\n{transcript}"
     
     templates = {
@@ -123,8 +130,8 @@ def generate_medical_report_sync(transcript, patient_id, report_type):
     template = templates.get(report_type, templates["Consult"])
     
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
             messages=[{
                 "role": "system",
                 "content": f"""Je bent een ervaren cardioloog. Schrijf een gestructureerd medisch rapport.
