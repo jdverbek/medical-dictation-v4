@@ -679,6 +679,11 @@ def transcribe():
             structured_report = transcription_system.generate_spoedconsult_report(
                 corrected_transcript, patient_id
             )
+        elif verslag_type == 'CONSULTATIE':
+            print("🔍 DEBUG: Generating CONSULTATIE report...")
+            structured_report = transcription_system.generate_consultatie_report(
+                corrected_transcript, patient_id
+            )
         else:
             print(f"🔍 DEBUG: Unknown type '{verslag_type}', defaulting to TTE...")
             # Default TTE
@@ -797,6 +802,9 @@ def api_transcribe():
         elif verslag_type == 'SPOEDCONSULT':
             print("🔍 API DEBUG: Generating SPOEDCONSULT report...")
             report = transcription_system.generate_spoedconsult_report(improved_transcript, patient_id)
+        elif verslag_type == 'CONSULTATIE':
+            print("🔍 API DEBUG: Generating CONSULTATIE report...")
+            report = transcription_system.generate_consultatie_report(improved_transcript, patient_id)
         else:
             print(f"🔍 API DEBUG: Unknown type '{verslag_type}', defaulting to TTE...")
             report = transcription_system.generate_tte_report(improved_transcript, patient_id)

@@ -56,6 +56,14 @@ class SuperiorMedicalTranscription:
                     language="nl",
                     prompt="""Je bent een medische secretaresse die aanwezig is bij een cardiologische consultatie waarbij een patiënt op bezoek komt bij de arts. Je hoort een conversatie tussen 2 of meerdere personen (soms zijn familieleden mee) en maakt een gedetailleerde samenvatting van de consultatie. Focus je vooral op de anamnese/symptomen, probeer deze zo getrouw mogelijk neer te pennen. Let op: soms zal de conversatie gestoord worden doordat de arts gebeld wordt of iemand binnenkomt; hier moet je goed bedacht op zijn (de context zal plots niet meer kloppen)."""
                 )
+            elif report_type == "CONSULTATIE":
+                # Use Whisper for structured consultation format
+                transcript = openai.Audio.transcribe(
+                    model="whisper-1",
+                    file=audio_file_obj,
+                    language="nl",
+                    prompt="Dit is een Nederlandse medische dictatie van een cardioloog voor een gestructureerde consultatie. Gebruik correcte medische terminologie en behoud alle details voor het consultatieverslag."
+                )
             else:
                 # Use standard Whisper for TTE and SPOEDCONSULT
                 transcript = openai.Audio.transcribe(
@@ -196,6 +204,62 @@ Gecorrigeerd verslag:
         except Exception as e:
             # If review fails, return original report
             return structured_report
+    
+    def generate_consultatie_report(self, transcript: str, patient_id: str) -> str:
+        """Generate structured consultatie report using GPT-5-mini with exact format"""
+        try:
+            # Import the template
+            import sys
+            import os
+            sys.path.append(os.path.dirname(__file__))
+            from consultatie_template import generate_consultatie_template
+            
+            # Get the base template
+            base_template = generate_consultatie_template(transcript, patient_id)
+            
+            # Create prompt for GPT to fill in the template based on transcript
+            prompt = f"""Je bent een ervaren cardioloog die een gestructureerd consultatieverslag moet maken.
+
+TRANSCRIPT VAN DICTATIE:
+{transcript}
+
+INSTRUCTIES:
+1. Vul het onderstaande consultatieverslag in gebaseerd op de informatie uit het transcript
+2. Als iets niet wordt vermeld in het transcript, laat het dan staan maar vermeld "niet vermeld"
+3. Als ik zeg "niet uitgevoerd", sla dan de beschrijving over en vermeld bijv. "Fietsproef op raadpleging (dd-mm-yyyy): niet uitgevoerd"
+4. Behoud het EXACTE format en structuur
+5. Gebruik alleen informatie uit het transcript, verzin niets
+6. Vul alle relevante medische details in waar beschikbaar
+
+CONSULTATIEVERSLAG TEMPLATE OM IN TE VULLEN:
+{base_template}
+
+Vul nu het verslag in gebaseerd op het transcript, behoud de exacte structuur en format:"""
+
+            # Call GPT-5-mini to fill in the template
+            response = openai.ChatCompletion.create(
+                model="gpt-5-mini-2025-08-07",
+                messages=[
+                    {"role": "system", "content": "Je bent een ervaren cardioloog die gestructureerde consultatieverlagen maakt. Volg het exacte format en vul alleen in wat uit het transcript blijkt."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=3000,
+                temperature=0.1
+            )
+            
+            filled_report = response.choices[0].message.content.strip()
+            
+            print(f"DEBUG: Generated consultatie report length: {len(filled_report)}")
+            return filled_report
+            
+        except Exception as e:
+            print(f"ERROR generating consultatie report: {e}")
+            # Fallback to basic template
+            import sys
+            import os
+            sys.path.append(os.path.dirname(__file__))
+            from consultatie_template import generate_consultatie_template
+            return generate_consultatie_template(transcript, patient_id)
     
     def generate_tte_report(self, transcript, patient_id=""):
         """Generate TTE report with superior template"""
