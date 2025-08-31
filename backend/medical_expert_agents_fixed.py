@@ -26,33 +26,32 @@ class MedicalExpertAgents:
         print("🩺 Agent 2: Diagnostic Expert (GPT-4)")  
         print("💊 Agent 3: Treatment Protocol (GPT-4)")
     
-    def _call_gpt4(self, prompt: str, system_prompt: str = "", max_tokens: int = 1000, json_mode: bool = True) -> str:
-        """Call GPT-4 using older API format with proper error handling"""
+    def _call_gpt4(self, prompt: str, system_prompt: str = "", max_tokens: int = 1000, json_mode: bool = False) -> str:
+        """Call GPT-4 with proper error handling using OpenAI 1.0+ API"""
         try:
+            from openai import OpenAI
+            client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+            
             messages = []
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": prompt})
             
-            kwargs = {
-                "model": "gpt-4",
-                "messages": messages,
-                "max_tokens": max_tokens,
-                "temperature": 0.1
-            }
+            response_format = {"type": "json_object"} if json_mode else None
             
-            # Add response format for newer OpenAI versions if available
-            if json_mode:
-                try:
-                    kwargs["response_format"] = {"type": "json_object"}
-                except:
-                    pass  # Fallback for older versions
+            response = client.chat.completions.create(
+                model="gpt-4.1-mini",  # Use available model
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.1,
+                response_format=response_format
+            )
             
-            response = openai.ChatCompletion.create(**kwargs)
             return response.choices[0].message.content.strip()
+            
         except Exception as e:
             print(f"⚠️ GPT-4 API error: {e}")
-            return f"GPT-4 analysis unavailable: {str(e)}"
+            return ""
     
     def agent_1_quality_control(self, transcript: str) -> Dict[str, Any]:
         """
