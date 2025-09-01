@@ -29,12 +29,9 @@ class MedicalExpertAgents:
     def _call_gpt4(self, prompt: str, system_prompt: str = "", max_tokens: int = 1000, json_mode: bool = False) -> str:
         """Call GPT with proper error handling for gpt-4o-mini compatibility"""
         try:
-            # Try new OpenAI v1.0+ client
+            # Try new OpenAI v1.0+ client with simple initialization
             from openai import OpenAI
-            client = OpenAI(
-                api_key=os.environ.get('OPENAI_API_KEY'),
-                base_url=os.environ.get('OPENAI_API_BASE', 'https://api.openai.com/v1')
-            )
+            client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
             
             messages = []
             if system_prompt:
@@ -59,8 +56,7 @@ class MedicalExpertAgents:
             # Fallback to legacy client
             import openai
             openai.api_key = os.environ.get('OPENAI_API_KEY')
-            if os.environ.get('OPENAI_API_BASE'):
-                openai.api_base = os.environ.get('OPENAI_API_BASE')
+            # Don't set api_base to avoid proxy issues
             
             messages = []
             if system_prompt:

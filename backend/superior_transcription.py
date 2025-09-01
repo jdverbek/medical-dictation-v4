@@ -20,10 +20,8 @@ class SuperiorMedicalTranscription:
             # Check if we have a separate audio API key
             audio_api_key = os.environ.get('OPENAI_AUDIO_API_KEY') or os.environ.get('OPENAI_API_KEY')
             
-            self.audio_client = OpenAI(
-                api_key=audio_api_key,
-                base_url="https://api.openai.com/v1"  # Must use standard OpenAI API for audio
-            )
+            # Simple client initialization without extra parameters that might cause proxy issues
+            self.audio_client = OpenAI(api_key=audio_api_key)
             print(f"🎤 Audio transcription client initialized with standard OpenAI API")
             print(f"🔑 Using API key: {audio_api_key[:10]}...{audio_api_key[-4:] if audio_api_key else 'None'}")
         except ImportError:
@@ -31,7 +29,7 @@ class SuperiorMedicalTranscription:
             import openai
             audio_api_key = os.environ.get('OPENAI_AUDIO_API_KEY') or os.environ.get('OPENAI_API_KEY')
             openai.api_key = audio_api_key
-            openai.api_base = "https://api.openai.com/v1"  # Must use standard API for audio
+            # Don't set api_base to avoid proxy issues
             self.audio_client = None
             print(f"🎤 Using legacy OpenAI client for audio transcription")
             print(f"🔑 Using API key: {audio_api_key[:10]}...{audio_api_key[-4:] if audio_api_key else 'None'}")
@@ -411,10 +409,7 @@ Vul nu het verslag in gebaseerd op het transcript, behoud de exacte structuur en
             # Use the same OpenAI client configuration as the rest of the app
             try:
                 from openai import OpenAI
-                client = OpenAI(
-                    api_key=os.environ.get('OPENAI_API_KEY'),
-                    base_url=os.environ.get('OPENAI_API_BASE', 'https://api.openai.com/v1')
-                )
+                client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
                 
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -432,8 +427,7 @@ Vul nu het verslag in gebaseerd op het transcript, behoud de exacte structuur en
                 # Fallback to legacy OpenAI client
                 import openai
                 openai.api_key = os.environ.get('OPENAI_API_KEY')
-                if os.environ.get('OPENAI_API_BASE'):
-                    openai.api_base = os.environ.get('OPENAI_API_BASE')
+                # Don't set api_base to avoid proxy issues
                 
                 response = openai.ChatCompletion.create(
                     model="gpt-4o-mini",
