@@ -17,6 +17,14 @@ class MedicalExpertAgents:
     """
     
     def __init__(self):
+        # CRITICAL: Remove proxy environment variables that cause issues on Render.com
+        import os
+        proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']
+        for var in proxy_vars:
+            if var in os.environ:
+                print(f"🔧 Removing proxy env var: {var}")
+                os.environ.pop(var, None)
+        
         # Initialize OpenAI (already configured globally)
         if not openai.api_key:
             raise ValueError("OPENAI_API_KEY environment variable is required")
@@ -28,6 +36,12 @@ class MedicalExpertAgents:
     
     def _call_gpt4(self, prompt: str, system_prompt: str = "", max_tokens: int = 1000, json_mode: bool = False) -> str:
         """Call GPT with proper error handling for gpt-4o-mini compatibility"""
+        # CRITICAL: Remove proxy environment variables before each API call
+        import os
+        proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']
+        for var in proxy_vars:
+            os.environ.pop(var, None)
+        
         try:
             # Try new OpenAI v1.0+ client with simple initialization
             from openai import OpenAI
@@ -52,7 +66,8 @@ class MedicalExpertAgents:
             response = client.chat.completions.create(**kwargs)
             return response.choices[0].message.content.strip()
             
-        except ImportError:
+        except Exception as e:
+            print(f"⚠️ OpenAI v1.0+ client failed: {e}")
             # Fallback to legacy client
             import openai
             openai.api_key = os.environ.get('OPENAI_API_KEY')

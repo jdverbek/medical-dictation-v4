@@ -12,6 +12,14 @@ import tempfile
 
 class SuperiorMedicalTranscription:
     def __init__(self):
+        # CRITICAL: Remove proxy environment variables that cause issues on Render.com
+        import os
+        proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']
+        for var in proxy_vars:
+            if var in os.environ:
+                print(f"🔧 Removing proxy env var: {var}")
+                os.environ.pop(var, None)
+        
         # For audio transcription, we need to use the standard OpenAI API
         # The Manus proxy doesn't support audio endpoints
         try:
@@ -24,7 +32,8 @@ class SuperiorMedicalTranscription:
             self.audio_client = OpenAI(api_key=audio_api_key)
             print(f"🎤 Audio transcription client initialized with standard OpenAI API")
             print(f"🔑 Using API key: {audio_api_key[:10]}...{audio_api_key[-4:] if audio_api_key else 'None'}")
-        except ImportError:
+        except Exception as e:
+            print(f"⚠️ OpenAI v1.0+ client failed: {e}")
             # Fallback to legacy OpenAI client
             import openai
             audio_api_key = os.environ.get('OPENAI_AUDIO_API_KEY') or os.environ.get('OPENAI_API_KEY')
