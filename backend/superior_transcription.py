@@ -417,13 +417,13 @@ Vul nu het verslag in gebaseerd op het transcript, behoud de exacte structuur en
                 )
                 
                 response = client.chat.completions.create(
-                    model="gpt-5-mini-2025-08-07",
+                    model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": "Je bent een ervaren cardioloog die gestructureerde consultatieverlagen maakt. Volg het exacte format en vul alleen in wat uit het transcript blijkt."},
                         {"role": "user", "content": prompt}
                     ],
                     max_tokens=3000,
-                    temperature=0.1
+                    temperature=1.0
                 )
                 
                 filled_report = response.choices[0].message.content.strip()
@@ -436,13 +436,13 @@ Vul nu het verslag in gebaseerd op het transcript, behoud de exacte structuur en
                     openai.api_base = os.environ.get('OPENAI_API_BASE')
                 
                 response = openai.ChatCompletion.create(
-                    model="gpt-5-mini-2025-08-07",
+                    model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": "Je bent een ervaren cardioloog die gestructureerde consultatieverlagen maakt. Volg het exacte format en vul alleen in wat uit het transcript blijkt."},
                         {"role": "user", "content": prompt}
                     ],
                     max_tokens=3000,
-                    temperature=0.1
+                    temperature=1.0
                 )
                 
                 filled_report = response.choices[0].message.content.strip()

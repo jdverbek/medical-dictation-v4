@@ -27,41 +27,58 @@ class MedicalExpertAgents:
         print("💊 Agent 3: Treatment Protocol (GPT-4)")
     
     def _call_gpt4(self, prompt: str, system_prompt: str = "", max_tokens: int = 1000, json_mode: bool = False) -> str:
-        """Call GPT-4 with proper error handling using OpenAI 1.0+ API"""
+        """Call GPT with proper error handling for gpt-4o-mini compatibility"""
         try:
+            # Try new OpenAI v1.0+ client
             from openai import OpenAI
-            client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
-            
-            print(f"🔍 DEBUG: Calling GPT-4 with prompt length: {len(prompt)}")
-            print(f"🔍 DEBUG: System prompt length: {len(system_prompt)}")
-            print(f"🔍 DEBUG: OpenAI API Key available: {bool(os.environ.get('OPENAI_API_KEY'))}")
+            client = OpenAI(
+                api_key=os.environ.get('OPENAI_API_KEY'),
+                base_url=os.environ.get('OPENAI_API_BASE', 'https://api.openai.com/v1')
+            )
             
             messages = []
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": prompt})
             
-            response_format = {"type": "json_object"} if json_mode else None
+            # gpt-4o-mini specific parameters
+            kwargs = {
+                "model": "gpt-4o-mini",  # Use gpt-4o-mini instead of gpt-5-mini
+                "messages": messages,
+                "temperature": 1.0,  # gpt-4o-mini supports default temperature
+                "max_tokens": max_tokens
+            }
             
-            print(f"🔍 DEBUG: About to call OpenAI API with model gpt-4.1-mini...")
-            response = client.chat.completions.create(
-                model="gpt-4.1-mini",  # Use available model
+            if json_mode:
+                kwargs["response_format"] = {"type": "json_object"}
+            
+            response = client.chat.completions.create(**kwargs)
+            return response.choices[0].message.content.strip()
+            
+        except ImportError:
+            # Fallback to legacy client
+            import openai
+            openai.api_key = os.environ.get('OPENAI_API_KEY')
+            if os.environ.get('OPENAI_API_BASE'):
+                openai.api_base = os.environ.get('OPENAI_API_BASE')
+            
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+            
+            # Use gpt-4o-mini as fallback
+            response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",  # More reliable model
                 messages=messages,
                 max_tokens=max_tokens,
-                temperature=0.1,
-                response_format=response_format
+                temperature=1.0  # Use default temperature
             )
             
-            result = response.choices[0].message.content.strip()
-            print(f"🔍 DEBUG: GPT-4 response length: {len(result)}")
-            print(f"🔍 DEBUG: GPT-4 response preview: {result[:200]}...")
-            
-            return result
+            return response.choices[0].message.content.strip()
             
         except Exception as e:
-            print(f"⚠️ GPT-4 API error: {e}")
-            import traceback
-            print(f"🔍 DEBUG: Full API error traceback: {traceback.format_exc()}")
+            print(f"⚠️ GPT API error: {e}")
             return ""
     
     def agent_1_quality_control(self, transcript: str) -> Dict[str, Any]:

@@ -108,7 +108,7 @@ Geef alleen de verbeterde transcriptie terug, geen uitleg."""
                 "role": "user",
                 "content": f"Patiënt ID: {patient_id}\nTranscriptie: {transcript}"
             }],
-            temperature=0.1
+            temperature=1.0
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -144,7 +144,7 @@ Geef terug als JSON:
     "final_report": "definitief rapport"
 }}"""
             }],
-            temperature=0.1
+            temperature=1.0
         )
         
         content = response.content[0].text
@@ -192,7 +192,7 @@ Gebruik alleen informatie uit de transcriptie. Schrijf in professioneel Nederlan
                 "role": "user",
                 "content": f"Patiënt ID: {patient_id}\nTranscriptie: {transcript}"
             }],
-            temperature=0.1
+            temperature=1.0
         )
         return response.choices[0].message.content
     except Exception as e:

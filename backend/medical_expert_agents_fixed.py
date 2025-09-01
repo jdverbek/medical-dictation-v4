@@ -43,7 +43,7 @@ class MedicalExpertAgents:
                 model="gpt-4.1-mini",  # Use available model
                 messages=messages,
                 max_tokens=max_tokens,
-                temperature=0.1,
+                temperature=1.0,
                 response_format=response_format
             )
             

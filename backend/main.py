@@ -222,7 +222,7 @@ class MultiAgentOrchestrator:
                 "content": transcript
             }],
             response_format={"type": "json_object"},
-            temperature=0.1
+            temperature=1.0
         )
         
         try:
@@ -251,7 +251,7 @@ class MultiAgentOrchestrator:
                 "content": transcript
             }],
             response_format={"type": "json_object"},
-            temperature=0.1
+            temperature=1.0
         )
         
         try:
@@ -280,7 +280,7 @@ class MultiAgentOrchestrator:
                 "content": f"Patient: {patient_id}\nType: {report_type}\nTranscript: {transcript}"
             }],
             response_format={"type": "json_object"},
-            temperature=0.1
+            temperature=1.0
         )
         
         try:
@@ -344,7 +344,7 @@ class MultiAgentOrchestrator:
                 "role": "user",
                 "content": f"Patiënt ID: {patient_id}\nTranscriptie: {transcript}"
             }],
-            temperature=0.1
+            temperature=1.0
         )
         
         return response.choices[0].message.content
@@ -383,7 +383,7 @@ class MultiAgentOrchestrator:
                     Als er kleine verbeteringen nodig zijn, pas ze toe in final_transcript en final_report.
                     """
                 }],
-                temperature=0.1
+                temperature=1.0
             )
             
             # Extract JSON from Claude's response
