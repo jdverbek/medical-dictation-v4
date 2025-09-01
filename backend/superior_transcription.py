@@ -408,18 +408,44 @@ CONSULTATIEVERSLAG TEMPLATE OM IN TE VULLEN:
 
 Vul nu het verslag in gebaseerd op het transcript, behoud de exacte structuur en format:"""
 
-            # Call GPT-5-mini to fill in the template
-            response = openai.ChatCompletion.create(
-                model="gpt-5-mini-2025-08-07",
-                messages=[
-                    {"role": "system", "content": "Je bent een ervaren cardioloog die gestructureerde consultatieverlagen maakt. Volg het exacte format en vul alleen in wat uit het transcript blijkt."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=3000,
-                temperature=0.1
-            )
-            
-            filled_report = response.choices[0].message.content.strip()
+            # Use the same OpenAI client configuration as the rest of the app
+            try:
+                from openai import OpenAI
+                client = OpenAI(
+                    api_key=os.environ.get('OPENAI_API_KEY'),
+                    base_url=os.environ.get('OPENAI_API_BASE', 'https://api.openai.com/v1')
+                )
+                
+                response = client.chat.completions.create(
+                    model="gpt-5-mini-2025-08-07",
+                    messages=[
+                        {"role": "system", "content": "Je bent een ervaren cardioloog die gestructureerde consultatieverlagen maakt. Volg het exacte format en vul alleen in wat uit het transcript blijkt."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=3000,
+                    temperature=0.1
+                )
+                
+                filled_report = response.choices[0].message.content.strip()
+                
+            except ImportError:
+                # Fallback to legacy OpenAI client
+                import openai
+                openai.api_key = os.environ.get('OPENAI_API_KEY')
+                if os.environ.get('OPENAI_API_BASE'):
+                    openai.api_base = os.environ.get('OPENAI_API_BASE')
+                
+                response = openai.ChatCompletion.create(
+                    model="gpt-5-mini-2025-08-07",
+                    messages=[
+                        {"role": "system", "content": "Je bent een ervaren cardioloog die gestructureerde consultatieverlagen maakt. Volg het exacte format en vul alleen in wat uit het transcript blijkt."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=3000,
+                    temperature=0.1
+                )
+                
+                filled_report = response.choices[0].message.content.strip()
             
             print(f"DEBUG: Generated consultatie report length: {len(filled_report)}")
             return filled_report
