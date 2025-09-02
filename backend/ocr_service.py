@@ -142,25 +142,34 @@ class PatientNumberOCR:
                         "content": [
                             {
                                 "type": "text",
-                                "text": """Look at this medical document image and extract ALL numbers you can see.
+                                "text": """Look at this medical software interface screenshot and find the patient ID number.
 
-TASK: Find a 10-digit patient number/ID
+TASK: Extract the patient ID number (exactly 10 digits)
 
-INSTRUCTIONS:
-- Look for ANY 10-digit number in the image
-- Patient numbers are often near the top of medical documents
-- They might be labeled as: Patient ID, Patiënt ID, ID, Number, etc.
-- Ignore phone numbers, dates, postal codes
-- Return ALL 10-digit numbers you find
+WHAT TO LOOK FOR:
+- A 10-digit patient ID number (like "0033001339")
+- Usually displayed near the patient name and basic info
+- Often starts with zeros (e.g., 0033001339, 0012345678)
+- This is the main patient identifier in the medical system
+- May be labeled as "Patient ID", "ID", or just displayed as a number
+
+TYPICAL LOCATIONS:
+- Near patient name and demographic information
+- In the patient header/info section
+- Could be anywhere in the patient information area
+- May be next to a patient photo or photo placeholder
+
+WHAT TO IGNORE:
+- Phone numbers (usually shorter or have formatting)
+- Dates (like 15-06-1986, different format)
+- Short reference numbers (less than 10 digits)
+- Any number that's not exactly 10 digits
 
 RESPONSE FORMAT:
-- If you find 10-digit numbers: list them separated by commas
-- If no 10-digit numbers found: respond "NO_10_DIGIT_NUMBERS"
-- Also describe what text/numbers you DO see in the image
+- If you find the 10-digit patient ID: return just the number (e.g., "0033001339")
+- If not found: respond "NO_PATIENT_ID - I see these numbers: [list all numbers you find]"
 
-Example response: "1234567890, 9876543210" or "NO_10_DIGIT_NUMBERS - I see: John Doe, 12/03/1985, phone: 555-123-4567"
-
-Be thorough - look at the entire image for any 10-digit sequences."""
+Scan the entire interface for any 10-digit number that could be a patient ID."""
                             },
                             {
                                 "type": "image_url",
@@ -190,17 +199,17 @@ Be thorough - look at the entire image for any 10-digit sequences."""
                 print(f"🌐 OpenAI Vision extracted: {extracted_text}")
                 
                 # Parse the response
-                if "NO_10_DIGIT_NUMBERS" in extracted_text:
+                if "NO_PATIENT_ID" in extracted_text:
                     return {
                         'success': False,
-                        'error': 'Geen 10-cijferig patiëntennummer gevonden',
+                        'error': 'Geen patiëntennummer gevonden',
                         'raw_text': extracted_text,
-                        'suggestion': 'Probeer een duidelijkere foto of zorg dat het patiëntennummer volledig zichtbaar is',
+                        'suggestion': 'Zorg dat het patiëntennummer (geel vak) duidelijk zichtbaar is',
                         'debug_info': f"AI response: {extracted_text}"
                     }
                 
-                # Look for 10-digit numbers in the response
-                patient_numbers = self.find_patient_numbers(extracted_text)
+                # Look for patient numbers (9-10 digits) in the response
+                patient_numbers = self.find_patient_numbers_flexible(extracted_text)
                 if patient_numbers:
                     return {
                         'success': True,
@@ -213,23 +222,25 @@ Be thorough - look at the entire image for any 10-digit sequences."""
                 else:
                     # Try to extract any numbers from the response
                     all_numbers = re.findall(r'\d+', extracted_text)
-                    ten_digit_numbers = [num for num in all_numbers if len(num) == 10]
+                    valid_numbers = [num for num in all_numbers if len(num) >= 8 and len(num) <= 10]
                     
-                    if ten_digit_numbers:
+                    if valid_numbers:
+                        # Pad with zeros if needed (for 9-digit numbers)
+                        padded_number = valid_numbers[0].zfill(10)
                         return {
                             'success': True,
-                            'patient_number': ten_digit_numbers[0],
-                            'all_found': ten_digit_numbers,
+                            'patient_number': padded_number,
+                            'all_found': valid_numbers,
                             'raw_text': extracted_text,
                             'method': 'openai_vision_fallback',
-                            'debug_info': f"Fallback extraction: {ten_digit_numbers}"
+                            'debug_info': f"Fallback extraction: {valid_numbers} -> padded to {padded_number}"
                         }
                     else:
                         return {
                             'success': False,
-                            'error': f'AI zag wel tekst maar geen geldig 10-cijferig nummer',
+                            'error': f'AI zag wel tekst maar geen geldig patiëntennummer (8-10 cijfers)',
                             'raw_text': extracted_text,
-                            'suggestion': 'Probeer een foto waar het patiëntennummer duidelijker zichtbaar is',
+                            'suggestion': 'Probeer een foto waar het gele vak met patiëntennummer duidelijker zichtbaar is',
                             'debug_info': f"AI response: {extracted_text}, Found numbers: {all_numbers}"
                         }
             else:
@@ -339,6 +350,28 @@ Be thorough - look at the entire image for any 10-digit sequences."""
             'error': 'Alle OCR methoden gefaald',
             'suggestion': 'Voer patiëntennummer handmatig in'
         }
+    
+    def find_patient_numbers_flexible(self, text):
+        """
+        Find patient numbers (9-10 digits) in text with flexible matching
+        """
+        # Pattern for 9-10 digits (to handle both cases)
+        patterns = [
+            r'\b\d{10}\b',  # Exactly 10 digits
+            r'\b\d{9}\b',   # Exactly 9 digits
+        ]
+        
+        unique_numbers = []
+        for pattern in patterns:
+            matches = re.findall(pattern, text)
+            for match in matches:
+                if match not in unique_numbers:
+                    # Pad 9-digit numbers to 10 digits with leading zero
+                    if len(match) == 9:
+                        match = '0' + match
+                    unique_numbers.append(match)
+        
+        return unique_numbers
     
     def find_patient_numbers(self, text):
         """
