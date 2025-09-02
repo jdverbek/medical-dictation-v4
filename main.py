@@ -875,6 +875,49 @@ def transcribe():
         
         raw_transcript = transcription_result['transcript']
         
+        # 🚨 IMMEDIATE DATABASE SAVE - Save transcription as soon as we have it
+        print(f"🔍 DEBUG: IMMEDIATE SAVE - Starting database save right after transcription")
+        try:
+            user = get_current_user()
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Current user: {user}")
+            
+            if not user:
+                print("❌ DEBUG: IMMEDIATE SAVE - No user found in session!")
+                user_id = 1  # Fallback for compatibility
+            else:
+                user_id = user['id']
+            
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Using user_id: {user_id}")
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Patient: {patient_id}, Type: {verslag_type}")
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Transcript length: {len(raw_transcript)}")
+            
+            conn = sqlite3.connect('medical_app_v4.db')
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO transcription_history 
+                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                user_id, 
+                patient_id, 
+                verslag_type, 
+                raw_transcript, 
+                "Processing...",  # Placeholder, will be updated later
+                raw_transcript   # Initial enhanced transcript
+            ))
+            
+            # Get the inserted record ID
+            record_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            
+            print(f"✅ IMMEDIATE SAVE - Successfully saved to database with ID: {record_id}")
+            
+        except Exception as e:
+            print(f"❌ IMMEDIATE SAVE - Database save failed: {e}")
+            import traceback
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Full error traceback: {traceback.format_exc()}")
+        
         # Enhanced transcription processing
         enhanced_transcription_result = None
         try:
@@ -940,58 +983,61 @@ def transcribe():
         
         print(f"🔍 DEBUG: Generated report preview: {structured_report[:100]}...")
         
-        # Store in database with enhanced transcript
+        # Update database record with final report and enhanced transcript
         try:
             user = get_current_user()
-            print(f"🔍 DEBUG: Current user: {user}")
+            print(f"🔍 DEBUG: UPDATE - Current user: {user}")
             
             if not user:
-                print("❌ DEBUG: No user found in session!")
+                print("❌ DEBUG: UPDATE - No user found in session!")
                 user_id = 1  # Fallback for compatibility
             else:
                 user_id = user['id']
             
-            print(f"🔍 DEBUG: Using user_id: {user_id}")
-            print(f"🔍 DEBUG: Saving - Patient: {patient_id}, Type: {verslag_type}")
-            print(f"🔍 DEBUG: Transcript length: {len(raw_transcript)}")
-            print(f"🔍 DEBUG: Report length: {len(structured_report)}")
+            print(f"🔍 DEBUG: UPDATE - Using user_id: {user_id}")
+            print(f"🔍 DEBUG: UPDATE - Patient: {patient_id}, Type: {verslag_type}")
+            print(f"🔍 DEBUG: UPDATE - Report length: {len(structured_report)}")
             
             conn = sqlite3.connect('medical_app_v4.db')
             cursor = conn.cursor()
+            
+            # Update the most recent record for this user with the final report
             cursor.execute('''
-                INSERT INTO transcription_history 
-                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
-                VALUES (?, ?, ?, ?, ?, ?)
+                UPDATE transcription_history 
+                SET structured_report = ?, 
+                    enhanced_transcript = ?,
+                    quality_feedback = ?
+                WHERE user_id = ? AND patient_id = ? AND verslag_type = ?
+                ORDER BY created_at DESC 
+                LIMIT 1
             ''', (
-                user_id, 
-                patient_id, 
-                verslag_type, 
-                raw_transcript, 
                 structured_report,
-                enhanced_transcription_result['enhanced_transcript'] if enhanced_transcription_result else raw_transcript
+                enhanced_transcription_result['enhanced_transcript'] if enhanced_transcription_result else raw_transcript,
+                quality_feedback,
+                user_id,
+                patient_id,
+                verslag_type
             ))
             
-            # Get the inserted record ID
-            record_id = cursor.lastrowid
+            rows_updated = cursor.rowcount
             conn.commit()
             conn.close()
             
-            print(f"✅ Successfully saved to database with ID: {record_id}")
+            print(f"✅ UPDATE - Successfully updated {rows_updated} database record(s)")
             
-            # Verify the save worked
+            # Verify the update worked
             conn = sqlite3.connect('medical_app_v4.db')
             cursor = conn.cursor()
             cursor.execute('SELECT COUNT(*) FROM transcription_history WHERE user_id = ?', (user_id,))
             count = cursor.fetchone()[0]
             conn.close()
-            print(f"🔍 DEBUG: Total records for user {user_id}: {count}")
+            print(f"🔍 DEBUG: UPDATE - Total records for user {user_id}: {count}")
             
         except Exception as e:
-            logger.error(f"Database error: {e}")
-            print(f"❌ Database save failed: {e}")
+            print(f"❌ UPDATE - Database update failed: {e}")
             import traceback
-            print(f"🔍 DEBUG: Full database error traceback: {traceback.format_exc()}")
-            # Don't fail the entire request if database save fails
+            print(f"🔍 DEBUG: UPDATE - Full error traceback: {traceback.format_exc()}")
+            # Don't fail the entire request if database update fails
             pass
         
         # Return comprehensive JSON response
