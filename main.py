@@ -452,8 +452,11 @@ transcription_service = SuperiorMedicalTranscription()
 # Initialize OCR service
 try:
     ocr_service = PatientNumberOCR()
-    OCR_AVAILABLE = True
-    print("✅ Patient Number OCR service initialized successfully!")
+    OCR_AVAILABLE = ocr_service.is_available()
+    if OCR_AVAILABLE:
+        print("✅ Patient Number OCR service initialized successfully!")
+    else:
+        print("⚠️ OCR service initialized but dependencies not available (cloud deployment)")
 except Exception as e:
     print(f"⚠️ OCR service initialization failed: {e}")
     OCR_AVAILABLE = False
@@ -1141,12 +1144,17 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'version': '4.0-superior',
+        'openai_configured': bool(os.environ.get('OPENAI_API_KEY')),
+        'ocr_available': OCR_AVAILABLE,
+        'experts_available': EXPERTS_AVAILABLE,
         'features': [
             'WebM audio detection',
             'Hallucination detection', 
             'Quality control review',
             'Dutch medical terminology',
             'Context-aware drug correction',
+            'Medical classification validation',
+            'OCR patient number extraction' if OCR_AVAILABLE else 'OCR disabled (cloud deployment)',
             'Rate limiting',
             'Security headers'
         ]

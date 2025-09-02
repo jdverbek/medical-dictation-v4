@@ -1,31 +1,55 @@
 """
 OCR Service for Patient Number Extraction
 Local OCR using Tesseract (no API calls for privacy)
+Made optional for cloud deployment compatibility
 """
 
-import cv2
-import numpy as np
-import pytesseract
 import re
-from PIL import Image
 import io
 import base64
+from PIL import Image
+
+# Optional imports for OCR functionality
+try:
+    import cv2
+    import numpy as np
+    import pytesseract
+    OCR_DEPENDENCIES_AVAILABLE = True
+    print("🔍 OCR dependencies loaded successfully")
+except ImportError as e:
+    OCR_DEPENDENCIES_AVAILABLE = False
+    print(f"⚠️ OCR dependencies not available: {e}")
+    print("📱 OCR functionality will be disabled in cloud deployment")
 
 class PatientNumberOCR:
     """
     Local OCR service for extracting patient numbers from photos
     Uses Tesseract OCR for privacy (no external API calls)
+    Gracefully handles missing dependencies for cloud deployment
     """
     
     def __init__(self):
-        # Configure Tesseract for better number recognition
-        self.tesseract_config = '--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789'
-        print("🔍 Patient Number OCR initialized with Tesseract")
+        self.available = OCR_DEPENDENCIES_AVAILABLE
+        
+        if self.available:
+            # Configure Tesseract for better number recognition
+            self.tesseract_config = '--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789'
+            print("🔍 Patient Number OCR initialized with Tesseract")
+        else:
+            print("⚠️ Patient Number OCR disabled - dependencies not available")
+            print("💡 Install opencv-python, pytesseract, and tesseract-ocr for OCR functionality")
+    
+    def is_available(self):
+        """Check if OCR functionality is available"""
+        return self.available
     
     def preprocess_image(self, image_data):
         """
         Preprocess image for better OCR accuracy
         """
+        if not self.available:
+            return None
+            
         try:
             # Convert base64 to image if needed
             if isinstance(image_data, str) and image_data.startswith('data:image'):
@@ -75,6 +99,13 @@ class PatientNumberOCR:
         Extract patient number from image
         Looks for 10-digit number on 3rd line
         """
+        if not self.available:
+            return {
+                'success': False,
+                'error': 'OCR service niet beschikbaar in deze deployment',
+                'suggestion': 'OCR functionaliteit vereist lokale installatie van Tesseract en OpenCV'
+            }
+            
         try:
             # Preprocess image
             processed_image = self.preprocess_image(image_data)
@@ -175,19 +206,22 @@ class PatientNumberOCR:
 if __name__ == "__main__":
     ocr = PatientNumberOCR()
     
-    # Test with sample text
-    test_text = """
-    Patient Name: John Doe
-    Date of Birth: 01/01/1980
-    Patient ID: 1234567890
-    Department: Cardiology
-    """
-    
-    numbers = ocr.find_patient_numbers(test_text)
-    print(f"Found patient numbers: {numbers}")
-    
-    # Test validation
-    print(f"Valid: {ocr.validate_patient_number('1234567890')}")
-    print(f"Invalid: {ocr.validate_patient_number('123456789')}")  # 9 digits
-    print(f"Invalid: {ocr.validate_patient_number('12345678901')}")  # 11 digits
+    if ocr.is_available():
+        # Test with sample text
+        test_text = """
+        Patient Name: John Doe
+        Date of Birth: 01/01/1980
+        Patient ID: 1234567890
+        Department: Cardiology
+        """
+        
+        numbers = ocr.find_patient_numbers(test_text)
+        print(f"Found patient numbers: {numbers}")
+        
+        # Test validation
+        print(f"Valid: {ocr.validate_patient_number('1234567890')}")
+        print(f"Invalid: {ocr.validate_patient_number('123456789')}")  # 9 digits
+        print(f"Invalid: {ocr.validate_patient_number('12345678901')}")  # 11 digits
+    else:
+        print("OCR functionality not available - install dependencies for testing")
 

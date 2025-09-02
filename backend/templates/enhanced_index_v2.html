@@ -614,6 +614,15 @@
         // OCR Functionality
         ocrBtn.addEventListener('click', async () => {
             try {
+                // Check if OCR is available first
+                const healthResponse = await fetch('/health');
+                const healthData = await healthResponse.json();
+                
+                if (!healthData.ocr_available) {
+                    showStatus('⚠️ OCR functionaliteit niet beschikbaar in cloud deployment. Voer patiënt ID handmatig in.', 'warning');
+                    return;
+                }
+                
                 // Request camera access
                 cameraStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
@@ -628,7 +637,13 @@
                 
             } catch (error) {
                 console.error('Camera access error:', error);
-                showStatus('❌ Camera toegang geweigerd. Controleer browser instellingen.', 'error');
+                if (error.name === 'NotAllowedError') {
+                    showStatus('❌ Camera toegang geweigerd. Controleer browser instellingen.', 'error');
+                } else if (error.name === 'NotFoundError') {
+                    showStatus('❌ Geen camera gevonden. Voer patiënt ID handmatig in.', 'error');
+                } else {
+                    showStatus('❌ Camera fout: ' + error.message, 'error');
+                }
             }
         });
 
