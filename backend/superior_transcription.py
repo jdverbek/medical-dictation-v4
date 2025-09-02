@@ -452,6 +452,8 @@ class SuperiorMedicalTranscription:
             {"role": "user", "content": user_message}
         ])
         
+        return report
+    
     def generate_tte_report(self, transcript, patient_id=""):
         """Generate TTE report with updated structure"""
         today = datetime.datetime.now().strftime("%d-%m-%Y")
