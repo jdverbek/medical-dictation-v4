@@ -242,12 +242,33 @@
             debugContent.innerHTML = `<pre>${JSON.stringify(info, null, 2)}</pre>`;
         }
 
-        // Recording functionality
+        // Recording functionality with Safari compatibility
         recordBtn.addEventListener('click', async () => {
             if (!isRecording) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
+                    
+                    // Detect Safari and use appropriate recording format
+                    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                    let mimeType = 'audio/webm';
+                    let fileExtension = '.webm';
+                    
+                    if (isSafari) {
+                        // Safari doesn't support WebM, try MP4 or WAV
+                        if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                            mimeType = 'audio/mp4';
+                            fileExtension = '.m4a';
+                        } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+                            mimeType = 'audio/wav';
+                            fileExtension = '.wav';
+                        } else {
+                            // Fallback to default and let the server handle conversion
+                            mimeType = 'audio/webm';
+                            fileExtension = '.webm';
+                        }
+                    }
+                    
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
                     audioChunks = [];
 
                     mediaRecorder.ondataavailable = (event) => {
@@ -255,22 +276,47 @@
                     };
 
                     mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
-                        
-                        // Create a file input and set the recorded file
-                        const dataTransfer = new DataTransfer();
-                        dataTransfer.items.add(audioFile);
-                        document.getElementById('audioFile').files = dataTransfer.files;
-                        
-                        showStatus('Opname voltooid! Klik "Verwerk Audio" om door te gaan.', 'success');
+                        try {
+                            const audioBlob = new Blob(audioChunks, { type: mimeType });
+                            const audioFile = new File([audioBlob], `recording${fileExtension}`, { type: mimeType });
+                            
+                            // Safari-compatible file setting
+                            if (isSafari) {
+                                // Safari workaround: Create a new input element
+                                const fileInput = document.getElementById('audioFile');
+                                const newFileInput = fileInput.cloneNode(true);
+                                
+                                // Try to set the file (may not work in Safari, but we'll try)
+                                try {
+                                    const dataTransfer = new DataTransfer();
+                                    dataTransfer.items.add(audioFile);
+                                    newFileInput.files = dataTransfer.files;
+                                    fileInput.parentNode.replaceChild(newFileInput, fileInput);
+                                    newFileInput.id = 'audioFile';
+                                } catch (safariError) {
+                                    console.warn('Safari file setting failed, using alternative approach:', safariError);
+                                    // Store the blob for later use
+                                    window.recordedAudioBlob = audioBlob;
+                                    window.recordedAudioFilename = `recording${fileExtension}`;
+                                }
+                            } else {
+                                // Standard approach for other browsers
+                                const dataTransfer = new DataTransfer();
+                                dataTransfer.items.add(audioFile);
+                                document.getElementById('audioFile').files = dataTransfer.files;
+                            }
+                            
+                            showStatus(`Opname voltooid! Format: ${mimeType}. Klik "Verwerk Audio" om door te gaan.`, 'success');
+                        } catch (error) {
+                            showStatus('Fout bij verwerken opname: ' + error.message, 'error');
+                        }
                     };
 
                     mediaRecorder.start();
                     isRecording = true;
                     recordBtn.textContent = '⏹️ Stop Opname';
                     recordBtn.classList.add('recording');
-                    recordingStatus.textContent = 'Opname bezig...';
+                    recordingStatus.textContent = `Opname bezig... (${mimeType})`;
                 } catch (error) {
                     showStatus('Fout bij toegang tot microfoon: ' + error.message, 'error');
                 }
@@ -294,7 +340,16 @@
                 return;
             }
             
-            const audioFile = document.getElementById('audioFile').files[0];
+            let audioFile = document.getElementById('audioFile').files[0];
+            
+            // Safari workaround: Use recorded blob if file input is empty
+            if (!audioFile && window.recordedAudioBlob) {
+                audioFile = new File([window.recordedAudioBlob], window.recordedAudioFilename || 'recording.m4a', { 
+                    type: window.recordedAudioBlob.type 
+                });
+                showStatus('Safari: Gebruik opgenomen audio voor verwerking.', 'info');
+            }
+            
             if (!audioFile) {
                 showStatus('Selecteer een audio bestand of maak een opname.', 'error');
                 return;
@@ -307,29 +362,37 @@
                 return;
             }
 
-            // AUTOMATIC BACKUP: Download audio file BEFORE processing starts (non-blocking)
+            // AUTOMATIC BACKUP: Download audio file BEFORE processing starts (Safari-compatible)
             // This prevents data loss if processing fails
             const patientId = document.getElementById('patientId').value || 'Unknown';
             
-            // Use setTimeout to make backup non-blocking
-            setTimeout(() => {
-                try {
-                    const url = URL.createObjectURL(audioFile);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    // Include patient ID in backup filename for easy linking
-                    a.download = `backup_${patientId}_${audioFile.name}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    
-                    // Show backup confirmation with patient ID
-                    document.getElementById('autoBackupStatus').style.display = 'block';
-                } catch (error) {
-                    console.warn('Automatic backup failed:', error);
-                }
-            }, 100); // Small delay to prevent interference with form submission
+            // Detect Safari browser
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            
+            if (!isSafari) {
+                // Use setTimeout to make backup non-blocking (only for non-Safari browsers)
+                setTimeout(() => {
+                    try {
+                        const url = URL.createObjectURL(audioFile);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        // Include patient ID in backup filename for easy linking
+                        a.download = `backup_${patientId}_${audioFile.name}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                        // Show backup confirmation with patient ID
+                        document.getElementById('autoBackupStatus').style.display = 'block';
+                    } catch (error) {
+                        console.warn('Automatic backup failed:', error);
+                    }
+                }, 100); // Small delay to prevent interference with form submission
+            } else {
+                // Safari: Show manual backup option instead of automatic
+                showStatus('📱 Safari gedetecteerd: Automatische backup uitgeschakeld. Download rapport na verwerking voor backup.', 'info');
+            }
 
             // Disable submit button
             isProcessing = true;
