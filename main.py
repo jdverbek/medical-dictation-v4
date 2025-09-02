@@ -1,6 +1,6 @@
 """
 Superior Medical Dictation v4.0 - Based on v2 Analysis
-Implements all superior features from the working v2 app
+Implements all superior features from the working v2 app with secure authentication
 """
 
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
@@ -17,6 +17,13 @@ from typing import Dict, List, Any, Optional
 from functools import wraps
 from backend.superior_transcription import SuperiorMedicalTranscription
 from backend.ocr_service import PatientNumberOCR
+
+# Import authentication system
+from auth_system import (
+    init_auth_db, create_default_admin, login_required, get_current_user,
+    authenticate_user, create_user, save_transcription, get_user_transcription_history,
+    log_security_event, rate_limit
+)
 
 # EMBED MEDICAL EXPERT AGENTS DIRECTLY TO AVOID IMPORT ISSUES
 class MedicalExpertAgents:
@@ -446,6 +453,62 @@ Antwoord in JSON format met concrete aanbevelingen:
 
 app = Flask(__name__, template_folder='backend/templates')
 
+# Configure session with secure settings
+app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # No JavaScript access
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(hours=2)  # Session timeout
+
+# Security configuration
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
+
+# Configure logging for security audit
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('security_audit.log'),
+        logging.StreamHandler()
+    ]
+)
+security_logger = logging.getLogger('security_audit')
+logger = logging.getLogger(__name__)
+
+@app.after_request
+def add_security_headers(response):
+    """Add comprehensive security headers to all responses"""
+    # Content Security Policy - Prevent XSS attacks
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "media-src 'self' blob:; "
+        "connect-src 'self'; "
+        "font-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    
+    # Strict Transport Security - Force HTTPS
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    
+    # Prevent clickjacking
+    response.headers['X-Frame-Options'] = 'DENY'
+    
+    # Prevent MIME sniffing
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    
+    # XSS Protection
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    # Referrer Policy
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
+    return response
+
 # Initialize transcription service
 transcription_service = SuperiorMedicalTranscription()
 
@@ -620,40 +683,160 @@ def add_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     return response
 
-# Database initialization (simplified)
+# Database initialization (with authentication)
 def init_db():
-    """Initialize database"""
-    try:
-        conn = sqlite3.connect('medical_app.db')
-        cursor = conn.cursor()
-        
-        # Create transcription history table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS transcription_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id TEXT,
-                verslag_type TEXT NOT NULL,
-                original_transcript TEXT,
-                structured_report TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
-        print("Database initialized successfully")
-    except Exception as e:
-        print(f"Database initialization error: {e}")
+    """Initialize the authentication database"""
+    print("🔐 Initializing authentication database...")
+    if init_auth_db():
+        print("✅ Authentication database initialized successfully")
+        # Create default admin user if no users exist
+        if create_default_admin():
+            print("✅ Default admin user setup completed")
+        else:
+            print("⚠️ Admin user setup skipped (users already exist)")
+    else:
+        print("❌ Failed to initialize authentication database")
 
 # Initialize database on startup
 init_db()
 
+# Authentication Routes
+@app.route('/login', methods=['GET', 'POST'])
+@rate_limit(max_requests=5, window=300)  # 5 attempts per 5 minutes
+def login():
+    """Login route with security logging"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        # Input validation
+        if not username or not password:
+            log_security_event('LOGIN_ATTEMPT_FAILED', details='Missing credentials')
+            flash('Please enter both username and password', 'error')
+            return render_template('login.html')
+        
+        # Sanitize username input
+        if len(username) > 50 or any(char in username for char in ['<', '>', '"', "'"]):
+            log_security_event('LOGIN_ATTEMPT_SUSPICIOUS', details=f'Invalid username format: {username[:20]}')
+            flash('Invalid username format', 'error')
+            return render_template('login.html')
+        
+        success, result = authenticate_user(username, password)
+        
+        if success:
+            # Store user data in session
+            session['user_id'] = result['id']
+            session['username'] = result['username']
+            session['email'] = result['email']
+            session['first_name'] = result['first_name']
+            session['last_name'] = result['last_name']
+            session['full_name'] = result['full_name']
+            session.permanent = True  # Enable session timeout
+            
+            log_security_event('LOGIN_SUCCESS', user_id=result['id'], details=f'User: {username}')
+            flash('Login successful!', 'success')
+            return redirect(url_for('index'))
+        else:
+            log_security_event('LOGIN_ATTEMPT_FAILED', details=f'Failed login for username: {username}')
+            flash(result, 'error')
+            return render_template('login.html')
+    
+    # If user is already logged in, redirect to main app
+    if 'user_id' in session:
+        return redirect(url_for('index'))
+    
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+@rate_limit(max_requests=3, window=300)  # 3 attempts per 5 minutes
+def register():
+    """Register route with security logging"""
+    if request.method == 'POST':
+        # Get and sanitize form data
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        password = request.form.get('password', '')
+        gdpr_consent = request.form.get('consent_given') == 'on'
+        
+        # Input validation
+        if not all([username, email, first_name, last_name, password]):
+            log_security_event('REGISTRATION_ATTEMPT_FAILED', details='Missing required fields')
+            flash('All fields are required', 'error')
+            return render_template('register.html')
+        
+        # Validate input lengths and characters
+        if (len(username) > 50 or len(email) > 100 or 
+            len(first_name) > 50 or len(last_name) > 50):
+            log_security_event('REGISTRATION_ATTEMPT_SUSPICIOUS', details='Field length exceeded')
+            flash('Input fields too long', 'error')
+            return render_template('register.html')
+        
+        # Check for suspicious characters
+        suspicious_chars = ['<', '>', '"', "'", '&', 'script', 'javascript']
+        for field in [username, email, first_name, last_name]:
+            if any(char in field.lower() for char in suspicious_chars):
+                log_security_event('REGISTRATION_ATTEMPT_SUSPICIOUS', 
+                                 details=f'Suspicious characters in input: {field[:20]}')
+                flash('Invalid characters in input fields', 'error')
+                return render_template('register.html')
+        
+        # Validate email format
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            log_security_event('REGISTRATION_ATTEMPT_FAILED', details=f'Invalid email format: {email}')
+            flash('Invalid email format', 'error')
+            return render_template('register.html')
+        
+        # Password strength validation
+        if len(password) < 8:
+            log_security_event('REGISTRATION_ATTEMPT_FAILED', details='Weak password')
+            flash('Password must be at least 8 characters long', 'error')
+            return render_template('register.html')
+        
+        if not gdpr_consent:
+            log_security_event('REGISTRATION_ATTEMPT_FAILED', details='GDPR consent not given')
+            flash('You must agree to the GDPR terms to register', 'error')
+            return render_template('register.html')
+        
+        # Create user account
+        success, result = create_user(username, email, first_name, last_name, password, gdpr_consent)
+        
+        if success:
+            log_security_event('REGISTRATION_SUCCESS', user_id=result, details=f'New user: {username}')
+            flash('Account created successfully! Please log in.', 'success')
+            return redirect(url_for('login'))
+        else:
+            log_security_event('REGISTRATION_ATTEMPT_FAILED', details=f'Failed registration: {result}')
+            flash(result, 'error')
+            return render_template('register.html')
+    
+    return render_template('register.html')
+
+@app.route('/logout')
+def logout():
+    """Logout route with security logging"""
+    user_id = session.get('user_id')
+    username = session.get('username')
+    
+    if user_id:
+        log_security_event('LOGOUT_SUCCESS', user_id=user_id, details=f'User: {username}')
+    
+    session.clear()
+    flash('You have been logged out successfully', 'info')
+    return redirect(url_for('login'))
+
 @app.route('/')
+@login_required
 def index():
-    """Main interface with enhanced template"""
-    return render_template('enhanced_index.html')
+    """Main interface with enhanced template - requires authentication"""
+    user = get_current_user()
+    return render_template('enhanced_index.html', user=user)
 
 @app.route('/transcribe', methods=['POST'])
+@login_required
 @rate_limit(max_requests=20, window=300)
 def transcribe():
     """Superior transcription endpoint with enhanced features"""
@@ -793,6 +976,7 @@ def transcribe():
         }), 500
 
 @app.route('/api/transcribe', methods=['POST'])
+@login_required
 @rate_limit(max_requests=20, window=300)
 def api_transcribe():
     """API endpoint for transcription"""
@@ -1035,6 +1219,7 @@ def api_transcribe():
         }), 500
 
 @app.route('/ocr-patient-id', methods=['POST'])
+@login_required
 def ocr_patient_id():
     """OCR endpoint for patient ID extraction from photos"""
     try:
@@ -1089,6 +1274,7 @@ def ocr_patient_id():
         }), 500
 
 @app.route('/history')
+@login_required
 def history():
     """View transcription history"""
     try:
@@ -1110,6 +1296,7 @@ def history():
         return render_template('history.html', records=[], error=str(e))
 
 @app.route('/view/<int:record_id>')
+@login_required
 def view_record(record_id):
     """View specific transcription record"""
     try:
