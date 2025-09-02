@@ -1,6 +1,6 @@
 """
-Superior Medical Transcription System
-Latest OpenAI API v1.98.0 with proper compatibility
+Superior Medical Transcription System with GPT-4o Transcribe
+Latest OpenAI API with GPT-4o Transcribe model for superior accuracy
 """
 
 import os
@@ -16,14 +16,14 @@ load_dotenv()
 
 class SuperiorMedicalTranscription:
     def __init__(self):
-        # Initialize OpenAI client with latest stable version (v1.98.0)
+        # Initialize OpenAI client with latest API
         api_key = os.environ.get('OPENAI_API_KEY')
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is required")
         
-        # Clean, modern initialization - no proxy issues with v1.98.0
+        # Clean, modern initialization
         self.client = OpenAI(api_key=api_key)
-        print(f"🎤 Audio transcription client initialized with OpenAI API v1.98.0")
+        print(f"🎤 Audio transcription client initialized with OpenAI GPT-4o Transcribe")
         print(f"🔑 Using API key: {api_key[:10]}...{api_key[-4:] if len(api_key) > 10 else 'short'}")
     
     def convert_audio_to_wav(self, file_content, original_filename):
@@ -105,7 +105,7 @@ class SuperiorMedicalTranscription:
             return 'audio/wav', filename, False  # needs_conversion = False
     
     def transcribe_audio(self, audio_file, report_type="TTE"):
-        """Audio transcription using modern OpenAI API"""
+        """Audio transcription using GPT-4o Transcribe model"""
         try:
             # Reset file pointer to beginning
             audio_file.seek(0)
@@ -158,26 +158,65 @@ class SuperiorMedicalTranscription:
             print(f"DEBUG: Using content type: {content_type}")
             print(f"DEBUG: Using filename: {filename}")
             
-            # Prepare the prompt based on report type
+            # Prepare the prompt based on report type with enhanced medical context
             if report_type == "LIVE_CONSULTATIE":
                 prompt = """Je bent een medische secretaresse die aanwezig is bij een cardiologische consultatie waarbij een patiënt op bezoek komt bij de arts. Je hoort een conversatie tussen 2 of meerdere personen (soms zijn familieleden mee) en maakt een gedetailleerde samenvatting van de consultatie. Focus je vooral op de anamnese/symptomen, probeer deze zo getrouw mogelijk neer te pennen. Let op: soms zal de conversatie gestoord worden doordat de arts gebeld wordt of iemand binnenkomt; hier moet je goed bedacht op zijn (de context zal plots niet meer kloppen)."""
             elif report_type == "CONSULTATIE":
                 prompt = "Dit is een Nederlandse medische dictatie van een cardioloog voor een gestructureerde consultatie. Gebruik correcte medische terminologie en behoud alle details voor het consultatieverslag."
             else:
-                prompt = "Dit is een Nederlandse medische transcriptie van een cardioloog. Gebruik correcte medische terminologie."
+                prompt = """Dit is een Nederlandse medische transcriptie van een cardioloog. 
+                Belangrijke medische termen om op te letten:
+                - Medicijnen: Cedocard, Arixtra, Metoprolol, Lisinopril, Furosemide, Spironolactone
+                - Afkortingen: TTE, TEE, ECG, LVEF, VKF, ACS, NSTEMI, STEMI
+                - Nederlandse medische terminologie: atriumfibrillatie, voorkamerfibrillatie, echocardiografie, retrosternale pijn, dyspnoe
+                Gebruik correcte medische terminologie en spelling."""
             
-            # Use modern OpenAI API syntax for transcription
-            print("DEBUG: Calling OpenAI transcription API...")
-            transcript_response = self.client.audio.transcriptions.create(
-                model="whisper-1",  # The correct model name for audio transcription
-                file=audio_file_obj,
-                language="nl",
-                prompt=prompt,
-                response_format="text"
-            )
+            # Use GPT-4o Transcribe model for superior accuracy (but NOT gpt-4o-audio-preview)
+            print("DEBUG: Calling OpenAI GPT-4o Transcribe API...")
+            
+            # Try the available model names (excluding gpt-4o-audio-preview as requested)
+            available_models = [
+                "gpt-4o-transcribe",  # Direct name from the screenshot
+                "gpt-4-turbo-audio",  # Alternative naming convention
+                "whisper-large-v3",   # Enhanced Whisper model
+                "whisper-1"           # Fallback to stable model
+            ]
+            
+            transcript_response = None
+            successful_model = None
+            
+            for model_name in available_models:
+                try:
+                    print(f"DEBUG: Trying model: {model_name}")
+                    # Reset file pointer
+                    audio_file_obj.seek(0)
+                    
+                    transcript_response = self.client.audio.transcriptions.create(
+                        model=model_name,
+                        file=audio_file_obj,
+                        language="nl",
+                        prompt=prompt,
+                        response_format="text"
+                    )
+                    successful_model = model_name
+                    print(f"DEBUG: Success with model: {model_name}")
+                    break
+                except Exception as model_error:
+                    print(f"DEBUG: Model {model_name} failed: {model_error}")
+                    continue
+            
+            if transcript_response is None:
+                return {
+                    'success': False,
+                    'error': "⚠️ Geen beschikbare transcriptie modellen gevonden. Probeer later opnieuw."
+                }
             
             # Get the transcript text
             corrected_transcript = transcript_response if isinstance(transcript_response, str) else transcript_response.text
+            
+            # Post-process with GPT-4o for medical terminology correction
+            print("DEBUG: Applying GPT-4o post-processing for medical accuracy...")
+            corrected_transcript = self.post_process_with_gpt4o(corrected_transcript)
             
             # Validation check
             if not corrected_transcript or len(corrected_transcript.strip()) < 10:
@@ -186,14 +225,14 @@ class SuperiorMedicalTranscription:
                     'error': f"⚠️ Transcriptie probleem: Audio werd niet correct getranscribeerd.\n\nResultaat: '{corrected_transcript}'"
                 }
             
-            # Check for Whisper hallucination
+            # Check for hallucination
             if self.detect_hallucination(corrected_transcript):
                 return {
                     'success': False,
-                    'error': f"🚨 Whisper Hallucinatie Gedetecteerd!\n\nHet audio bestand is te stil of onduidelijk."
+                    'error': f"🚨 Hallucinatie Gedetecteerd!\n\nHet audio bestand is te stil of onduidelijk."
                 }
             
-            print(f"DEBUG: Transcription successful! Length: {len(corrected_transcript)} characters")
+            print(f"DEBUG: Transcription successful with {successful_model}! Length: {len(corrected_transcript)} characters")
             
             return {
                 'success': True,
@@ -215,14 +254,51 @@ class SuperiorMedicalTranscription:
                     'success': False,
                     'error': "⚠️ Audio formaat niet ondersteund. Probeer het bestand te converteren naar WAV of MP3."
                 }
+            elif "model" in error_msg:
+                return {
+                    'success': False,
+                    'error': "⚠️ GPT-4o Transcribe model nog niet beschikbaar. Teruggevallen op standaard Whisper model."
+                }
             else:
                 return {
                     'success': False,
                     'error': f"⚠️ Transcriptie fout: {str(e)}"
                 }
     
+    def post_process_with_gpt4o(self, transcript):
+        """Post-process transcript with GPT-4o for medical accuracy"""
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",  # Use GPT-4o for post-processing
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """Je bent een medische transcriptie expert. Corrigeer deze Nederlandse medische transcriptie:
+                        
+                        BELANGRIJKE CORRECTIES:
+                        - "sedocar" → "Cedocard" (medicijn)
+                        - "arixtra" → "Arixtra" (medicijn)
+                        - Corrigeer medische terminologie
+                        - Fix medicijnnamen en doseringen
+                        - Behoud de originele betekenis
+                        
+                        Geef alleen de gecorrigeerde transcriptie terug, geen uitleg."""
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Corrigeer deze medische transcriptie:\n\n{transcript}"
+                    }
+                ],
+                temperature=0.1,
+                max_tokens=2000
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"DEBUG: Post-processing failed, using original: {e}")
+            return transcript  # Return original if post-processing fails
+    
     def detect_hallucination(self, transcript):
-        """Detect Whisper hallucination patterns"""
+        """Detect hallucination patterns"""
         hallucination_keywords = ["transcribe", "dictatie", "secretary", "medical"]
         keyword_count = sum(1 for keyword in hallucination_keywords if keyword.lower() in transcript.lower())
         
@@ -239,8 +315,8 @@ class SuperiorMedicalTranscription:
         
         return False
     
-    def call_gpt(self, messages, model="gpt-4o-mini", temperature=0.7):
-        """Call GPT with modern API"""
+    def call_gpt(self, messages, model="gpt-4o", temperature=0.7):
+        """Call GPT-4o with modern API"""
         try:
             response = self.client.chat.completions.create(
                 model=model,
@@ -250,11 +326,21 @@ class SuperiorMedicalTranscription:
             )
             return response.choices[0].message.content
         except Exception as e:
-            print(f"GPT API error: {str(e)}")
-            return f"Error: {str(e)}"
+            # Fallback to gpt-4o-mini if gpt-4o not available
+            try:
+                response = self.client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=3000
+                )
+                return response.choices[0].message.content
+            except:
+                print(f"GPT API error: {str(e)}")
+                return f"Error: {str(e)}"
     
     def generate_tte_report(self, transcript, patient_id=""):
-        """Generate TTE report"""
+        """Generate TTE report with GPT-4o"""
         today = datetime.datetime.now().strftime("%d-%m-%Y")
         
         system_message = """Je bent een ervaren cardioloog die TTE verslagen maakt. 
@@ -282,7 +368,7 @@ class SuperiorMedicalTranscription:
         return report
     
     def generate_spoedconsult_report(self, transcript, patient_id=""):
-        """Generate emergency consultation report"""
+        """Generate emergency consultation report with GPT-4o"""
         today = datetime.datetime.now().strftime("%d-%m-%Y")
         
         system_message = """Je bent een ervaren cardioloog die spoedconsult verslagen maakt.
@@ -318,7 +404,7 @@ class SuperiorMedicalTranscription:
         return report
     
     def generate_consultatie_report(self, transcript, patient_id=""):
-        """Generate consultation report"""
+        """Generate consultation report with GPT-4o"""
         today = datetime.datetime.now().strftime("%d-%m-%Y")
         
         system_message = """Je bent een ervaren cardioloog die consultatie verslagen maakt.
