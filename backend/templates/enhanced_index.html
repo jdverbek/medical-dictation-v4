@@ -178,7 +178,7 @@
         <div id="results" class="results">
             <div id="loading" class="loading">
                 <h3>⏳ Processing audio...</h3>
-                <p>Dit kan 10-30 seconden duren op Render.com...</p>
+                <p>Dit kan 1-5 minuten duren op Render.com...</p>
             </div>
             
             <div id="output" style="display: none;">
@@ -320,9 +320,9 @@
             output.style.display = 'none';
             statusMessage.innerHTML = '';
 
-            // Add timeout for Render.com (30 seconds)
+            // Add timeout for Render.com (5 minutes for complex audio processing)
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const timeoutId = setTimeout(() => controller.abort(), 300000);  // 5 minutes
 
             try {
                 showStatus('Uploading audio to server...', 'info');
@@ -365,7 +365,7 @@
                 loading.style.display = 'none';
                 
                 if (error.name === 'AbortError') {
-                    showStatus('⏱️ Timeout: Server response took too long (>30s). Try a shorter audio file.', 'error');
+                    showStatus('⏱️ Timeout: Server response took too long (>5 min). Try a shorter audio file.', 'error');
                 } else {
                     showStatus(`❌ Error: ${error.message}`, 'error');
                 }
