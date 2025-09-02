@@ -877,22 +877,61 @@ def transcribe():
         
         # 🚨 IMMEDIATE DATABASE SAVE - Save transcription as soon as we have it
         print(f"🔍 DEBUG: IMMEDIATE SAVE - Starting database save right after transcription")
+        
+        # Environment-aware database path
+        if os.environ.get('RENDER'):
+            # Render.com environment - use absolute path
+            db_path = '/opt/render/project/src/medical_app_v4.db'
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Using Render.com database path: {db_path}")
+        else:
+            # Local environment
+            db_path = 'medical_app_v4.db'
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Using local database path: {db_path}")
+        
         try:
             user = get_current_user()
             print(f"🔍 DEBUG: IMMEDIATE SAVE - Current user: {user}")
             
+            # Force save with multiple fallback strategies
             if not user:
                 print("❌ DEBUG: IMMEDIATE SAVE - No user found in session!")
-                user_id = 1  # Fallback for compatibility
+                # Try to get user from session manually
+                if 'user_id' in session:
+                    user_id = session['user_id']
+                    print(f"🔍 DEBUG: IMMEDIATE SAVE - Found user_id in session: {user_id}")
+                else:
+                    user_id = 1  # Ultimate fallback
+                    print(f"🔍 DEBUG: IMMEDIATE SAVE - Using fallback user_id: {user_id}")
             else:
                 user_id = user['id']
+                print(f"🔍 DEBUG: IMMEDIATE SAVE - Using user from get_current_user: {user_id}")
             
-            print(f"🔍 DEBUG: IMMEDIATE SAVE - Using user_id: {user_id}")
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Final user_id: {user_id}")
             print(f"🔍 DEBUG: IMMEDIATE SAVE - Patient: {patient_id}, Type: {verslag_type}")
             print(f"🔍 DEBUG: IMMEDIATE SAVE - Transcript length: {len(raw_transcript)}")
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Database path: {db_path}")
             
-            conn = sqlite3.connect('medical_app_v4.db')
+            # Ensure database directory exists
+            os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else '.', exist_ok=True)
+            
+            conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
+            
+            # Ensure table exists
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS transcription_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    patient_id TEXT,
+                    verslag_type TEXT NOT NULL,
+                    original_transcript TEXT,
+                    structured_report TEXT,
+                    enhanced_transcript TEXT,
+                    quality_feedback TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
             cursor.execute('''
                 INSERT INTO transcription_history 
                 (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
@@ -912,11 +951,28 @@ def transcribe():
             conn.close()
             
             print(f"✅ IMMEDIATE SAVE - Successfully saved to database with ID: {record_id}")
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Record saved at: {datetime.datetime.now()}")
             
         except Exception as e:
             print(f"❌ IMMEDIATE SAVE - Database save failed: {e}")
             import traceback
             print(f"🔍 DEBUG: IMMEDIATE SAVE - Full error traceback: {traceback.format_exc()}")
+            
+            # Try alternative save method
+            try:
+                print(f"🔍 DEBUG: IMMEDIATE SAVE - Trying alternative save method...")
+                # Use the auth_system save function as backup
+                save_transcription(
+                    user_id=user_id if 'user_id' in locals() else 1,
+                    verslag_type=verslag_type,
+                    original_transcript=raw_transcript,
+                    structured_report="Processing...",
+                    patient_id=patient_id,
+                    enhanced_transcript=raw_transcript
+                )
+                print(f"✅ IMMEDIATE SAVE - Alternative save method succeeded!")
+            except Exception as e2:
+                print(f"❌ IMMEDIATE SAVE - Alternative save also failed: {e2}")
         
         # Enhanced transcription processing
         enhanced_transcription_result = None
