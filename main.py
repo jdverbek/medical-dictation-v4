@@ -1179,6 +1179,13 @@ def api_transcribe():
                 immediate_actions = treatment_plan.get('immediate_actions', [])
                 print(f"🔍 DEBUG: Immediate actions: {immediate_actions}")
                 
+            except Exception as e:
+                print(f"❌ Medical analysis failed: {e}")
+                import traceback
+                print(f"🔍 DEBUG: Medical analysis error traceback: {traceback.format_exc()}")
+                # Continue with empty analysis - don't crash the whole transcription
+                expert_analysis = {}
+                
                 medications = treatment_plan.get('medications', [])
                 print(f"🔍 DEBUG: Medications: {medications}")
                 
