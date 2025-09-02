@@ -7,10 +7,10 @@ Made optional for cloud deployment compatibility
 import re
 import io
 import base64
-from PIL import Image
 
 # Optional imports for OCR functionality
 try:
+    from PIL import Image
     import cv2
     import numpy as np
     import pytesseract
