@@ -280,6 +280,31 @@
                             const audioBlob = new Blob(audioChunks, { type: mimeType });
                             const audioFile = new File([audioBlob], `recording${fileExtension}`, { type: mimeType });
                             
+                            // AUTOMATIC BACKUP FOR RECORDED AUDIO
+                            const patientId = document.getElementById('patientId').value || 'Unknown';
+                            const backupFilename = `backup_${patientId}_recording${fileExtension}`;
+                            
+                            // Download backup immediately after recording (works in most browsers)
+                            try {
+                                const url = URL.createObjectURL(audioBlob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = backupFilename;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                                
+                                showStatus(`✅ Recording backup: ${backupFilename} gedownload!`, 'success');
+                            } catch (backupError) {
+                                console.warn('Recording backup failed:', backupError);
+                                if (isSafari) {
+                                    showStatus('📱 Safari: Recording backup niet mogelijk. Download rapport na verwerking.', 'warning');
+                                } else {
+                                    showStatus('⚠️ Recording backup gefaald, maar recording is beschikbaar voor verwerking.', 'warning');
+                                }
+                            }
+                            
                             // Safari-compatible file setting
                             if (isSafari) {
                                 // Safari workaround: Create a new input element
@@ -306,7 +331,7 @@
                                 document.getElementById('audioFile').files = dataTransfer.files;
                             }
                             
-                            showStatus(`Opname voltooid! Format: ${mimeType}. Klik "Verwerk Audio" om door te gaan.`, 'success');
+                            showStatus(`Opname voltooid! Format: ${mimeType}. Backup: ${backupFilename}. Klik "Verwerk Audio" om door te gaan.`, 'success');
                         } catch (error) {
                             showStatus('Fout bij verwerken opname: ' + error.message, 'error');
                         }
