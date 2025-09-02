@@ -1572,8 +1572,12 @@ def delete_transcription(record_id):
         patient_id = result[0]
         
         # Delete the transcription
-        cursor.execute('DELETE FROM transcription_history WHERE id = ? AND user_id = ?', 
-                      (record_id, user['id']))
+        if is_postgresql():
+            cursor.execute('DELETE FROM transcription_history WHERE id = %s AND user_id = %s', 
+                          (record_id, user['id']))
+        else:
+            cursor.execute('DELETE FROM transcription_history WHERE id = ? AND user_id = ?', 
+                          (record_id, user['id']))
         
         conn.commit()
         conn.close()
@@ -1608,6 +1612,91 @@ def transcription_count():
     except Exception as e:
         logger.error(f"Transcription count error: {e}")
         return jsonify({'count': 0})
+
+@app.route('/debug-db')
+@login_required
+def debug_database():
+    """Debug endpoint to test database persistence"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check connection and database info
+        if is_postgresql():
+            cursor.execute("SELECT current_database(), version()")
+            db_info = cursor.fetchone()
+            
+            # Count records
+            cursor.execute("SELECT COUNT(*) FROM transcription_history")
+            count = cursor.fetchone()[0]
+            
+            # Get recent records
+            cursor.execute("""
+                SELECT id, patient_id, verslag_type, created_at 
+                FROM transcription_history 
+                ORDER BY created_at DESC LIMIT 5
+            """)
+            recent = cursor.fetchall()
+            
+            # Test insert
+            cursor.execute("""
+                INSERT INTO transcription_history 
+                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (1, "TEST123", "DEBUG", "Test transcription", "Test report", "Test enhanced"))
+            test_id = cursor.fetchone()[0]
+            
+        else:
+            cursor.execute("SELECT 'SQLite' as db, sqlite_version() as version")
+            db_info = cursor.fetchone()
+            
+            cursor.execute("SELECT COUNT(*) FROM transcription_history")
+            count = cursor.fetchone()[0]
+            
+            cursor.execute("""
+                SELECT id, patient_id, verslag_type, created_at 
+                FROM transcription_history 
+                ORDER BY created_at DESC LIMIT 5
+            """)
+            recent = cursor.fetchall()
+            
+            cursor.execute("""
+                INSERT INTO transcription_history 
+                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (1, "TEST123", "DEBUG", "Test transcription", "Test report", "Test enhanced"))
+            test_id = cursor.lastrowid
+        
+        conn.commit()
+        
+        # Verify the test record exists
+        if is_postgresql():
+            cursor.execute("SELECT * FROM transcription_history WHERE id = %s", (test_id,))
+        else:
+            cursor.execute("SELECT * FROM transcription_history WHERE id = ?", (test_id,))
+        test_record = cursor.fetchone()
+        
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "database_type": "PostgreSQL" if is_postgresql() else "SQLite",
+            "database_info": db_info,
+            "total_records": count,
+            "recent_records": [{"id": r[0], "patient_id": r[1], "type": r[2], "created_at": str(r[3])} for r in recent],
+            "test_insert_id": test_id,
+            "test_record_found": test_record is not None,
+            "test_record": test_record if test_record else None
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
 
 @app.route('/health')
 def health_check():
