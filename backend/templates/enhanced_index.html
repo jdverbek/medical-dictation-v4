@@ -171,7 +171,7 @@
                 <small style="color: #7f8c8d;">Ondersteund: WebM, WAV, MP3, M4A (iPhone), AAC, OGG</small>
                 <small style="color: #7f8c8d;">Maximum 25MB voor Starter plan (betere performance)</small>
                 <div id="autoBackupStatus" class="backup-status" style="display: none; color: #27ae60; margin-top: 10px;">
-                    ✅ <strong>Audio automatisch gebackupt!</strong> Je kunt het bestand veilig hergebruiken als er een fout optreedt.
+                    ✅ <strong>Audio backup gedownload!</strong> Bestand bevat Patient ID voor eenvoudige koppeling met rapport.
                 </div>
             </div>
             
@@ -310,18 +310,20 @@
             // AUTOMATIC BACKUP: Download audio file BEFORE processing starts
             // This prevents data loss if processing fails
             try {
+                const patientId = document.getElementById('patientId').value || 'Unknown';
                 const url = URL.createObjectURL(audioFile);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `backup_${audioFile.name}`;
+                // Include patient ID in backup filename for easy linking
+                a.download = `backup_${patientId}_${audioFile.name}`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
-                // Show backup confirmation
+                // Show backup confirmation with patient ID
                 document.getElementById('autoBackupStatus').style.display = 'block';
-                showStatus('✅ Audio automatisch gebackupt! Processing wordt gestart...', 'success');
+                showStatus(`✅ Audio backup: backup_${patientId}_${audioFile.name} - Processing wordt gestart...`, 'success');
             } catch (error) {
                 console.warn('Automatic backup failed:', error);
                 // Continue with processing even if backup fails
@@ -410,12 +412,17 @@
 
         // Download report function (only when requested)
         function downloadReport(transcript, report) {
-            const content = `MEDISCH RAPPORT\n\nDatum: ${new Date().toLocaleDateString()}\nPatiënt ID: ${document.getElementById('patientId').value}\n\n=== TRANSCRIPTIE ===\n${transcript}\n\n=== RAPPORT ===\n${report}`;
+            const patientId = document.getElementById('patientId').value || 'Unknown';
+            const reportType = document.getElementById('reportType').value || 'RAPPORT';
+            const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-'); // YYYY-MM-DDTHH-MM-SS
+            
+            const content = `MEDISCH RAPPORT\n\nDatum: ${new Date().toLocaleDateString()}\nPatiënt ID: ${patientId}\nRapport Type: ${reportType}\n\n=== TRANSCRIPTIE ===\n${transcript}\n\n=== RAPPORT ===\n${report}`;
             const blob = new Blob([content], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `rapport_${document.getElementById('patientId').value}_${Date.now()}.txt`;
+            // Include patient ID and report type in filename for easy identification
+            a.download = `rapport_${patientId}_${reportType}_${timestamp}.txt`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
