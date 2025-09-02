@@ -339,26 +339,93 @@ class SuperiorMedicalTranscription:
                 print(f"GPT API error: {str(e)}")
                 return f"Error: {str(e)}"
     
-    def generate_tte_report(self, transcript, patient_id=""):
-        """Generate TTE report with GPT-4o"""
+    def generate_tee_report(self, transcript, patient_id=""):
+        """Generate TEE report with detailed template structure"""
         today = datetime.datetime.now().strftime("%d-%m-%Y")
         
-        system_message = """Je bent een ervaren cardioloog die TTE verslagen maakt. 
-        Genereer een gestructureerd TTE verslag op basis van de transcriptie.
+        system_message = """Je bent een ervaren cardioloog die TEE (Transesofageale Echo) verslagen maakt.
+        Genereer een gestructureerd TEE verslag volgens het exacte template format.
         Gebruik correcte Nederlandse medische terminologie.
-        Vul alleen in wat expliciet in de transcriptie staat."""
+        BELANGRIJK: Vul alleen waarden in die expliciet in de transcriptie staan.
+        Laat secties leeg of gebruik (...) voor ontbrekende waarden.
+        Verzin NOOIT waarden die niet in de transcriptie staan."""
+        
+        user_message = f"""Genereer een TEE verslag voor patiënt {patient_id} op {today}.
+        
+        Transcriptie: {transcript}
+        
+        Gebruik EXACT dit template format:
+        
+        Onderzoeksdatum: {today}
+        Bevindingen: TEE ONDERZOEK : 3D TEE met (...) toestel
+        Indicatie: (...)
+        Afname mondeling consent: dr. Verbeke. Informed consent: patiënt kreeg uitleg over aard onderzoek, mogelijke resultaten en procedurele risico's en verklaart zich hiermee akkoord.
+        Supervisie: dr (...)
+        Verpleegkundige: (...)
+        Anesthesist: dr. (...)
+        Locatie: endoscopie 3B
+        Sedatie met (...) en topicale Xylocaine spray.
+        (...) introductie TEE probe, (...) verloop van onderzoek zonder complicatie.
+        
+        VERSLAG:
+        - Linker ventrikel is (...), (...) gedilateerd en (...) (...) regionale wandbewegingstoornissen.
+        - Rechter ventrikel is (...), (...) gedilateerd en (...).
+        - De atria zijn (...) gedilateerd.
+        - Linker hartoortje is (...) vergroot, er is (...) spontaan contrast, zonder toegevoegde structuur. Hartoortje snelheden (...) cm/s.
+        - Interatriaal septum (...)
+        - Mitralisklep: (...), morfologisch (...), er is (...) insufficientie, er is (...) stenose, (...) toegevoegde structuur.
+        * Mitraalinsufficientie vena contracta (...) mm, ERO (...) mm2 en RVol (...) ml/slag.
+        - Aortaklep: (...), morfologisch (...), (...) verkalkt, er is (...) insufficientie, er is (...) stenose (...) toegevoegde structuur.
+        Dimensies: LVOT (...) mm, aorta sinus (...) mm, sinutubulaire junctie (...) mm, aorta ascendens boven de sinutubulaire junctie (...) mm.
+        * Aortaklepinsufficientie vena contracta (...) mm, ERO (...) mm2 en RVol (...) ml/slag.
+        * Aortaklepstenose piekgradient (...) mmHg en gemiddelde gradient (...) mmHg, effectief klepoppervlak (...) cm2.
+        - Tricuspiedklep: (...), morfologisch (...), er is (...) insufficientie, (...) toegevoegde structuur.
+        * Systolische pulmonaaldruk afgeleid uit TI (...) mmHg + CVD.
+        - Pulmonaalklep is (...), er is (...) insufficientie.
+        - Aorta ascendens is (...) gedilateerd, graad (...) atheromatose van de aortawand.
+        - Pulmonale arterie is (...) gedilateerd.
+        - Vena cava inferior/levervenes zijn (...) verbreed (...) ademvariatie.
+        - Pericard: er is (...) pericardvocht.
+        
+        Vul alleen waarden in die in de transcriptie staan. Laat (...) staan voor ontbrekende waarden."""
+        
+        report = self.call_gpt([
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message}
+        ])
+        
+    def generate_tte_report(self, transcript, patient_id=""):
+        """Generate TTE report with updated structure"""
+        today = datetime.datetime.now().strftime("%d-%m-%Y")
+        
+        system_message = """Je bent een ervaren cardioloog die TTE (Transthoracale Echo) verslagen maakt.
+        Genereer een gestructureerd TTE verslag volgens het exacte template format.
+        Gebruik correcte Nederlandse medische terminologie.
+        BELANGRIJK: Vul alleen waarden in die expliciet in de transcriptie staan.
+        Laat secties leeg of gebruik (...) voor ontbrekende waarden.
+        Verzin NOOIT waarden die niet in de transcriptie staan."""
         
         user_message = f"""Genereer een TTE verslag voor patiënt {patient_id} op {today}.
         
         Transcriptie: {transcript}
         
-        Gebruik dit format:
-        TTE op {today}:
-        - Linker ventrikel: [beschrijving]
-        - Rechter ventrikel: [beschrijving]
-        - Atria: [beschrijving]
-        - Kleppen: [beschrijving]
-        - Conclusie: [samenvatting]"""
+        Gebruik EXACT dit template format:
+        
+        TTE op (...) op {today}:
+        Visualisatie: (...)
+        Linker ventrikel: (...)troof met EDD (...) mm, IVS (...) mm, PW (...) mm. Globale functie: (...) met LVEF (...)% (...).
+        Regionaal: (...)
+        Rechter ventrikel: (...)troof, globale functie: (...) met TAPSE (...) mm.
+        Diastole: (...) met E (...) cm/s, A (...) cm/s, E DT (...) ms, E' septaal (...) cm/s, E/E' (...). L-golf: (...).
+        Atria: LA (...) (...) mm.
+        Aortadimensies: (...) met sinus (...) mm, sinotubulair (...) mm, ascendens (...) mm.
+        Mitralisklep: morfologisch (...). insufficiëntie: (...), stenose: (...).
+        Aortaklep: (...), morfologisch (...). Functioneel: insufficiëntie: (...), stenose: (...).
+        Pulmonalisklep: insufficiëntie: (...), stenose: (...).
+        Tricuspiedklep: insufficiëntie: (...), geschatte RVSP: (...) + CVD (...) mmHg gezien vena cava inferior: (...) mm, variabiliteit: (...).
+        Pericard: (...).
+        
+        Vul alleen waarden in die in de transcriptie staan. Laat (...) staan voor ontbrekende waarden."""
         
         report = self.call_gpt([
             {"role": "system", "content": system_message},
@@ -404,24 +471,72 @@ class SuperiorMedicalTranscription:
         return report
     
     def generate_consultatie_report(self, transcript, patient_id=""):
-        """Generate consultation report with GPT-4o"""
+        """Generate consultation report with detailed template structure"""
         today = datetime.datetime.now().strftime("%d-%m-%Y")
         
         system_message = """Je bent een ervaren cardioloog die consultatie verslagen maakt.
-        Genereer een volledig consultatieverslag volgens het standaard format.
-        Gebruik correcte Nederlandse medische terminologie."""
+        Genereer een volledig consultatieverslag volgens het exacte template format.
+        Gebruik correcte Nederlandse medische terminologie.
+        BELANGRIJK: Vul alleen waarden in die expliciet in de transcriptie staan.
+        Laat secties leeg of gebruik (...) voor ontbrekende waarden.
+        Verzin NOOIT waarden die niet in de transcriptie staan."""
         
         user_message = f"""Genereer een consultatieverslag voor patiënt {patient_id} op {today}.
         
         Transcriptie: {transcript}
         
-        Gebruik het standaard consultatie format met:
-        - Reden van komst
-        - Anamnese
-        - Lichamelijk onderzoek
-        - Aanvullend onderzoek
-        - Conclusie
-        - Beleid"""
+        Gebruik EXACT dit template format:
+        
+        1. Reden van komst
+        Patiënt komt (...)
+        
+        2. Voorgeschiedenis
+        i. Persoonlijke antecedenten: (...)
+        ii. Familiaal: (...)
+        iii. Beroep: (...)
+        iv. Usus: (...)
+        v. Thuismedicatie: (...)
+        
+        3. Anamnese
+        (...)
+        Retrosternale last: (...)
+        Kortademigheid: (...)
+        Hartkloppingen: (...)
+        Zwelling onderste ledematen: (...)
+        Draaierigheid/flauwtes/bewustzijnsverlies: (...)
+        
+        4. Klinisch onderzoek
+        Algehele aanblik: (...)
+        Cor: (...)
+        Longen: (...)
+        Perifeer: (...)
+        Jugulairen: (...)
+        
+        5. Aanvullend onderzoek
+        i. ECG op raadpleging ({today}): (...)
+        ii. Fietsproef op raadpleging ({today}): (...)
+        iii. TTE op raadpleging ({today}):
+        Linker ventrikel: (...)troof met EDD (...) mm, IVS (...) mm, PW (...) mm. Globale functie: (...) met LVEF (...)% (...).
+        Regionaal: (...)
+        Rechter ventrikel: (...)troof, globale functie: (...) met TAPSE (...) mm.
+        Diastole: (...) met E (...) cm/s, A (...) cm/s, E DT (...) ms, E' septaal (...) cm/s, E/E' (...). L-golf: (...).
+        Atria: LA (...) (...) mm.
+        Aortadimensies: (...) met sinus (...) mm, sinotubulair (...) mm, ascendens (...) mm.
+        Mitralisklep: morfologisch (...). insufficiëntie: (...), stenose: (...).
+        Aortaklep: (...), morfologisch (...). Functioneel: insufficiëntie: (...), stenose: (...).
+        Pulmonalisklep: insufficiëntie: (...), stenose: (...).
+        Tricuspiedklep: insufficiëntie: (...), geschatte RVSP: (...) + CVD (...) mmHg gezien vena cava inferior: (...) mm, variabiliteit: (...).
+        Pericard: (...).
+        iv. Recente biochemie op datum (...): (...)
+        
+        6. Besluit
+        Uw (...)-jarige patiënt werd gezien op de raadpleging cardiologie op {today}. (...)
+        
+        7. Beleid
+        i. Medicatiewijzigingen: (...)
+        ii. Follow-up: (...)
+        
+        Vul alleen waarden in die in de transcriptie staan. Laat (...) staan voor ontbrekende waarden."""
         
         report = self.call_gpt([
             {"role": "system", "content": system_message},

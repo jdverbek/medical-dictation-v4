@@ -684,6 +684,11 @@ def transcribe():
             structured_report = transcription_system.generate_tte_report(
                 corrected_transcript, patient_id
             )
+        elif verslag_type == 'TEE':
+            print("🔍 DEBUG: Generating TEE report...")
+            structured_report = transcription_system.generate_tee_report(
+                corrected_transcript, patient_id
+            )
         elif verslag_type == 'SPOEDCONSULT':
             print("🔍 DEBUG: Generating SPOEDCONSULT report...")
             structured_report = transcription_system.generate_spoedconsult_report(
@@ -809,6 +814,9 @@ def api_transcribe():
         if verslag_type == 'TTE':
             print("🔍 API DEBUG: Generating TTE report...")
             report = transcription_system.generate_tte_report(improved_transcript, patient_id)
+        elif verslag_type == 'TEE':
+            print("🔍 API DEBUG: Generating TEE report...")
+            report = transcription_system.generate_tee_report(improved_transcript, patient_id)
         elif verslag_type == 'SPOEDCONSULT':
             print("🔍 API DEBUG: Generating SPOEDCONSULT report...")
             report = transcription_system.generate_spoedconsult_report(improved_transcript, patient_id)

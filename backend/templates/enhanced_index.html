@@ -150,16 +150,18 @@
         
         <form id="transcriptionForm">
             <div class="form-group">
-                <label for="reportType">📋 Verslag Type:</label>
-                <select id="reportType" name="verslag_type" required>
-                    <option value="TTE">🫀 TTE (Transthoracale Echo)</option>
-                    <option value="SPOEDCONSULT">🚨 Spoedconsult</option>
-                    <option value="CONSULTATIE">🩺 Consultatie</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label for="patientId">👤 Patiënt ID:</label>
+                    <select id="reportType" name="report_type" required>
+                        <option value="">Selecteer verslag type</option>
+                        <option value="TTE">TTE (Transthoracale Echo)</option>
+                        <option value="TEE">TEE (Transesofageale Echo)</option>
+                        <option value="SPOEDCONSULT">Spoedconsult</option>
+                        <option value="CONSULTATIE">Consultatie</option>
+                        <option value="LIVE_CONSULTATIE">Live Consultatie (GPT-4o)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="patientId">🧑‍⚕️ Patiënt ID:</label>
                 <input type="text" id="patientId" name="patient_id" placeholder="Bijv. P12345" required>
             </div>
             
