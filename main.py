@@ -16,6 +16,7 @@ import json
 from typing import Dict, List, Any, Optional
 from functools import wraps
 from backend.superior_transcription import SuperiorMedicalTranscription
+from backend.ocr_service import PatientNumberOCR
 
 # EMBED MEDICAL EXPERT AGENTS DIRECTLY TO AVOID IMPORT ISSUES
 class MedicalExpertAgents:
@@ -448,6 +449,15 @@ app = Flask(__name__, template_folder='backend/templates')
 # Initialize transcription service
 transcription_service = SuperiorMedicalTranscription()
 
+# Initialize OCR service
+try:
+    ocr_service = PatientNumberOCR()
+    OCR_AVAILABLE = True
+    print("✅ Patient Number OCR service initialized successfully!")
+except Exception as e:
+    print(f"⚠️ OCR service initialization failed: {e}")
+    OCR_AVAILABLE = False
+
 # Initialize medical expert agents system (using embedded class)
 try:
     medical_experts = MedicalExpertAgents()
@@ -638,12 +648,12 @@ init_db()
 @app.route('/')
 def index():
     """Main interface with enhanced template"""
-    return render_template('enhanced_index.html')
+    return render_template('enhanced_index_v2.html')
 
 @app.route('/transcribe', methods=['POST'])
 @rate_limit(max_requests=20, window=300)
 def transcribe():
-    """Superior transcription endpoint based on v2"""
+    """Superior transcription endpoint with enhanced features"""
     try:
         # Get form data
         verslag_type = request.form.get('verslag_type', 'TTE')
@@ -655,56 +665,92 @@ def transcribe():
         
         # Check if audio file is present
         if 'audio' not in request.files:
-            return render_template('index.html', 
-                                 error="⚠️ Geen bestand geselecteerd.",
-                                 verslag_type=verslag_type)
+            return jsonify({
+                'success': False,
+                'error': "⚠️ Geen bestand geselecteerd."
+            }), 400
         
         audio_file = request.files['audio']
         
         if audio_file.filename == '':
-            return render_template('index.html', 
-                                 error="⚠️ Geen bestand geselecteerd.",
-                                 verslag_type=verslag_type)
+            return jsonify({
+                'success': False,
+                'error': "⚠️ Geen bestand geselecteerd."
+            }), 400
         
         # Transcribe audio using superior system
-        transcription_result = transcription_system.transcribe_audio(audio_file)
+        transcription_result = transcription_service.transcribe_audio(audio_file, verslag_type)
         
         if not transcription_result['success']:
-            return render_template('index.html', 
-                                 error=transcription_result['error'],
-                                 verslag_type=verslag_type)
+            return jsonify({
+                'success': False,
+                'error': transcription_result['error']
+            }), 400
         
-        corrected_transcript = transcription_result['transcript']
+        raw_transcript = transcription_result['transcript']
+        
+        # Enhanced transcription processing
+        enhanced_transcription_result = None
+        try:
+            print(f"✨ Generating enhanced transcription...")
+            enhanced_transcription_result = transcription_service.enhance_transcription(raw_transcript, verslag_type)
+            print(f"✅ Enhanced transcription completed")
+        except Exception as e:
+            print(f"⚠️ Enhanced transcription failed: {e}")
+            enhanced_transcription_result = {
+                'enhanced_transcript': raw_transcript,
+                'improvements': f"Enhancement failed: {str(e)}"
+            }
         
         # Generate report based on type
         print(f"🔍 DEBUG: About to generate report for type: '{verslag_type}'")
         
         if verslag_type == 'TTE':
             print("🔍 DEBUG: Generating TTE report...")
-            structured_report = transcription_system.generate_tte_report(
-                corrected_transcript, patient_id
+            structured_report = transcription_service.generate_tte_report(
+                raw_transcript, patient_id
             )
         elif verslag_type == 'TEE':
             print("🔍 DEBUG: Generating TEE report...")
-            structured_report = transcription_system.generate_tee_report(
-                corrected_transcript, patient_id
+            structured_report = transcription_service.generate_tee_report(
+                raw_transcript, patient_id
             )
         elif verslag_type == 'SPOEDCONSULT':
             print("🔍 DEBUG: Generating SPOEDCONSULT report...")
-            structured_report = transcription_system.generate_spoedconsult_report(
-                corrected_transcript, patient_id
+            structured_report = transcription_service.generate_spoedconsult_report(
+                raw_transcript, patient_id
             )
         elif verslag_type == 'CONSULTATIE':
             print("🔍 DEBUG: Generating CONSULTATIE report...")
-            structured_report = transcription_system.generate_consultatie_report(
-                corrected_transcript, patient_id
+            structured_report = transcription_service.generate_consultatie_report(
+                raw_transcript, patient_id
             )
         else:
             print(f"🔍 DEBUG: Unknown type '{verslag_type}', defaulting to TTE...")
-            # Default TTE
-            structured_report = transcription_system.generate_tte_report(
-                corrected_transcript, patient_id
+            structured_report = transcription_service.generate_tte_report(
+                raw_transcript, patient_id
             )
+        
+        # Quality control validation
+        quality_feedback = None
+        try:
+            print(f"🔍 Running quality control validation...")
+            quality_feedback = transcription_service.validate_medical_report(structured_report, verslag_type)
+            print(f"✅ Quality control completed")
+        except Exception as e:
+            print(f"⚠️ Quality control failed: {e}")
+            quality_feedback = f"Quality control error: {str(e)}"
+        
+        # ESC Guidelines recommendations (for SPOEDCONSULT and CONSULTATIE)
+        esc_recommendations = None
+        if verslag_type in ['SPOEDCONSULT', 'CONSULTATIE']:
+            try:
+                print(f"📋 Generating ESC Guidelines recommendations...")
+                esc_recommendations = transcription_service.generate_esc_recommendations(structured_report, verslag_type)
+                print(f"✅ ESC recommendations completed")
+            except Exception as e:
+                print(f"⚠️ ESC recommendations failed: {e}")
+                esc_recommendations = f"ESC recommendations error: {str(e)}"
         
         print(f"🔍 DEBUG: Generated report preview: {structured_report[:100]}...")
         
@@ -716,25 +762,32 @@ def transcribe():
                 INSERT INTO transcription_history 
                 (patient_id, verslag_type, original_transcript, structured_report)
                 VALUES (?, ?, ?, ?)
-            ''', (patient_id, verslag_type, corrected_transcript, structured_report))
+            ''', (patient_id, verslag_type, raw_transcript, structured_report))
             conn.commit()
             conn.close()
         except Exception as e:
             logger.error(f"Database error: {e}")
         
-        # Return results
-        return render_template('index.html',
-                             transcript=corrected_transcript,
-                             report=structured_report,
-                             verslag_type=verslag_type,
-                             patient_id=patient_id,
-                             success=True)
+        # Return comprehensive JSON response
+        return jsonify({
+            'success': True,
+            'raw_transcript': raw_transcript,
+            'transcript': raw_transcript,  # For backward compatibility
+            'enhanced_transcript': enhanced_transcription_result['enhanced_transcript'] if enhanced_transcription_result else raw_transcript,
+            'enhancement_details': enhanced_transcription_result['improvements'] if enhanced_transcription_result else 'No enhancements applied',
+            'report': structured_report,
+            'quality_feedback': quality_feedback,
+            'esc_recommendations': esc_recommendations,
+            'patient_id': patient_id,
+            'verslag_type': verslag_type
+        })
         
     except Exception as e:
         logger.error(f"Transcription error: {e}")
-        return render_template('index.html', 
-                             error=f"Fout bij verwerking: {str(e)}",
-                             verslag_type=verslag_type)
+        return jsonify({
+            'success': False,
+            'error': f"Fout bij verwerking: {str(e)}"
+        }), 500
 
 @app.route('/api/transcribe', methods=['POST'])
 @rate_limit(max_requests=20, window=300)
@@ -976,6 +1029,60 @@ def api_transcribe():
         return jsonify({
             'success': False, 
             'error': f'Transcription failed: {str(e)}'
+        }), 500
+
+@app.route('/ocr-patient-id', methods=['POST'])
+def ocr_patient_id():
+    """OCR endpoint for patient ID extraction from photos"""
+    try:
+        if not OCR_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'error': 'OCR service niet beschikbaar'
+            }), 503
+        
+        # Get image data from request
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Geen afbeelding data ontvangen'
+            }), 400
+        
+        image_data = data['image']
+        
+        # Extract patient number using OCR
+        result = ocr_service.extract_patient_number(image_data)
+        
+        if result['success']:
+            # Validate the extracted number
+            if ocr_service.validate_patient_number(result['patient_number']):
+                return jsonify({
+                    'success': True,
+                    'patient_number': result['patient_number'],
+                    'raw_text': result.get('raw_text', ''),
+                    'confidence': 'high'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f"Ongeldig patiëntennummer formaat: {result['patient_number']}",
+                    'raw_text': result.get('raw_text', ''),
+                    'suggestion': 'Patiëntennummer moet exact 10 cijfers zijn'
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result['error'],
+                'raw_text': result.get('raw_text', ''),
+                'suggestion': result.get('suggestion', 'Probeer een duidelijkere foto')
+            })
+            
+    except Exception as e:
+        logger.error(f"OCR error: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'OCR verwerking gefaald: {str(e)}'
         }), 500
 
 @app.route('/history')

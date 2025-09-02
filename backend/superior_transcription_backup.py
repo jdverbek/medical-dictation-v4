@@ -10,7 +10,6 @@ import tempfile
 import subprocess
 from openai import OpenAI
 from dotenv import load_dotenv
-from .medical_classification_validator import MedicalClassificationValidator
 
 # Load environment variables
 load_dotenv()
@@ -24,13 +23,8 @@ class SuperiorMedicalTranscription:
         
         # Clean, modern initialization
         self.client = OpenAI(api_key=api_key)
-        
-        # Initialize medical classification validator
-        self.medical_validator = MedicalClassificationValidator()
-        
         print(f"🎤 Audio transcription client initialized with OpenAI GPT-4o Transcribe")
         print(f"🔑 Using API key: {api_key[:10]}...{api_key[-4:] if len(api_key) > 10 else 'short'}")
-        print(f"🛡️ Medical classification validator initialized")
     
     def enhance_transcription(self, raw_transcript, report_type):
         """
@@ -133,18 +127,9 @@ Verbeter deze transcriptie volgens de richtlijnen."""
     def validate_medical_report(self, report_text, report_type):
         """
         Validate medical report for inconsistencies and contradictions
-        Uses the MedicalClassificationValidator for critical error detection
+        Provides quality control feedback without modifying the report
         """
         try:
-            # First run the comprehensive medical classification validation
-            validation_results = self.medical_validator.validate_all(report_text)
-            validation_report = self.medical_validator.format_validation_report(validation_results)
-            
-            # If critical errors found, return immediately
-            if any(validation_results.values()):
-                return validation_report
-            
-            # If no critical errors, run additional AI-based validation
             system_message = f"""Je bent een medische quality control specialist die rapporten controleert op inconsistenties.
 
 TAAK: Analyseer het medische rapport en identificeer:
@@ -197,13 +182,9 @@ Controleer dit rapport op inconsistenties en tegenstrijdigheden."""
                 temperature=1.0
             )
             
-            ai_validation_feedback = response.choices[0].message.content
+            validation_feedback = response.choices[0].message.content
             
-            # Combine validation report with AI feedback
-            if "geen medische classificatie fouten" in validation_report.lower():
-                return ai_validation_feedback
-            else:
-                return f"{validation_report}\n\n📋 AANVULLENDE AI VALIDATIE:\n{ai_validation_feedback}"
+            return validation_feedback
             
         except Exception as e:
             print(f"❌ Medical report validation failed: {str(e)}")

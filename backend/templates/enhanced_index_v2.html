@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Dictation v4.0 - Expert AI System</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        /* Patient ID with OCR */
+        .patient-id-group {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+        }
+        .patient-id-input {
+            flex: 1;
+        }
+        .ocr-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+        .ocr-btn:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+        
+        /* Camera Modal */
+        .camera-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .camera-content {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        .camera-video {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .camera-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .capture-btn {
+            background: #3498db;
+            color: white;
+        }
+        .capture-btn:hover {
+            background: #2980b9;
+        }
+        .cancel-btn {
+            background: #e74c3c;
+            color: white;
+        }
+        .cancel-btn:hover {
+            background: #c0392b;
+        }
+        
+        .recording-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .record-btn, .pause-btn, .resume-btn, .stop-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 120px;
+        }
+        .record-btn:hover, .stop-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+        .pause-btn {
+            background: #f39c12;
+        }
+        .pause-btn:hover {
+            background: #e67e22;
+            transform: translateY(-2px);
+        }
+        .resume-btn {
+            background: #27ae60;
+        }
+        .resume-btn:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+        .record-btn.recording {
+            background: #27ae60;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .upload-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            width: 100%;
+        }
+        .upload-btn:hover {
+            background: #2980b9;
+        }
+        .upload-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        /* Tabbed Interface Styling */
+        .tabs-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .tabs-header {
+            display: flex;
+            background: #667eea;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab-button:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .tab-button.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 25px;
+            min-height: 400px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .tab-header {
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+        }
+        
+        .tab-header h3 {
+            margin: 0 0 5px 0;
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .tab-description {
+            margin: 0;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .tab-textarea {
+            width: 100%;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+            min-height: 300px;
+            box-sizing: border-box;
+        }
+        
+        /* Quality Control and ESC Recommendations Sections */
+        .quality-control-section, .esc-recommendations-section, .enhancement-details {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .quality-control-section h4, .esc-recommendations-section h4, .enhancement-details h4 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        
+        .section-description {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 15px;
+        }
+        
+        /* FIXED: Better text overflow handling */
+        .quality-feedback, .esc-recommendations-content, .enhancement-feedback {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        /* Ensure text doesn't overflow horizontally */
+        .quality-feedback pre, .esc-recommendations-content pre, .enhancement-feedback pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            font-family: inherit;
+            font-size: inherit;
+        }
+        
+        .loading-text {
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .status {
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .debug-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* OCR Result Styling */
+        .ocr-result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e8;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .ocr-error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .patient-id-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .ocr-btn {
+                width: 100%;
+            }
+            .recording-controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            .camera-controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 Medical Dictation v4.0</h1>
+        <p class="subtitle">Expert AI System met 3 Gespecialiseerde Medische Agents</p>
+        
+        <form id="transcriptionForm">
+            <div class="form-group">
+                <label for="patientId">Patiënt ID (10 cijfers):</label>
+                <div class="patient-id-group">
+                    <input type="text" id="patientId" name="patientId" class="patient-id-input" 
+                           placeholder="Voer patiënt ID in of gebruik OCR" pattern="[0-9]{10}" maxlength="10">
+                    <button type="button" class="ocr-btn" id="ocrBtn">📷 OCR Scan</button>
+                </div>
+                <div id="ocrResult" class="ocr-result hidden"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="reportType">Type Verslag:</label>
+                <select id="reportType" name="reportType" required>
+                    <option value="TTE">TTE (Transthoracale Echo)</option>
+                    <option value="TEE">TEE (Transesofageale Echo)</option>
+                    <option value="CONSULTATIE">Consultatie</option>
+                    <option value="SPOEDCONSULT">Spoedconsult</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="audioFile">Audio Bestand:</label>
+                <input type="file" id="audioFile" name="audioFile" accept="audio/*,.webm,.m4a" required>
+                <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                    Ondersteunde formaten: WAV, MP3, M4A, WebM (max 25MB)
+                </p>
+            </div>
+            
+            <!-- Recording Controls -->
+            <div class="recording-controls">
+                <button type="button" id="recordBtn" class="record-btn">🎤 Start Opname</button>
+                <button type="button" id="pauseBtn" class="pause-btn hidden">⏸️ Pauze</button>
+                <button type="button" id="resumeBtn" class="resume-btn hidden">▶️ Hervat</button>
+                <button type="button" id="stopBtn" class="stop-btn hidden">⏹️ Stop</button>
+            </div>
+            
+            <div id="recordingStatus" style="text-align: center; margin: 10px 0; font-weight: bold;"></div>
+            
+            <button type="submit" id="submitBtn" class="upload-btn">🚀 Verwerk Audio</button>
+        </form>
+        
+        <div id="statusMessage"></div>
+        
+        <div id="results" class="results">
+            <div id="loading" style="text-align: center; padding: 20px;">
+                <h3>⏳ Processing audio...</h3>
+                <p>Dit kan 1-5 minuten duren op Render.com...</p>
+            </div>
+            
+            <div id="output" style="display: none;">
+                <!-- Tabbed Interface -->
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-button active" data-tab="medical-report">🏥 Medisch Rapport</button>
+                        <button class="tab-button" data-tab="enhanced-transcript">✨ Verbeterde Transcriptie</button>
+                        <button class="tab-button" data-tab="raw-transcript">📝 Letterlijke Transcriptie</button>
+                    </div>
+                    
+                    <!-- Medical Report Tab -->
+                    <div id="medical-report" class="tab-content active">
+                        <div class="tab-header">
+                            <h3>🏥 Medisch Rapport</h3>
+                            <p class="tab-description">Finale medische rapport met gestructureerde opmaak</p>
+                        </div>
+                        <textarea id="report" rows="15" readonly class="tab-textarea"></textarea>
+                        
+                        <!-- ESC Recommendations Section (for SPOEDCONSULT and CONSULTATIE) -->
+                        <div id="esc-recommendations" class="esc-recommendations-section" style="display: none;">
+                            <h4>📋 ESC Guidelines Aanbevelingen</h4>
+                            <p class="section-description">Evidence-based aanbevelingen met Level of Recommendation (LoR) en Level of Evidence (LoE)</p>
+                            <div id="esc-recommendations-content" class="esc-recommendations-content">
+                                <p class="loading-text">ESC Guidelines aanbevelingen worden gegenereerd...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Quality Control Section -->
+                        <div id="quality-control" class="quality-control-section">
+                            <h4>🔍 Quality Control Opmerkingen</h4>
+                            <div id="quality-feedback" class="quality-feedback">
+                                <p class="loading-text">Quality control wordt uitgevoerd...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Enhanced Transcript Tab -->
+                    <div id="enhanced-transcript" class="tab-content">
+                        <div class="tab-header">
+                            <h3>✨ Verbeterde Transcriptie</h3>
+                            <p class="tab-description">Context-aware verbeterde transcriptie met correcties</p>
+                        </div>
+                        <textarea id="enhanced-transcript-text" rows="15" readonly class="tab-textarea"></textarea>
+                        
+                        <!-- Enhancement Details -->
+                        <div id="enhancement-details" class="enhancement-details">
+                            <h4>🔧 Verbeteringen Toegepast</h4>
+                            <div id="enhancement-feedback" class="enhancement-feedback">
+                                <p class="loading-text">Transcriptie wordt verbeterd...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Raw Transcript Tab -->
+                    <div id="raw-transcript" class="tab-content">
+                        <div class="tab-header">
+                            <h3>📝 Letterlijke Transcriptie</h3>
+                            <p class="tab-description">Onbewerkte transcriptie direct van audio</p>
+                        </div>
+                        <textarea id="transcript" rows="15" readonly class="tab-textarea"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Debug information -->
+        <div id="debugInfo" class="debug-info" style="display: none;">
+            <strong>Debug Info:</strong>
+            <div id="debugContent"></div>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div id="cameraModal" class="camera-modal">
+        <div class="camera-content">
+            <h3>📷 Scan Patiënt ID</h3>
+            <p>Richt de camera op het patiëntennummer (3e regel, 10 cijfers)</p>
+            <video id="cameraVideo" class="camera-video" autoplay></video>
+            <canvas id="cameraCanvas" style="display: none;"></canvas>
+            <div class="camera-controls">
+                <button type="button" id="captureBtn" class="camera-btn capture-btn">📸 Maak Foto</button>
+                <button type="button" id="cancelCameraBtn" class="camera-btn cancel-btn">❌ Annuleer</button>
+            </div>
+            <div id="ocrProcessing" class="loading-text" style="display: none;">
+                🔍 Patiëntennummer wordt herkend...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let isPaused = false;
+        let isProcessing = false;
+        let cameraStream = null;
+
+        const recordBtn = document.getElementById('recordBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const recordingStatus = document.getElementById('recordingStatus');
+        const form = document.getElementById('transcriptionForm');
+        const results = document.getElementById('results');
+        const loading = document.getElementById('loading');
+        const output = document.getElementById('output');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const debugInfo = document.getElementById('debugInfo');
+        const debugContent = document.getElementById('debugContent');
+        
+        // OCR Elements
+        const ocrBtn = document.getElementById('ocrBtn');
+        const cameraModal = document.getElementById('cameraModal');
+        const cameraVideo = document.getElementById('cameraVideo');
+        const cameraCanvas = document.getElementById('cameraCanvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const cancelCameraBtn = document.getElementById('cancelCameraBtn');
+        const ocrResult = document.getElementById('ocrResult');
+        const ocrProcessing = document.getElementById('ocrProcessing');
+        const patientIdInput = document.getElementById('patientId');
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusMessage.appendChild(statusDiv);
+            
+            // Auto-remove after 5 seconds for non-error messages
+            if (type !== 'error') {
+                setTimeout(() => {
+                    if (statusDiv.parentNode) {
+                        statusDiv.parentNode.removeChild(statusDiv);
+                    }
+                }, 5000);
+            }
+        }
+
+        // Show debug information
+        function showDebug(info) {
+            debugContent.innerHTML = `<pre>${JSON.stringify(info, null, 2)}</pre>`;
+            debugInfo.style.display = 'block';
+        }
+
+        // OCR Functionality
+        ocrBtn.addEventListener('click', async () => {
+            try {
+                // Request camera access
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment', // Use back camera if available
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                
+                cameraVideo.srcObject = cameraStream;
+                cameraModal.style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Camera access error:', error);
+                showStatus('❌ Camera toegang geweigerd. Controleer browser instellingen.', 'error');
+            }
+        });
+
+        captureBtn.addEventListener('click', async () => {
+            try {
+                // Show processing indicator
+                ocrProcessing.style.display = 'block';
+                captureBtn.disabled = true;
+                
+                // Capture image from video
+                const canvas = cameraCanvas;
+                const context = canvas.getContext('2d');
+                canvas.width = cameraVideo.videoWidth;
+                canvas.height = cameraVideo.videoHeight;
+                context.drawImage(cameraVideo, 0, 0);
+                
+                // Convert to base64
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                
+                // Send to OCR endpoint
+                const response = await fetch('/ocr-patient-id', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Fill patient ID field
+                    patientIdInput.value = result.patient_number;
+                    
+                    // Show success message
+                    ocrResult.className = 'ocr-result';
+                    ocrResult.innerHTML = `✅ Patiëntennummer gevonden: <strong>${result.patient_number}</strong>`;
+                    ocrResult.classList.remove('hidden');
+                    
+                    // Close camera modal
+                    closeCameraModal();
+                    
+                    showStatus('✅ Patiëntennummer succesvol herkend!', 'success');
+                } else {
+                    // Show error
+                    ocrResult.className = 'ocr-result ocr-error';
+                    ocrResult.innerHTML = `❌ ${result.error}<br><small>${result.suggestion || ''}</small>`;
+                    ocrResult.classList.remove('hidden');
+                    
+                    showStatus('❌ OCR fout: ' + result.error, 'error');
+                }
+                
+            } catch (error) {
+                console.error('OCR error:', error);
+                showStatus('❌ OCR verwerking gefaald: ' + error.message, 'error');
+            } finally {
+                ocrProcessing.style.display = 'none';
+                captureBtn.disabled = false;
+            }
+        });
+
+        cancelCameraBtn.addEventListener('click', closeCameraModal);
+
+        function closeCameraModal() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            cameraModal.style.display = 'none';
+            ocrProcessing.style.display = 'none';
+            captureBtn.disabled = false;
+        }
+
+        // Recording functionality (existing code)
+        recordBtn.addEventListener('click', async () => {
+            if (isRecording) return;
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Detect supported format
+                let mimeType = 'audio/webm';
+                if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                    mimeType = 'audio/mp4';
+                } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+                    mimeType = 'audio/wav';
+                }
+                
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: mimeType });
+                    
+                    // Store for form submission
+                    window.recordedAudioBlob = audioBlob;
+                    
+                    // Automatic backup with patient ID
+                    const patientId = document.getElementById('patientId').value || 'Unknown';
+                    const extension = mimeType.includes('mp4') ? 'm4a' : 'webm';
+                    downloadBlob(audioBlob, `backup_${patientId}_recording.${extension}`);
+                    
+                    recordingStatus.innerHTML = `✅ Opname voltooid! Format: ${mimeType}`;
+                    recordingStatus.style.color = '#27ae60';
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                isPaused = false;
+                
+                recordBtn.classList.add('hidden');
+                pauseBtn.classList.remove('hidden');
+                stopBtn.classList.remove('hidden');
+                
+                recordingStatus.innerHTML = `🔴 Opname bezig... (${mimeType})`;
+                recordingStatus.style.color = '#e74c3c';
+                
+            } catch (error) {
+                console.error('Recording error:', error);
+                showStatus('❌ Microfoon toegang geweigerd of niet beschikbaar', 'error');
+            }
+        });
+
+        pauseBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.pause();
+                isPaused = true;
+                
+                pauseBtn.classList.add('hidden');
+                resumeBtn.classList.remove('hidden');
+                
+                recordingStatus.innerHTML = '⏸️ Opname gepauzeerd - klik Hervat om door te gaan';
+                recordingStatus.style.color = '#f39c12';
+            }
+        });
+
+        resumeBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'paused') {
+                mediaRecorder.resume();
+                isPaused = false;
+                
+                resumeBtn.classList.add('hidden');
+                pauseBtn.classList.remove('hidden');
+                
+                recordingStatus.innerHTML = '🔴 Opname hervat...';
+                recordingStatus.style.color = '#27ae60';
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                
+                isRecording = false;
+                isPaused = false;
+                
+                recordBtn.classList.remove('hidden');
+                pauseBtn.classList.add('hidden');
+                resumeBtn.classList.add('hidden');
+                stopBtn.classList.add('hidden');
+            }
+        });
+
+        // Download blob function
+        function downloadBlob(blob, filename) {
+            try {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showStatus(`✅ Backup gedownload: ${filename}`, 'success');
+            } catch (error) {
+                console.error('Download failed:', error);
+                showStatus('⚠️ Backup download gefaald (browser beperking)', 'warning');
+            }
+        }
+
+        // Form submission (existing code with improvements)
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (isProcessing) return;
+            
+            const patientId = document.getElementById('patientId').value;
+            const reportType = document.getElementById('reportType').value;
+            let audioFile = document.getElementById('audioFile').files[0];
+            
+            // Use recorded audio if no file selected
+            if (!audioFile && window.recordedAudioBlob) {
+                audioFile = new File([window.recordedAudioBlob], 'recording.webm', { type: 'audio/webm' });
+            }
+            
+            if (!audioFile) {
+                showStatus('❌ Selecteer een audio bestand of maak een opname', 'error');
+                return;
+            }
+            
+            // Validate patient ID
+            if (patientId && !/^\d{10}$/.test(patientId)) {
+                showStatus('❌ Patiënt ID moet exact 10 cijfers zijn', 'error');
+                return;
+            }
+            
+            isProcessing = true;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Verwerken...';
+            
+            results.style.display = 'block';
+            loading.style.display = 'block';
+            output.style.display = 'none';
+            
+            // Automatic backup for uploaded files
+            if (document.getElementById('audioFile').files[0]) {
+                const backupPatientId = patientId || 'Unknown';
+                const originalName = audioFile.name;
+                downloadBlob(audioFile, `backup_${backupPatientId}_${originalName}`);
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioFile);
+                formData.append('patient_id', patientId);
+                formData.append('verslag_type', reportType);
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
+                
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData,
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server error (${response.status}): ${errorText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Populate all tabs with data
+                    document.getElementById('report').value = result.report || 'Rapport niet beschikbaar';
+                    document.getElementById('enhanced-transcript-text').value = result.enhanced_transcript || result.transcript || 'Verbeterde transcriptie niet beschikbaar';
+                    document.getElementById('transcript').value = result.raw_transcript || result.transcript || 'Letterlijke transcriptie niet beschikbaar';
+                    
+                    // Enhancement details
+                    if (result.enhancement_details) {
+                        document.getElementById('enhancement-feedback').innerHTML = `<pre>${result.enhancement_details}</pre>`;
+                    } else {
+                        document.getElementById('enhancement-feedback').innerHTML = 'Verbeteringsdetails niet beschikbaar';
+                    }
+                    
+                    // Quality Control Feedback
+                    if (result.quality_feedback) {
+                        document.getElementById('quality-feedback').innerHTML = `<pre>${result.quality_feedback}</pre>`;
+                    } else {
+                        document.getElementById('quality-feedback').innerHTML = 'Quality control feedback niet beschikbaar';
+                    }
+                    
+                    // ESC Recommendations (for SPOEDCONSULT and CONSULTATIE)
+                    const escSection = document.getElementById('esc-recommendations');
+                    const escContent = document.getElementById('esc-recommendations-content');
+                    
+                    if ((reportType === 'SPOEDCONSULT' || reportType === 'CONSULTATIE') && result.esc_recommendations) {
+                        escSection.style.display = 'block';
+                        escContent.innerHTML = `<pre>${result.esc_recommendations}</pre>`;
+                    } else if (reportType === 'SPOEDCONSULT' || reportType === 'CONSULTATIE') {
+                        escSection.style.display = 'block';
+                        escContent.innerHTML = '<p class="loading-text">ESC Guidelines aanbevelingen niet beschikbaar</p>';
+                    } else {
+                        escSection.style.display = 'none';
+                    }
+                    
+                    loading.style.display = 'none';
+                    output.style.display = 'block';
+                    
+                    showStatus('✅ Verwerking voltooid!', 'success');
+                    
+                    // Optional: Download the results as a file
+                    if (confirm('Wilt u het rapport downloaden?')) {
+                        downloadReport(result.raw_transcript || result.transcript, result.report, patientId, reportType);
+                    }
+                } else {
+                    throw new Error(result.error || 'Unknown error occurred');
+                }
+            } catch (error) {
+                console.error('Processing error:', error);
+                loading.style.display = 'none';
+                
+                if (error.name === 'AbortError') {
+                    showStatus('⏱️ Timeout: Server response took too long (>5 min). Try a shorter audio file.', 'error');
+                } else {
+                    showStatus(`❌ Error: ${error.message}`, 'error');
+                }
+                
+                // Show debug info
+                showDebug({
+                    error: error.message,
+                    type: error.name,
+                    timestamp: new Date().toISOString(),
+                    fileSize: audioFile ? `${(audioFile.size / 1024).toFixed(2)} KB` : 'N/A'
+                });
+            } finally {
+                // Re-enable submit button
+                isProcessing = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🚀 Verwerk Audio';
+            }
+        });
+
+        // Download report function
+        function downloadReport(transcript, report, patientId, reportType) {
+            patientId = patientId || 'Unknown';
+            reportType = reportType || 'RAPPORT';
+            const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
+            
+            const content = `MEDISCH RAPPORT\n\nDatum: ${new Date().toLocaleDateString()}\nPatiënt ID: ${patientId}\nRapport Type: ${reportType}\n\n=== TRANSCRIPTIE ===\n${transcript}\n\n=== RAPPORT ===\n${report}`;
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rapport_${patientId}_${reportType}_${timestamp}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Tab functionality
+        function initializeTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTab = button.getAttribute('data-tab');
+                    
+                    // Remove active class from all buttons and contents
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // Add active class to clicked button and corresponding content
+                    button.classList.add('active');
+                    document.getElementById(targetTab).classList.add('active');
+                });
+            });
+        }
+
+        // Check API status on load
+        fetch('/health')
+            .then(response => response.json())
+            .then(data => {
+                console.log('API Status:', data);
+                if (!data.openai_configured) {
+                    showStatus('⚠️ Warning: OpenAI API key not configured on server', 'warning');
+                }
+            })
+            .catch(error => {
+                console.error('API health check failed:', error);
+                showStatus('⚠️ Server may not be ready. Please wait a moment and refresh.', 'warning');
+            });
+
+        // Initialize tabs when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initializeTabs);
+    </script>
+
+</body>
+</html>
+
