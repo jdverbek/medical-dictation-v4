@@ -433,6 +433,14 @@ class SuperiorMedicalTranscription:
         
         Analyseer de transcriptie zorgvuldig en vul zoveel mogelijk details in. Gebruik EXACT dit template format:
         
+        BELANGRIJK: Laat deze specifieke meetlijnen VOLLEDIG WEG als er geen metingen worden genoemd:
+        - Dimensies: LVOT (...) mm, aorta sinus (...) mm, sinutubulaire junctie (...) mm, aorta ascendens boven de sinutubulaire junctie (...) mm.
+        - Mitraalinsufficientie vena contracta (...) mm, ERO (...) mm2 en RVol (...) ml/slag.
+        - Aortaklepinsufficientie vena contracta (...) mm, ERO (...) mm2 en RVol (...) ml/slag.
+        - Aortaklepstenose piekgradient (...) mmHg en gemiddelde gradient (...) mmHg, effectief klepoppervlak (...) cm2.
+        
+        Voor pulmonaaldruk: als geen meting genoemd → gebruik "* Geen pulmonaaldruk opmeetbaar."
+        
         Onderzoeksdatum: {today}
         Bevindingen: TEE ONDERZOEK : 3D TEE met (...) toestel
         Indicatie: (...)
@@ -451,13 +459,14 @@ class SuperiorMedicalTranscription:
         - Linker hartoortje is (...) vergroot, er is (...) spontaan contrast, zonder toegevoegde structuur. Hartoortje snelheden (...) cm/s.
         - Interatriaal septum (...)
         - Mitralisklep: (...), morfologisch (...), er is (...) insufficiëntie, er is (...) stenose, (...) toegevoegde structuur.
-        * Mitraalinsufficientie vena contracta (...) mm, ERO (...) mm2 en RVol (...) ml/slag.
+        [ALLEEN als mitraal metingen genoemd: * Mitraalinsufficientie vena contracta (...) mm, ERO (...) mm2 en RVol (...) ml/slag.]
         - Aortaklep: (...), morfologisch (...), (...) verkalkt, er is (...) insufficiëntie, er is (...) stenose (...) toegevoegde structuur.
-        Dimensies: LVOT (...) mm, aorta sinus (...) mm, sinutubulaire junctie (...) mm, aorta ascendens boven de sinutubulaire junctie (...) mm.
-        * Aortaklepinsufficientie vena contracta (...) mm, ERO (...) mm2 en RVol (...) ml/slag.
-        * Aortaklepstenose piekgradient (...) mmHg en gemiddelde gradient (...) mmHg, effectief klepoppervlak (...) cm2.
+        [ALLEEN als aorta dimensies genoemd: Dimensies: LVOT (...) mm, aorta sinus (...) mm, sinutubulaire junctie (...) mm, aorta ascendens boven de sinutubulaire junctie (...) mm.]
+        [ALLEEN als aortaklep insufficiëntie metingen genoemd: * Aortaklepinsufficientie vena contracta (...) mm, ERO (...) mm2 en RVol (...) ml/slag.]
+        [ALLEEN als aortaklep stenose metingen genoemd: * Aortaklepstenose piekgradient (...) mmHg en gemiddelde gradient (...) mmHg, effectief klepoppervlak (...) cm2.]
         - Tricuspiedklep: (...), morfologisch (...), er is (...) insufficiëntie, (...) toegevoegde structuur.
-        * Systolische pulmonaaldruk afgeleid uit TI (...) mmHg + CVD.
+        [Als pulmonaaldruk genoemd: * Systolische pulmonaaldruk afgeleid uit TI (...) mmHg + CVD.]
+        [Als pulmonaaldruk NIET genoemd: * Geen pulmonaaldruk opmeetbaar.]
         - Pulmonaalklep is (...), er is (...) insufficiëntie.
         - Aorta ascendens is (...) gedilateerd, graad (...) atheromatose van de aortawand.
         - Pulmonale arterie is (...) gedilateerd.
@@ -467,7 +476,8 @@ class SuperiorMedicalTranscription:
         CONCLUSIE: (...)
         AANBEVELINGEN: (...)
         
-        Vul zoveel mogelijk details in uit de transcriptie. Gebruik correcte Nederlandse karakters."""
+        Vul zoveel mogelijk details in uit de transcriptie. Gebruik correcte Nederlandse karakters.
+        LAAT MEETLIJNEN VOLLEDIG WEG als er geen metingen worden genoemd."""
         
         report = self.call_gpt([
             {"role": "system", "content": system_message},
