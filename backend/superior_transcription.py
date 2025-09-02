@@ -49,7 +49,7 @@ class SuperiorMedicalTranscription:
                 temp_output_path
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5 minutes timeout
             
             if result.returncode == 0:
                 # Read converted file
@@ -83,7 +83,7 @@ class SuperiorMedicalTranscription:
         except subprocess.TimeoutExpired:
             return {
                 'success': False,
-                'error': "Audio conversie timeout (>30s). Bestand te groot of complex."
+                'error': "Audio conversie timeout (>5 min). Bestand te groot of complex."
             }
         except Exception as e:
             return {
