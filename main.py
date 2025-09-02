@@ -7,7 +7,6 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, s
 import os
 import io
 import datetime
-import sqlite3
 import hashlib
 import secrets
 import time
@@ -17,6 +16,9 @@ from typing import Dict, List, Any, Optional
 from functools import wraps
 from backend.superior_transcription import SuperiorMedicalTranscription
 from backend.ocr_service import PatientNumberOCR
+
+# Import database abstraction layer
+from database import get_db_connection, init_db, is_postgresql, execute_query, get_last_insert_id
 
 # Import authentication system
 from auth_system import (
@@ -877,16 +879,7 @@ def transcribe():
         
         # 🚨 IMMEDIATE DATABASE SAVE - Save transcription as soon as we have it
         print(f"🔍 DEBUG: IMMEDIATE SAVE - Starting database save right after transcription")
-        
-        # Environment-aware database path
-        if os.environ.get('RENDER'):
-            # Render.com environment - use absolute path
-            db_path = '/opt/render/project/src/medical_app_v4.db'
-            print(f"🔍 DEBUG: IMMEDIATE SAVE - Using Render.com database path: {db_path}")
-        else:
-            # Local environment
-            db_path = 'medical_app_v4.db'
-            print(f"🔍 DEBUG: IMMEDIATE SAVE - Using local database path: {db_path}")
+        print(f"🔍 DEBUG: IMMEDIATE SAVE - Using {'PostgreSQL' if is_postgresql() else 'SQLite'}")
         
         try:
             user = get_current_user()
@@ -909,44 +902,41 @@ def transcribe():
             print(f"🔍 DEBUG: IMMEDIATE SAVE - Final user_id: {user_id}")
             print(f"🔍 DEBUG: IMMEDIATE SAVE - Patient: {patient_id}, Type: {verslag_type}")
             print(f"🔍 DEBUG: IMMEDIATE SAVE - Transcript length: {len(raw_transcript)}")
-            print(f"🔍 DEBUG: IMMEDIATE SAVE - Database path: {db_path}")
             
-            # Ensure database directory exists
-            os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else '.', exist_ok=True)
-            
-            conn = sqlite3.connect(db_path)
+            conn = get_db_connection()
             cursor = conn.cursor()
             
-            # Ensure table exists
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS transcription_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    patient_id TEXT,
-                    verslag_type TEXT NOT NULL,
-                    original_transcript TEXT,
-                    structured_report TEXT,
-                    enhanced_transcript TEXT,
-                    quality_feedback TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+            # Database-agnostic INSERT query
+            if is_postgresql():
+                cursor.execute('''
+                    INSERT INTO transcription_history 
+                    (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                ''', (
+                    user_id, 
+                    patient_id, 
+                    verslag_type, 
+                    raw_transcript, 
+                    "Processing...",  # Placeholder, will be updated later
+                    raw_transcript   # Initial enhanced transcript
+                ))
+                record_id = cursor.fetchone()[0]
+            else:
+                cursor.execute('''
+                    INSERT INTO transcription_history 
+                    (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (
+                    user_id, 
+                    patient_id, 
+                    verslag_type, 
+                    raw_transcript, 
+                    "Processing...",  # Placeholder, will be updated later
+                    raw_transcript   # Initial enhanced transcript
+                ))
+                record_id = cursor.lastrowid
             
-            cursor.execute('''
-                INSERT INTO transcription_history 
-                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                user_id, 
-                patient_id, 
-                verslag_type, 
-                raw_transcript, 
-                "Processing...",  # Placeholder, will be updated later
-                raw_transcript   # Initial enhanced transcript
-            ))
-            
-            # Get the inserted record ID
-            record_id = cursor.lastrowid
             conn.commit()
             conn.close()
             
