@@ -307,27 +307,29 @@
                 return;
             }
 
-            // AUTOMATIC BACKUP: Download audio file BEFORE processing starts
+            // AUTOMATIC BACKUP: Download audio file BEFORE processing starts (non-blocking)
             // This prevents data loss if processing fails
-            try {
-                const patientId = document.getElementById('patientId').value || 'Unknown';
-                const url = URL.createObjectURL(audioFile);
-                const a = document.createElement('a');
-                a.href = url;
-                // Include patient ID in backup filename for easy linking
-                a.download = `backup_${patientId}_${audioFile.name}`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                // Show backup confirmation with patient ID
-                document.getElementById('autoBackupStatus').style.display = 'block';
-                showStatus(`✅ Audio backup: backup_${patientId}_${audioFile.name} - Processing wordt gestart...`, 'success');
-            } catch (error) {
-                console.warn('Automatic backup failed:', error);
-                // Continue with processing even if backup fails
-            }
+            const patientId = document.getElementById('patientId').value || 'Unknown';
+            
+            // Use setTimeout to make backup non-blocking
+            setTimeout(() => {
+                try {
+                    const url = URL.createObjectURL(audioFile);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    // Include patient ID in backup filename for easy linking
+                    a.download = `backup_${patientId}_${audioFile.name}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    // Show backup confirmation with patient ID
+                    document.getElementById('autoBackupStatus').style.display = 'block';
+                } catch (error) {
+                    console.warn('Automatic backup failed:', error);
+                }
+            }, 100); // Small delay to prevent interference with form submission
 
             // Disable submit button
             isProcessing = true;
@@ -336,7 +338,7 @@
 
             const formData = new FormData();
             formData.append('audio', audioFile);
-            formData.append('patient_id', document.getElementById('patientId').value);
+            formData.append('patient_id', patientId);
             formData.append('verslag_type', document.getElementById('reportType').value);
 
             // Show loading
