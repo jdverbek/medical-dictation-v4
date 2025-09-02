@@ -54,20 +54,40 @@
             outline: none;
             border-color: #667eea;
         }
-        .record-btn {
+        .recording-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .record-btn, .pause-btn, .resume-btn, .stop-btn {
             background: #e74c3c;
             color: white;
             border: none;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-size: 18px;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 16px;
             cursor: pointer;
             transition: all 0.3s;
-            display: block;
-            margin: 20px auto;
+            min-width: 120px;
         }
-        .record-btn:hover {
+        .record-btn:hover, .stop-btn:hover {
             background: #c0392b;
+            transform: translateY(-2px);
+        }
+        .pause-btn {
+            background: #f39c12;
+        }
+        .pause-btn:hover {
+            background: #e67e22;
+            transform: translateY(-2px);
+        }
+        .resume-btn {
+            background: #27ae60;
+        }
+        .resume-btn:hover {
+            background: #229954;
             transform: translateY(-2px);
         }
         .record-btn.recording {
@@ -175,7 +195,12 @@
                 </div>
             </div>
             
-            <button type="button" id="recordBtn" class="record-btn">🎤 Start Opname</button>
+            <div class="recording-controls">
+                <button type="button" id="recordBtn" class="record-btn">🎤 Start Opname</button>
+                <button type="button" id="pauseBtn" class="pause-btn" style="display: none;">⏸️ Pauze</button>
+                <button type="button" id="resumeBtn" class="resume-btn" style="display: none;">▶️ Hervat</button>
+                <button type="button" id="stopBtn" class="stop-btn" style="display: none;">⏹️ Stop</button>
+            </div>
             <div id="recordingStatus" style="text-align: center; color: #7f8c8d; margin-bottom: 20px;"></div>
             
             <button type="submit" id="submitBtn" class="upload-btn">🚀 Verwerk Audio</button>
@@ -207,9 +232,13 @@
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
+        let isPaused = false;
         let isProcessing = false;
 
         const recordBtn = document.getElementById('recordBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const stopBtn = document.getElementById('stopBtn');
         const recordingStatus = document.getElementById('recordingStatus');
         const form = document.getElementById('transcriptionForm');
         const results = document.getElementById('results');
@@ -242,118 +271,168 @@
             debugContent.innerHTML = `<pre>${JSON.stringify(info, null, 2)}</pre>`;
         }
 
-        // Recording functionality with Safari compatibility
+        // Recording functionality with pause/resume support
         recordBtn.addEventListener('click', async () => {
-            if (!isRecording) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    
-                    // Detect Safari and use appropriate recording format
-                    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-                    let mimeType = 'audio/webm';
-                    let fileExtension = '.webm';
-                    
-                    if (isSafari) {
-                        // Safari doesn't support WebM, try MP4 or WAV
-                        if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                            mimeType = 'audio/mp4';
-                            fileExtension = '.m4a';
-                        } else if (MediaRecorder.isTypeSupported('audio/wav')) {
-                            mimeType = 'audio/wav';
-                            fileExtension = '.wav';
-                        } else {
-                            // Fallback to default and let the server handle conversion
-                            mimeType = 'audio/webm';
-                            fileExtension = '.webm';
-                        }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Detect Safari and use appropriate recording format
+                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                let mimeType = 'audio/webm';
+                let fileExtension = '.webm';
+                
+                if (isSafari) {
+                    // Safari doesn't support WebM, try MP4 or WAV
+                    if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                        mimeType = 'audio/mp4';
+                        fileExtension = '.m4a';
+                    } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+                        mimeType = 'audio/wav';
+                        fileExtension = '.wav';
+                    } else {
+                        // Fallback to default and let the server handle conversion
+                        mimeType = 'audio/webm';
+                        fileExtension = '.webm';
                     }
-                    
-                    mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-                    audioChunks = [];
+                }
+                
+                mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+                audioChunks = [];
 
-                    mediaRecorder.ondataavailable = (event) => {
-                        audioChunks.push(event.data);
-                    };
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
 
-                    mediaRecorder.onstop = () => {
+                mediaRecorder.onstop = () => {
+                    try {
+                        const audioBlob = new Blob(audioChunks, { type: mimeType });
+                        const audioFile = new File([audioBlob], `recording${fileExtension}`, { type: mimeType });
+                        
+                        // AUTOMATIC BACKUP FOR RECORDED AUDIO
+                        const patientId = document.getElementById('patientId').value || 'Unknown';
+                        const backupFilename = `backup_${patientId}_recording${fileExtension}`;
+                        
+                        // Download backup immediately after recording (works in most browsers)
                         try {
-                            const audioBlob = new Blob(audioChunks, { type: mimeType });
-                            const audioFile = new File([audioBlob], `recording${fileExtension}`, { type: mimeType });
+                            const url = URL.createObjectURL(audioBlob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = backupFilename;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
                             
-                            // AUTOMATIC BACKUP FOR RECORDED AUDIO
-                            const patientId = document.getElementById('patientId').value || 'Unknown';
-                            const backupFilename = `backup_${patientId}_recording${fileExtension}`;
-                            
-                            // Download backup immediately after recording (works in most browsers)
-                            try {
-                                const url = URL.createObjectURL(audioBlob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = backupFilename;
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                                URL.revokeObjectURL(url);
-                                
-                                showStatus(`✅ Recording backup: ${backupFilename} gedownload!`, 'success');
-                            } catch (backupError) {
-                                console.warn('Recording backup failed:', backupError);
-                                if (isSafari) {
-                                    showStatus('📱 Safari: Recording backup niet mogelijk. Download rapport na verwerking.', 'warning');
-                                } else {
-                                    showStatus('⚠️ Recording backup gefaald, maar recording is beschikbaar voor verwerking.', 'warning');
-                                }
-                            }
-                            
-                            // Safari-compatible file setting
+                            showStatus(`✅ Recording backup: ${backupFilename} gedownload!`, 'success');
+                        } catch (backupError) {
+                            console.warn('Recording backup failed:', backupError);
                             if (isSafari) {
-                                // Safari workaround: Create a new input element
-                                const fileInput = document.getElementById('audioFile');
-                                const newFileInput = fileInput.cloneNode(true);
-                                
-                                // Try to set the file (may not work in Safari, but we'll try)
-                                try {
-                                    const dataTransfer = new DataTransfer();
-                                    dataTransfer.items.add(audioFile);
-                                    newFileInput.files = dataTransfer.files;
-                                    fileInput.parentNode.replaceChild(newFileInput, fileInput);
-                                    newFileInput.id = 'audioFile';
-                                } catch (safariError) {
-                                    console.warn('Safari file setting failed, using alternative approach:', safariError);
-                                    // Store the blob for later use
-                                    window.recordedAudioBlob = audioBlob;
-                                    window.recordedAudioFilename = `recording${fileExtension}`;
-                                }
+                                showStatus('📱 Safari: Recording backup niet mogelijk. Download rapport na verwerking.', 'warning');
                             } else {
-                                // Standard approach for other browsers
+                                showStatus('⚠️ Recording backup gefaald, maar recording is beschikbaar voor verwerking.', 'warning');
+                            }
+                        }
+                        
+                        // Safari-compatible file setting
+                        if (isSafari) {
+                            // Safari workaround: Create a new input element
+                            const fileInput = document.getElementById('audioFile');
+                            const newFileInput = fileInput.cloneNode(true);
+                            
+                            // Try to set the file (may not work in Safari, but we'll try)
+                            try {
                                 const dataTransfer = new DataTransfer();
                                 dataTransfer.items.add(audioFile);
-                                document.getElementById('audioFile').files = dataTransfer.files;
+                                newFileInput.files = dataTransfer.files;
+                                fileInput.parentNode.replaceChild(newFileInput, fileInput);
+                                newFileInput.id = 'audioFile';
+                            } catch (safariError) {
+                                console.warn('Safari file setting failed, using alternative approach:', safariError);
+                                // Store the blob for later use
+                                window.recordedAudioBlob = audioBlob;
+                                window.recordedAudioFilename = `recording${fileExtension}`;
                             }
-                            
-                            showStatus(`Opname voltooid! Format: ${mimeType}. Backup: ${backupFilename}. Klik "Verwerk Audio" om door te gaan.`, 'success');
-                        } catch (error) {
-                            showStatus('Fout bij verwerken opname: ' + error.message, 'error');
+                        } else {
+                            // Standard approach for other browsers
+                            const dataTransfer = new DataTransfer();
+                            dataTransfer.items.add(audioFile);
+                            document.getElementById('audioFile').files = dataTransfer.files;
                         }
-                    };
+                        
+                        showStatus(`Opname voltooid! Format: ${mimeType}. Backup: ${backupFilename}. Klik "Verwerk Audio" om door te gaan.`, 'success');
+                        
+                        // Reset UI to initial state
+                        resetRecordingUI();
+                    } catch (error) {
+                        showStatus('Fout bij verwerken opname: ' + error.message, 'error');
+                        resetRecordingUI();
+                    }
+                };
 
-                    mediaRecorder.start();
-                    isRecording = true;
-                    recordBtn.textContent = '⏹️ Stop Opname';
-                    recordBtn.classList.add('recording');
-                    recordingStatus.textContent = `Opname bezig... (${mimeType})`;
-                } catch (error) {
-                    showStatus('Fout bij toegang tot microfoon: ' + error.message, 'error');
-                }
-            } else {
+                mediaRecorder.start();
+                isRecording = true;
+                isPaused = false;
+                
+                // Update UI for recording state
+                recordBtn.style.display = 'none';
+                pauseBtn.style.display = 'inline-block';
+                stopBtn.style.display = 'inline-block';
+                recordingStatus.textContent = `🔴 Opname bezig... (${mimeType})`;
+                recordingStatus.style.color = '#e74c3c';
+                
+            } catch (error) {
+                showStatus('Fout bij toegang tot microfoon: ' + error.message, 'error');
+                resetRecordingUI();
+            }
+        });
+
+        // Pause recording
+        pauseBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.pause();
+                isPaused = true;
+                
+                // Update UI for paused state
+                pauseBtn.style.display = 'none';
+                resumeBtn.style.display = 'inline-block';
+                recordingStatus.textContent = '⏸️ Opname gepauzeerd - klik Hervat om door te gaan';
+                recordingStatus.style.color = '#f39c12';
+            }
+        });
+
+        // Resume recording
+        resumeBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'paused') {
+                mediaRecorder.resume();
+                isPaused = false;
+                
+                // Update UI for resumed state
+                resumeBtn.style.display = 'none';
+                pauseBtn.style.display = 'inline-block';
+                recordingStatus.textContent = '🔴 Opname hervat...';
+                recordingStatus.style.color = '#e74c3c';
+            }
+        });
+
+        // Stop recording
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
                 mediaRecorder.stop();
                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 isRecording = false;
-                recordBtn.textContent = '🎤 Start Opname';
-                recordBtn.classList.remove('recording');
-                recordingStatus.textContent = '';
+                isPaused = false;
             }
         });
+
+        // Reset recording UI to initial state
+        function resetRecordingUI() {
+            recordBtn.style.display = 'inline-block';
+            pauseBtn.style.display = 'none';
+            resumeBtn.style.display = 'none';
+            stopBtn.style.display = 'none';
+            recordingStatus.textContent = '';
+            recordingStatus.style.color = '#7f8c8d';
+        }
 
         // Form submission - FIXED VERSION
         form.addEventListener('submit', async (e) => {
