@@ -26,8 +26,213 @@ class SuperiorMedicalTranscription:
         print(f"🎤 Audio transcription client initialized with OpenAI GPT-4o Transcribe")
         print(f"🔑 Using API key: {api_key[:10]}...{api_key[-4:] if len(api_key) > 10 else 'short'}")
     
+    def enhance_transcription(self, raw_transcript, report_type):
+        """
+        Enhance raw transcription with context-aware improvements
+        Checks for nonsense, contradictions, and inaccuracies
+        """
+        try:
+            # Define context-specific prompts
+            context_prompts = {
+                'TTE': 'transthoracale echocardiografie (TTE)',
+                'TEE': 'transesofageale echocardiografie (TEE)', 
+                'CONSULTATIE': 'cardiologische consultatie',
+                'SPOEDCONSULT': 'spoed cardiologische consultatie'
+            }
+            
+            context = context_prompts.get(report_type, 'medisch verslag')
+            
+            system_message = f"""Je bent een medische transcriptie specialist die transcripties verbetert voor {context}.
+
+TAAK: Verbeter de ruwe transcriptie door:
+1. Nonsens woorden corrigeren naar medische termen
+2. Tegenstrijdigheden identificeren en oplossen  
+3. Onnauwkeurigheden verbeteren met context
+4. Medische terminologie optimaliseren
+5. Grammatica en zinsbouw verbeteren
+
+MEDISCHE TERMINOLOGIE RICHTLIJNEN:
+- TTE = "tee-tee-ee" → transthoracale echografie
+- EDD = "ie-dee-dee" → eind-diastolische diameter  
+- IVS = "ie-vee-es" → interventriculair septum
+- PW = "pee-double-you" → posterior wand
+- LVEF = "el-vee-ee-ef" → linker ventrikelejectiefractie
+- TAPSE = "tap-se" → tricuspid annulaire verplaatsing
+- LA = "el-aa" → linker atrium
+- RVSP = "err-vee-es-pee" → pulmonaaldruk
+
+REGELS:
+- Behoud alle originele medische informatie
+- Corrigeer alleen duidelijke fouten
+- Voeg GEEN nieuwe medische informatie toe
+- Markeer onzekere correcties met [?]
+- Geef duidelijke Nederlandse medische terminologie
+
+Geef de verbeterde transcriptie terug, gevolgd door een lijst van toegepaste verbeteringen."""
+
+            user_message = f"""Ruwe transcriptie voor {context}:
+
+{raw_transcript}
+
+Verbeter deze transcriptie volgens de richtlijnen."""
+
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=1.0
+            )
+            
+            enhanced_text = response.choices[0].message.content
+            
+            # Split enhanced text and improvements
+            if "TOEGEPASTE VERBETERINGEN:" in enhanced_text:
+                parts = enhanced_text.split("TOEGEPASTE VERBETERINGEN:")
+                enhanced_transcript = parts[0].strip()
+                improvements = parts[1].strip() if len(parts) > 1 else "Geen specifieke verbeteringen gedetecteerd."
+            else:
+                enhanced_transcript = enhanced_text
+                improvements = "Transcriptie verbeterd voor medische context en terminologie."
+            
+            return {
+                'enhanced_transcript': enhanced_transcript,
+                'improvements': improvements
+            }
+            
+        except Exception as e:
+            print(f"❌ Enhanced transcription failed: {str(e)}")
+            return {
+                'enhanced_transcript': raw_transcript,
+                'improvements': f"Fout bij verbetering: {str(e)}"
+            }
+
+    def validate_medical_report(self, report_text, report_type):
+        """
+        Validate medical report for inconsistencies and contradictions
+        Provides quality control feedback without modifying the report
+        """
+        try:
+            system_message = f"""Je bent een medische quality control specialist die rapporten controleert op inconsistenties.
+
+TAAK: Analyseer het medische rapport en identificeer:
+1. Tegenstrijdigheden in metingen en beschrijvingen
+2. Onlogische combinaties van bevindingen  
+3. Inconsistente terminologie
+4. Medische onnauwkeurigheden
+
+SPECIFIEKE CONTROLES:
+- LA dimensies: >40mm = gedilateerd, >47mm = sterk gedilateerd
+- Aortasinus: >40mm = gedilateerd, maar check consistentie met "normale dimensies"
+- CVD correlaties: 
+  * "vena cava plat" → CVD 0-5 mmHg (<17mm, >50% variatie)
+  * "vena cava stuwing" → CVD 10-15 mmHg (>17mm, <50% variatie)
+- Klepfunctie: insufficiëntie graden moeten consistent zijn
+- EF percentages: moeten kloppen met functionele beschrijving
+
+RAPPORTAGE:
+- Geef specifieke feedback per inconsistentie
+- Verwijs naar exacte waarden in het rapport
+- Suggereer mogelijke correcties
+- Gebruik duidelijke medische terminologie
+
+Geef alleen feedback als er daadwerkelijke problemen zijn. Als alles consistent is, meld dat."""
+
+            user_message = f"""Medisch rapport voor quality control ({report_type}):
+
+{report_text}
+
+Controleer dit rapport op inconsistenties en tegenstrijdigheden."""
+
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=1.0
+            )
+            
+            validation_feedback = response.choices[0].message.content
+            
+            return validation_feedback
+            
+        except Exception as e:
+            print(f"❌ Medical report validation failed: {str(e)}")
+            return f"Quality control fout: {str(e)}"
+
+    def generate_esc_recommendations(self, report_text, report_type):
+        """
+        Generate ESC Guidelines recommendations with LoR and LoE for specific pathologies
+        """
+        try:
+            system_message = f"""Je bent een cardioloog specialist in ESC Guidelines die evidence-based aanbevelingen geeft.
+
+TAAK: Analyseer het medische rapport en geef specifieke ESC Guidelines aanbevelingen voor elke geïdentificeerde pathologie.
+
+VOOR ELKE PATHOLOGIE GEEF:
+1. Specifieke ESC Guideline (jaar en titel)
+2. Concrete aanbevelingen met Class of Recommendation (LoR)
+3. Level of Evidence (LoE)
+4. Toepassing op deze specifieke casus
+
+CLASS OF RECOMMENDATION (LoR):
+- Class I: Aanbevolen/geïndiceerd (sterke aanbeveling)
+- Class IIa: Redelijk om te overwegen (matige aanbeveling)  
+- Class IIb: Mag overwogen worden (zwakke aanbeveling)
+- Class III: Niet aanbevolen/gecontraïndiceerd
+
+LEVEL OF EVIDENCE (LoE):
+- Level A: Meerdere RCTs of meta-analyses
+- Level B: Enkele RCT of grote niet-gerandomiseerde studies
+- Level C: Consensus van experts/kleine studies
+
+MEEST RECENTE ESC GUIDELINES:
+- 2024 ESC Guidelines for Atrial Fibrillation
+- 2023 ESC Guidelines for Acute Coronary Syndromes
+- 2023 ESC Guidelines for Heart Failure
+- 2022 ESC Guidelines for Cardiovascular Disease Prevention
+- 2021 ESC Guidelines for Valvular Heart Disease
+- 2020 ESC Guidelines for Sports Cardiology
+
+FORMAT:
+=== AANBEVELINGEN ===
+
+PATHOLOGIE: [Specifieke diagnose]
+ESC GUIDELINE: [Jaar en titel]
+- [Concrete aanbeveling] (Class [I/IIa/IIb/III], LoE [A/B/C])
+- [Volgende aanbeveling] (Class [I/IIa/IIb/III], LoE [A/B/C])
+
+CASUS-SPECIFIEKE TOEPASSING:
+[Hoe guidelines toepassen op deze specifieke patiënt]
+
+Geef alleen aanbevelingen voor daadwerkelijk geïdentificeerde pathologieën."""
+
+            user_message = f"""Medisch rapport voor ESC Guidelines analyse ({report_type}):
+
+{report_text}
+
+Geef ESC Guidelines aanbevelingen met LoR en LoE voor elke geïdentificeerde pathologie."""
+
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=1.0
+            )
+            
+            esc_recommendations = response.choices[0].message.content
+            
+            return esc_recommendations
+            
+        except Exception as e:
+            print(f"❌ ESC recommendations generation failed: {str(e)}")
+            return f"ESC Guidelines aanbevelingen fout: {str(e)}"
+
     def convert_audio_to_wav(self, file_content, original_filename):
-        """Convert audio file to WAV format using ffmpeg with M4A support"""
         try:
             print(f"DEBUG: Converting {original_filename} to WAV format...")
             

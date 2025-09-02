@@ -764,6 +764,19 @@ def api_transcribe():
         
         transcript = transcription_result['transcript']
         
+        # 🚀 ENHANCED TRANSCRIPTION PROCESSING
+        enhanced_transcription_result = None
+        try:
+            print(f"✨ Generating enhanced transcription...")
+            enhanced_transcription_result = transcription_service.enhance_transcription(transcript, verslag_type)
+            print(f"✅ Enhanced transcription completed")
+        except Exception as e:
+            print(f"⚠️ Enhanced transcription failed: {e}")
+            enhanced_transcription_result = {
+                'enhanced_transcript': transcript,
+                'improvements': f"Enhancement failed: {str(e)}"
+            }
+        
         # 🚀 RUN 3 EXPERT MEDICAL AGENTS (if available)
         expert_analysis = {}
         improved_transcript = transcript
@@ -828,6 +841,27 @@ def api_transcribe():
             report = transcription_system.generate_tte_report(improved_transcript, patient_id)
         
         print(f"🔍 API DEBUG: Generated report preview: {report[:100]}...")
+        
+        # 🔍 QUALITY CONTROL VALIDATION
+        quality_feedback = None
+        try:
+            print(f"🔍 Generating quality control feedback...")
+            quality_feedback = transcription_service.validate_medical_report(report, verslag_type)
+            print(f"✅ Quality control completed")
+        except Exception as e:
+            print(f"⚠️ Quality control failed: {e}")
+            quality_feedback = f"Quality control fout: {str(e)}"
+        
+        # 📋 ESC GUIDELINES RECOMMENDATIONS (for SPOEDCONSULT and CONSULTATIE)
+        esc_recommendations = None
+        if verslag_type in ['SPOEDCONSULT', 'CONSULTATIE']:
+            try:
+                print(f"📋 Generating ESC Guidelines recommendations for {verslag_type}...")
+                esc_recommendations = transcription_service.generate_esc_recommendations(report, verslag_type)
+                print(f"✅ ESC recommendations completed")
+            except Exception as e:
+                print(f"⚠️ ESC recommendations failed: {e}")
+                esc_recommendations = f"ESC Guidelines aanbevelingen fout: {str(e)}"
         
         # Extract treatment from transcript for comparison
         dictated_treatment = extract_treatment_from_transcript(improved_transcript)
@@ -911,7 +945,10 @@ def api_transcribe():
             'success': True,
             'transcript': improved_transcript,  # Show improved transcript
             'raw_transcript': transcript,  # Keep original for debugging
+            'enhanced_transcription': enhanced_transcription_result,  # NEW: Enhanced transcription
             'report': report,
+            'quality_feedback': quality_feedback,  # NEW: Quality control feedback
+            'esc_recommendations': esc_recommendations,  # NEW: ESC Guidelines recommendations
             'patient_id': patient_id,
             'verslag_type': verslag_type,
             'treatment_comparison': {

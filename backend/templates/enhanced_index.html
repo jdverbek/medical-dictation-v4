@@ -124,6 +124,196 @@
             border-radius: 10px;
             display: none;
         }
+        
+        /* Tabbed Interface Styling */
+        .tabs-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .tabs-header {
+            display: flex;
+            background: #667eea;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab-button:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .tab-button.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 25px;
+            min-height: 400px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .tab-header {
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+        }
+        
+        .tab-header h3 {
+            margin: 0 0 5px 0;
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .tab-description {
+            margin: 0;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .tab-textarea {
+            width: 100%;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+            margin-bottom: 20px;
+        }
+        
+        .tab-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+        
+        /* Quality Control Section */
+        .quality-control-section {
+            background: #fff3e0;
+            border: 1px solid #ffb74d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .quality-control-section h4 {
+            margin: 0 0 15px 0;
+            color: #e65100;
+            font-size: 18px;
+        }
+        
+        .quality-feedback {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            border-left: 4px solid #ff9800;
+        }
+        
+        /* Enhancement Details Section */
+        .enhancement-details {
+            background: #e8f5e8;
+            border: 1px solid #81c784;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .enhancement-details h4 {
+            margin: 0 0 15px 0;
+            color: #2e7d32;
+            font-size: 18px;
+        }
+        
+        .enhancement-feedback {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .loading-text {
+            color: #666;
+            font-style: italic;
+            margin: 0;
+        }
+        
+        .feedback-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 3px solid #2196f3;
+        }
+        
+        .feedback-item.warning {
+            border-left-color: #ff9800;
+            background: #fff8e1;
+        }
+        
+        .feedback-item.error {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        
+        .feedback-item.success {
+            border-left-color: #4caf50;
+            background: #e8f5e8;
+        }
+        
+        /* ESC Recommendations Section */
+        .esc-recommendations-section {
+            background: #e3f2fd;
+            border: 1px solid #64b5f6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .esc-recommendations-section h4 {
+            margin: 0 0 10px 0;
+            color: #1565c0;
+            font-size: 18px;
+        }
+        
+        .section-description {
+            margin: 0 0 15px 0;
+            color: #666;
+            font-style: italic;
+            font-size: 14px;
+        }
+        
+        .esc-recommendations-content {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            border-left: 4px solid #2196f3;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
         .loading {
             text-align: center;
             color: #7f8c8d;
@@ -213,11 +403,66 @@
             </div>
             
             <div id="output" style="display: none;">
-                <h3>📝 Transcriptie:</h3>
-                <textarea id="transcript" rows="4" readonly style="width: 100%; background: #f8f9fa;"></textarea>
-                
-                <h3>📋 Medisch Rapport:</h3>
-                <textarea id="report" rows="12" readonly style="width: 100%; background: #f8f9fa;"></textarea>
+                <!-- Tabbed Interface -->
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-button active" data-tab="medical-report">🏥 Medisch Rapport</button>
+                        <button class="tab-button" data-tab="enhanced-transcript">✨ Verbeterde Transcriptie</button>
+                        <button class="tab-button" data-tab="raw-transcript">📝 Letterlijke Transcriptie</button>
+                    </div>
+                    
+                    <!-- Medical Report Tab -->
+                    <div id="medical-report" class="tab-content active">
+                        <div class="tab-header">
+                            <h3>🏥 Medisch Rapport</h3>
+                            <p class="tab-description">Finale medische rapport met gestructureerde opmaak</p>
+                        </div>
+                        <textarea id="report" rows="15" readonly class="tab-textarea"></textarea>
+                        
+                        <!-- ESC Recommendations Section (for SPOEDCONSULT and CONSULTATIE) -->
+                        <div id="esc-recommendations" class="esc-recommendations-section" style="display: none;">
+                            <h4>📋 ESC Guidelines Aanbevelingen</h4>
+                            <p class="section-description">Evidence-based aanbevelingen met Level of Recommendation (LoR) en Level of Evidence (LoE)</p>
+                            <div id="esc-recommendations-content" class="esc-recommendations-content">
+                                <p class="loading-text">ESC Guidelines aanbevelingen worden gegenereerd...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Quality Control Section -->
+                        <div id="quality-control" class="quality-control-section">
+                            <h4>🔍 Quality Control Opmerkingen</h4>
+                            <div id="quality-feedback" class="quality-feedback">
+                                <p class="loading-text">Quality control wordt uitgevoerd...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Enhanced Transcript Tab -->
+                    <div id="enhanced-transcript" class="tab-content">
+                        <div class="tab-header">
+                            <h3>✨ Verbeterde Transcriptie</h3>
+                            <p class="tab-description">Context-aware verbeterde transcriptie met correcties</p>
+                        </div>
+                        <textarea id="enhanced-transcript-text" rows="15" readonly class="tab-textarea"></textarea>
+                        
+                        <!-- Enhancement Details -->
+                        <div id="enhancement-details" class="enhancement-details">
+                            <h4>🔧 Verbeteringen Toegepast</h4>
+                            <div id="enhancement-feedback" class="enhancement-feedback">
+                                <p class="loading-text">Transcriptie wordt verbeterd...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Raw Transcript Tab -->
+                    <div id="raw-transcript" class="tab-content">
+                        <div class="tab-header">
+                            <h3>📝 Letterlijke Transcriptie</h3>
+                            <p class="tab-description">Onbewerkte transcriptie direct van audio</p>
+                        </div>
+                        <textarea id="transcript" rows="15" readonly class="tab-textarea"></textarea>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -538,9 +783,44 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // Show results
-                    document.getElementById('transcript').value = result.transcript || 'No transcript available';
+                    // Populate all tabs with data
+                    
+                    // Medical Report Tab
                     document.getElementById('report').value = result.report || 'No report available';
+                    
+                    // Enhanced Transcription Tab
+                    if (result.enhanced_transcription) {
+                        document.getElementById('enhanced-transcript').value = result.enhanced_transcription.enhanced_transcript || 'Enhanced transcription not available';
+                        document.getElementById('enhancement-details').innerHTML = result.enhanced_transcription.improvements || 'No enhancement details available';
+                    } else {
+                        document.getElementById('enhanced-transcript').value = 'Enhanced transcription not available';
+                        document.getElementById('enhancement-details').innerHTML = 'Enhancement processing failed';
+                    }
+                    
+                    // Raw Transcription Tab
+                    document.getElementById('raw-transcript').value = result.raw_transcript || result.transcript || 'No transcript available';
+                    
+                    // Quality Control Feedback
+                    if (result.quality_feedback) {
+                        document.getElementById('quality-feedback').innerHTML = `<pre>${result.quality_feedback}</pre>`;
+                    } else {
+                        document.getElementById('quality-feedback').innerHTML = 'Quality control feedback not available';
+                    }
+                    
+                    // ESC Recommendations (for SPOEDCONSULT and CONSULTATIE)
+                    const reportType = document.getElementById('reportType').value;
+                    const escSection = document.getElementById('esc-recommendations');
+                    const escContent = document.getElementById('esc-recommendations-content');
+                    
+                    if ((reportType === 'SPOEDCONSULT' || reportType === 'CONSULTATIE') && result.esc_recommendations) {
+                        escSection.style.display = 'block';
+                        escContent.innerHTML = `<pre>${result.esc_recommendations}</pre>`;
+                    } else if (reportType === 'SPOEDCONSULT' || reportType === 'CONSULTATIE') {
+                        escSection.style.display = 'block';
+                        escContent.innerHTML = '<p class="loading-text">ESC Guidelines aanbevelingen niet beschikbaar</p>';
+                    } else {
+                        escSection.style.display = 'none';
+                    }
                     
                     loading.style.display = 'none';
                     output.style.display = 'block';
@@ -549,7 +829,7 @@
                     
                     // Optional: Download the results as a file
                     if (confirm('Wilt u het rapport downloaden?')) {
-                        downloadReport(result.transcript, result.report);
+                        downloadReport(result.raw_transcript, result.report, result.patient_id, reportType);
                     }
                 } else {
                     throw new Error(result.error || 'Unknown error occurred');
@@ -580,9 +860,9 @@
         });
 
         // Download report function (only when requested)
-        function downloadReport(transcript, report) {
-            const patientId = document.getElementById('patientId').value || 'Unknown';
-            const reportType = document.getElementById('reportType').value || 'RAPPORT';
+        function downloadReport(transcript, report, patientId, reportType) {
+            patientId = patientId || document.getElementById('patientId').value || 'Unknown';
+            reportType = reportType || document.getElementById('reportType').value || 'RAPPORT';
             const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-'); // YYYY-MM-DDTHH-MM-SS
             
             const content = `MEDISCH RAPPORT\n\nDatum: ${new Date().toLocaleDateString()}\nPatiënt ID: ${patientId}\nRapport Type: ${reportType}\n\n=== TRANSCRIPTIE ===\n${transcript}\n\n=== RAPPORT ===\n${report}`;
@@ -611,6 +891,29 @@
                 console.error('API health check failed:', error);
                 showStatus('⚠️ Server may not be ready. Please wait a moment and refresh.', 'warning');
             });
+
+        // Tab functionality
+        function initializeTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTab = button.getAttribute('data-tab');
+                    
+                    // Remove active class from all buttons and contents
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // Add active class to clicked button and corresponding content
+                    button.classList.add('active');
+                    document.getElementById(targetTab).classList.add('active');
+                });
+            });
+        }
+
+        // Initialize tabs when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initializeTabs);
     </script>
 
 </body>
