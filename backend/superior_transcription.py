@@ -27,19 +27,28 @@ class SuperiorMedicalTranscription:
         print(f"🔑 Using API key: {api_key[:10]}...{api_key[-4:] if len(api_key) > 10 else 'short'}")
     
     def convert_audio_to_wav(self, file_content, original_filename):
-        """Convert audio file to WAV format using ffmpeg"""
+        """Convert audio file to WAV format using ffmpeg with M4A support"""
         try:
             print(f"DEBUG: Converting {original_filename} to WAV format...")
             
+            # Determine input file extension for proper handling
+            file_ext = os.path.splitext(original_filename.lower())[1]
+            if file_ext in ['.m4a', '.mp4']:
+                temp_suffix = '.m4a'
+            elif file_ext == '.webm':
+                temp_suffix = '.webm'
+            else:
+                temp_suffix = file_ext or '.audio'
+            
             # Create temporary files
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as temp_input:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=temp_suffix) as temp_input:
                 temp_input.write(file_content)
                 temp_input_path = temp_input.name
             
             with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_output:
                 temp_output_path = temp_output.name
             
-            # Convert using ffmpeg
+            # Convert using ffmpeg with M4A support
             cmd = [
                 'ffmpeg', '-i', temp_input_path,
                 '-acodec', 'pcm_s16le',  # PCM 16-bit little-endian
@@ -49,7 +58,7 @@ class SuperiorMedicalTranscription:
                 temp_output_path
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5 minutes timeout
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5 minutes timeout for Starter plan
             
             if result.returncode == 0:
                 # Read converted file
@@ -65,7 +74,7 @@ class SuperiorMedicalTranscription:
                 return {
                     'success': True,
                     'content': converted_content,
-                    'filename': original_filename.replace('.webm', '.wav').replace('.mp4', '.wav'),
+                    'filename': original_filename.replace('.webm', '.wav').replace('.m4a', '.wav').replace('.mp4', '.wav'),
                     'content_type': 'audio/wav'
                 }
             else:
@@ -92,14 +101,21 @@ class SuperiorMedicalTranscription:
             }
     
     def detect_audio_format(self, file_content, filename):
-        """Detect actual audio format from file content"""
-        # Check if file is WebM (common issue with browser recordings)
+        """Detect audio format and determine if conversion is needed"""
+        # Check for WebM format (EBML header)
         if file_content.startswith(b'\x1a\x45\xdf\xa3'):
             print("DEBUG: File is WebM format, will convert to WAV")
             return 'audio/webm', filename, True  # needs_conversion = True
         elif filename.lower().endswith('.webm'):
             print("DEBUG: File has .webm extension, will convert to WAV")
             return 'audio/webm', filename, True  # needs_conversion = True
+        # Check for M4A/MP4 format (ftyp header)
+        elif file_content[4:8] == b'ftyp' and (b'M4A ' in file_content[:20] or b'mp41' in file_content[:20] or b'mp42' in file_content[:20]):
+            print("DEBUG: File is M4A/MP4 format, will convert to WAV")
+            return 'audio/m4a', filename, True  # needs_conversion = True
+        elif filename.lower().endswith(('.m4a', '.mp4')):
+            print("DEBUG: File has .m4a/.mp4 extension, will convert to WAV")
+            return 'audio/m4a', filename, True  # needs_conversion = True
         else:
             # Default to original content type
             return 'audio/wav', filename, False  # needs_conversion = False

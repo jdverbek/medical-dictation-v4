@@ -167,8 +167,12 @@
             
             <div class="form-group">
                 <label for="audioFile">🎵 Audio Bestand:</label>
-                <input type="file" id="audioFile" name="audio" accept="audio/*" required>
-                <small style="color: #7f8c8d;">Maximum 10MB voor Render.com free tier</small>
+                <input type="file" id="audioFile" name="audio" accept=".webm,.wav,.mp3,.m4a,.aac,.ogg" required>
+                <small style="color: #7f8c8d;">Ondersteund: WebM, WAV, MP3, M4A (iPhone), AAC, OGG</small>
+                <small style="color: #7f8c8d;">Maximum 25MB voor Starter plan (betere performance)</small>
+                <div id="autoBackupStatus" class="backup-status" style="display: none; color: #27ae60; margin-top: 10px;">
+                    ✅ <strong>Audio automatisch gebackupt!</strong> Je kunt het bestand veilig hergebruiken als er een fout optreedt.
+                </div>
             </div>
             
             <button type="button" id="recordBtn" class="record-btn">🎤 Start Opname</button>
@@ -296,20 +300,37 @@
                 return;
             }
 
-            // Check file size (10MB limit for Render free tier)
-            const maxSize = 10 * 1024 * 1024; // 10MB
+            // Check file size (25MB limit for Starter plan - better than free tier)
+            const maxSize = 25 * 1024 * 1024; // 25MB
             if (audioFile.size > maxSize) {
-                showStatus(`Audio bestand te groot: ${(audioFile.size / 1024 / 1024).toFixed(2)}MB. Maximum is 10MB.`, 'error');
+                showStatus(`Audio bestand te groot: ${(audioFile.size / 1024 / 1024).toFixed(2)}MB. Maximum is 25MB voor Starter plan.`, 'error');
                 return;
+            }
+
+            // AUTOMATIC BACKUP: Download audio file BEFORE processing starts
+            // This prevents data loss if processing fails
+            try {
+                const url = URL.createObjectURL(audioFile);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup_${audioFile.name}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // Show backup confirmation
+                document.getElementById('autoBackupStatus').style.display = 'block';
+                showStatus('✅ Audio automatisch gebackupt! Processing wordt gestart...', 'success');
+            } catch (error) {
+                console.warn('Automatic backup failed:', error);
+                // Continue with processing even if backup fails
             }
 
             // Disable submit button
             isProcessing = true;
             submitBtn.disabled = true;
             submitBtn.textContent = '⏳ Verwerken...';
-
-            // NOTE: Removed automatic download that was causing issues
-            // downloadAudioFile(audioFile); // <- This was causing the problem!
 
             const formData = new FormData();
             formData.append('audio', audioFile);
