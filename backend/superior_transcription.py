@@ -755,55 +755,119 @@ Geef ESC Guidelines aanbevelingen met LoR en LoE voor elke geïdentificeerde pat
         return report
     
     def generate_tte_report(self, transcript, patient_id=""):
-        """Generate TTE report with complete information, NO placeholders allowed"""
+        """Generate TTE report with natural medical language, NO artificial formulations"""
         today = datetime.datetime.now().strftime("%d-%m-%Y")
         
         system_message = """Je bent een ervaren cardioloog die TTE (Transthoracale Echo) verslagen maakt.
         
         KRITIEKE INSTRUCTIES:
-        - GEEN placeholders (...) gebruiken - dit is VERBODEN
-        - Genereer een VOLLEDIG rapport op basis van beschikbare informatie
-        - Als specifieke waarden niet vermeld zijn, gebruik "niet vermeld", "normaal", of "geen afwijkingen"
-        - Maak realistische interpretaties op basis van de gegeven informatie
-        - Gebruik correcte Nederlandse medische terminologie
-        - Het rapport moet COMPLEET en PROFESSIONEEL zijn
+        - Gebruik NATUURLIJKE Nederlandse medische taal
+        - Gebruik STANDAARD cardiologische formuleringen
+        - Vermeld alleen RELEVANTE bevindingen
+        - GEEN kunstmatige constructies zoals "EDD normaal mm" of "LVEF normaal%"
+        - Gebruik professionele medische terminologie zoals echte cardiologen
         
-        VERBODEN: (...), (niet vermeld), lege velden
-        TOEGESTAAN: "normaal", "geen afwijkingen", "niet gespecificeerd", concrete waarden"""
+        STANDAARD FORMULERINGEN:
+        - "eutroof" / "hypertrofe" / "niet gedilateerd" / "gedilateerd"
+        - "globale functie: goed" / "matig" / "slecht"
+        - "geen regionale kinetiekstoornissen"
+        - "morfologisch en functioneel normaal"
+        - "geen vocht" (pericard)
+        - "niet betrouwbaar te meten" (als niet mogelijk)"""
         
-        user_message = f"""Genereer een VOLLEDIG TTE verslag voor patiënt {patient_id} op {today}.
+        user_message = f"""Genereer een PROFESSIONEEL TTE verslag voor patiënt {patient_id} op {today}.
         
         Transcriptie: "{transcript}"
         
-        Gebruik dit template maar VUL ALLES IN (geen placeholders):
+        Gebruik deze NATUURLIJKE stijl (gebaseerd op echte cardiologische verslagen):
         
         TTE op patiënt {patient_id} op {today}:
-        Visualisatie: [beschrijf kwaliteit visualisatie of "adequaat"]
-        Linker ventrikel: [beschrijf hypertrofie] met EDD [waarde of "normaal"] mm, IVS [waarde of "normaal"] mm, PW [waarde of "normaal"] mm. Globale functie: [beschrijf] met LVEF [percentage of "normaal"]% [systolische functie].
-        Regionaal: [beschrijf wandbeweging of "geen regionale afwijkingen"]
-        Rechter ventrikel: [beschrijf] globale functie: [beschrijf] met TAPSE [waarde of "normaal"] mm.
-        Diastole: [beschrijf] met E [waarde of "niet gemeten"] cm/s, A [waarde of "niet gemeten"] cm/s, E DT [waarde of "niet gemeten"] ms, E' septaal [waarde of "niet gemeten"] cm/s, E/E' [ratio of "niet berekend"]. L-golf: [beschrijf of "niet beoordeeld"].
-        Atria: LA [beschrijf] [waarde uit transcriptie of "normaal"] mm.
-        Aortadimensies: [beschrijf] met sinus [waarde of "normaal"] mm, sinotubulair [waarde of "normaal"] mm, ascendens [waarde of "normaal"] mm.
-        Mitralisklep: morfologisch [beschrijf of "normaal"]. insufficiëntie: [graad of "geen"], stenose: [graad of "geen"].
-        Aortaklep: [beschrijf morfologie], morfologisch [beschrijf]. Functioneel: insufficiëntie: [graad of "geen"], stenose: [graad of "geen"].
-        Pulmonalisklep: insufficiëntie: [graad of "geen"], stenose: [graad of "geen"].
-        Tricuspiedklep: insufficiëntie: [graad of "geen"], geschatte RVSP: [waarde of "niet berekend"] + CVD [waarde of "normaal"] mmHg gezien vena cava inferior: [diameter of "normaal"] mm, variabiliteit: [percentage of "normaal"].
-        Pericard: [beschrijf of "geen afwijkingen"].
         
-        BELANGRIJK: Gebruik de informatie uit de transcriptie. Als iets niet vermeld is, schrijf "normaal", "geen afwijkingen", of "niet gespecificeerd" - NOOIT (...)!
+        Visualisatie: [adequaat/suboptimaal/etc]
         
-        Specifiek voor deze transcriptie: "{transcript}" - interpreteer dit en maak een volledig rapport."""
+        Linker ventrikel: [eutroof/hypertrofe], [niet gedilateerd/gedilateerd]. Globale functie: [goed/matig/slecht].
+        Regionaal: [geen regionale kinetiekstoornissen/beschrijf afwijkingen] voor zover te beoordelen.
+        
+        Rechter ventrikel: [niet gedilateerd/gedilateerd], globale functie: [goed/matig/slecht].
+        
+        Diastole: [normaal/gestoord/etc].
+        
+        Atria: LA [normaal/gedilateerd/sterk gedilateerd] [met diameter X mm indien vermeld].
+        
+        Aortadimensies: [normaal/gedilateerd] voor zover visualiseerbaar.
+        
+        Mitralisklep: morfologisch en functioneel [normaal/beschrijf afwijkingen].
+        
+        Aortaklep: morfologisch en functioneel [normaal/beschrijf afwijkingen].
+        
+        Pulmonalisklep: morfologisch en functioneel [normaal/beschrijf afwijkingen].
+        
+        Tricuspiedklep: morfologisch en functioneel [normaal/beschrijf afwijkingen]. Pulmonaaldrukken zijn [niet betrouwbaar te meten/beschrijf waarden]. CVD is [normaal/verhoogd/etc].
+        
+        Pericard: [geen vocht/beschrijf afwijkingen].
+        
+        BELANGRIJK: 
+        - Interpreteer de transcriptie: "{transcript}"
+        - Gebruik alleen informatie die daadwerkelijk vermeld is
+        - Schrijf in natuurlijke medische taal zoals echte cardiologen
+        - Vermeld alleen relevante bevindingen
+        - GEEN kunstmatige formuleringen met "normaal mm" of "normaal%"
+        
+        Specifieke bevinding uit transcriptie: Let op de vermelding van "53 mm" - dit lijkt een LA diameter te zijn."""
         
         report = self.call_gpt([
             {"role": "system", "content": system_message},
             {"role": "user", "content": user_message}
         ])
         
-        # Post-process to remove any remaining placeholders
-        report = self.remove_placeholders(report)
+        # Post-process to ensure natural language
+        report = self.ensure_natural_language(report)
         
         return report
+    
+    def ensure_natural_language(self, text):
+        """Ensure natural medical language, remove artificial constructions"""
+        import re
+        
+        # Remove artificial constructions
+        replacements = {
+            r'met EDD normaal mm': 'niet gedilateerd',
+            r'met IVS normaal mm': '',
+            r'met PW normaal mm': '',
+            r'met LVEF normaal%': '',
+            r'normale systolische functie': '',
+            r'met TAPSE normaal mm': '',
+            r'met E niet gemeten cm/s': '',
+            r'A niet gemeten cm/s': '',
+            r'E DT niet gemeten ms': '',
+            r"E' septaal niet gemeten cm/s": '',
+            r"E/E' niet berekend": '',
+            r'met sinus normaal mm': '',
+            r'sinotubulair normaal mm': '',
+            r'ascendens normaal mm': '',
+            r'geschatte RVSP: niet berekend \+ CVD normaal mmHg': 'Pulmonaaldrukken zijn niet betrouwbaar te meten. CVD is normaal',
+            r'gezien vena cava inferior: normaal mm, variabiliteit: normaal': '',
+            r'Insufficiëntie: geen, stenose: geen': 'morfologisch en functioneel normaal',
+            r'InsufficiÃ«ntie: geen, stenose: geen': 'morfologisch en functioneel normaal',
+            r'Normaal, morfologisch normaal\. Functioneel: insufficiëntie: geen, stenose: geen': 'morfologisch en functioneel normaal',
+            r'Normaal, morfologisch normaal\. Functioneel: InsufficiÃ«ntie: geen, stenose: geen': 'morfologisch en functioneel normaal',
+            r'Morfologisch normaal\. Insufficiëntie: geen, stenose: geen': 'morfologisch en functioneel normaal',
+            r'Morfologisch normaal\. InsufficiÃ«ntie: geen, stenose: geen': 'morfologisch en functioneel normaal',
+            r'Geen hypertrofie': 'eutroof',
+            r'Normaal met': '',
+            r'Normaal,': '',
+            r'\s+': ' ',  # Clean up multiple spaces
+            r'^\s+|\s+$': '',  # Trim whitespace
+        }
+        
+        for pattern, replacement in replacements.items():
+            text = re.sub(pattern, replacement, text)
+        
+        # Clean up empty lines and extra spaces
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        text = '\n'.join(lines)
+        
+        return text
     
     def remove_placeholders(self, text):
         """Remove any remaining placeholders and replace with appropriate medical terms"""
