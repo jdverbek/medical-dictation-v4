@@ -1,6 +1,6 @@
 """
 Superior Medical Transcription System
-Fixed version with modern OpenAI API syntax
+Latest OpenAI API v1.98.0 with proper compatibility
 """
 
 import os
@@ -9,17 +9,22 @@ import datetime
 import tempfile
 import subprocess
 from openai import OpenAI
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class SuperiorMedicalTranscription:
     def __init__(self):
-        # Initialize OpenAI client with modern syntax
+        # Initialize OpenAI client with latest stable version (v1.98.0)
         api_key = os.environ.get('OPENAI_API_KEY')
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is required")
         
-        # Simple, clean initialization without proxy parameters
+        # Clean, modern initialization - no proxy issues with v1.98.0
         self.client = OpenAI(api_key=api_key)
-        print(f"🎤 Audio transcription client initialized with OpenAI API")
+        print(f"🎤 Audio transcription client initialized with OpenAI API v1.98.0")
+        print(f"🔑 Using API key: {api_key[:10]}...{api_key[-4:] if len(api_key) > 10 else 'short'}")
     
     def convert_audio_to_wav(self, file_content, original_filename):
         """Convert audio file to WAV format using ffmpeg"""

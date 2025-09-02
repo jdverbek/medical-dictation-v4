@@ -1,12 +1,15 @@
-# Medical Dictation v4.0 - Render.com optimized
+# Medical Dictation v4.0 - Render.com optimized with latest stable versions
 # Core Framework
 flask==2.3.3
 werkzeug==2.3.7
 gunicorn==21.2.0
 
-# AI & ML - Stable versions for compatibility
-openai==1.0.0
+# AI & ML - Latest stable versions for compatibility
+openai==1.98.0
 anthropic==0.7.7
+
+# HTTP client - Compatible version
+httpx==0.27.2
 
 # Audio processing
 pydub==0.25.1
