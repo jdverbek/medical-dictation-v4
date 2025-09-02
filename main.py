@@ -943,7 +943,18 @@ def transcribe():
         # Store in database with enhanced transcript
         try:
             user = get_current_user()
-            user_id = user['id'] if user else 1  # Fallback for compatibility
+            print(f"🔍 DEBUG: Current user: {user}")
+            
+            if not user:
+                print("❌ DEBUG: No user found in session!")
+                user_id = 1  # Fallback for compatibility
+            else:
+                user_id = user['id']
+            
+            print(f"🔍 DEBUG: Using user_id: {user_id}")
+            print(f"🔍 DEBUG: Saving - Patient: {patient_id}, Type: {verslag_type}")
+            print(f"🔍 DEBUG: Transcript length: {len(raw_transcript)}")
+            print(f"🔍 DEBUG: Report length: {len(structured_report)}")
             
             conn = sqlite3.connect('medical_app_v4.db')
             cursor = conn.cursor()
@@ -959,12 +970,29 @@ def transcribe():
                 structured_report,
                 enhanced_transcription_result['enhanced_transcript'] if enhanced_transcription_result else raw_transcript
             ))
+            
+            # Get the inserted record ID
+            record_id = cursor.lastrowid
             conn.commit()
             conn.close()
-            print(f"✅ Saved to database with enhanced transcript")
+            
+            print(f"✅ Successfully saved to database with ID: {record_id}")
+            
+            # Verify the save worked
+            conn = sqlite3.connect('medical_app_v4.db')
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) FROM transcription_history WHERE user_id = ?', (user_id,))
+            count = cursor.fetchone()[0]
+            conn.close()
+            print(f"🔍 DEBUG: Total records for user {user_id}: {count}")
+            
         except Exception as e:
             logger.error(f"Database error: {e}")
             print(f"❌ Database save failed: {e}")
+            import traceback
+            print(f"🔍 DEBUG: Full database error traceback: {traceback.format_exc()}")
+            # Don't fail the entire request if database save fails
+            pass
         
         # Return comprehensive JSON response
         return jsonify({
