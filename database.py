@@ -11,13 +11,26 @@ def get_db_connection():
     """Get database connection (PostgreSQL on Render, SQLite locally)"""
     database_url = os.environ.get('DATABASE_URL')
     
+    print(f"🔍 DEBUG: DATABASE_URL present: {bool(database_url)}")
+    if database_url:
+        print(f"🔍 DEBUG: DATABASE_URL starts with: {database_url[:20]}...")
+    
     if database_url:
         # PostgreSQL on Render
         try:
+            print(f"🔍 DEBUG: Attempting to import psycopg2...")
             import psycopg2
             from psycopg2.extras import RealDictCursor
+            print(f"✅ DEBUG: psycopg2 imported successfully")
             
+            print(f"🔍 DEBUG: Parsing DATABASE_URL...")
             result = urlparse(database_url)
+            print(f"🔍 DEBUG: Database: {result.path[1:]}")
+            print(f"🔍 DEBUG: Host: {result.hostname}")
+            print(f"🔍 DEBUG: Port: {result.port}")
+            print(f"🔍 DEBUG: User: {result.username}")
+            
+            print(f"🔍 DEBUG: Attempting PostgreSQL connection...")
             conn = psycopg2.connect(
                 database=result.path[1:],
                 user=result.username,
@@ -25,17 +38,30 @@ def get_db_connection():
                 host=result.hostname,
                 port=result.port
             )
-            print(f"🔍 DEBUG: Connected to PostgreSQL database")
+            print(f"✅ DEBUG: Connected to PostgreSQL database successfully!")
             return conn
-        except ImportError:
-            print("❌ psycopg2 not available, falling back to SQLite")
+            
+        except ImportError as e:
+            print(f"❌ DEBUG: psycopg2 import failed: {e}")
+            print("🔄 DEBUG: Falling back to SQLite")
             # Fall back to SQLite if psycopg2 not available
+            conn = sqlite3.connect('medical_app_v4.db')
+            conn.row_factory = sqlite3.Row
+            return conn
+            
+        except Exception as e:
+            print(f"❌ DEBUG: PostgreSQL connection failed: {e}")
+            print(f"🔍 DEBUG: Error type: {type(e)}")
+            import traceback
+            print(f"🔍 DEBUG: Full traceback: {traceback.format_exc()}")
+            print("🔄 DEBUG: Falling back to SQLite")
+            # Fall back to SQLite if PostgreSQL connection fails
             conn = sqlite3.connect('medical_app_v4.db')
             conn.row_factory = sqlite3.Row
             return conn
     else:
         # SQLite for local development
-        print(f"🔍 DEBUG: Connected to SQLite database")
+        print(f"🔍 DEBUG: No DATABASE_URL, using SQLite")
         conn = sqlite3.connect('medical_app_v4.db')
         conn.row_factory = sqlite3.Row
         return conn
