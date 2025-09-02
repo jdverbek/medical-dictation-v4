@@ -413,7 +413,19 @@ class SuperiorMedicalTranscription:
         - Extraheer alle beschikbare informatie uit de transcriptie
         - Vul indicatie, supervisie, verpleegkundige, anesthesist in als vermeld
         - Gebruik exacte waarden voor drukken, dimensies, graden
-        - Vermeld conclusies en aanbevelingen als gegeven"""
+        - Vermeld conclusies en aanbevelingen als gegeven
+        
+        SUPERVISOREN - gebruik alleen deze namen als vermeld in transcriptie:
+        - dr. Dujardin
+        - dr. Bergez  
+        - dr. Anné
+        - dr. de Ceuninck
+        - dr. Vanhaverbeke
+        - dr. Gillis
+        - dr. Van de Walle
+        - dr. Muyldermans
+        
+        Als een andere naam wordt genoemd, gebruik (...) voor supervisie."""
         
         user_message = f"""Genereer een TEE verslag voor patiënt {patient_id} op {today}.
         
