@@ -79,7 +79,7 @@
             transform: translateY(-2px);
         }
         
-        /* Camera Modal */
+        /* Camera Modal - Mobile Optimized */
         .camera-modal {
             display: none;
             position: fixed;
@@ -87,30 +87,40 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.95);
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            padding: 10px;
+            box-sizing: border-box;
         }
         .camera-content {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 15px;
-            max-width: 500px;
-            width: 90%;
+            max-width: 400px;
+            width: 100%;
             text-align: center;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
         }
         .camera-video {
             width: 100%;
-            max-width: 400px;
+            max-width: 350px;
+            height: auto;
             border-radius: 10px;
-            margin: 20px 0;
+            margin: 15px 0;
+            background: #000;
+            aspect-ratio: 4/3;
+            object-fit: cover;
         }
         .camera-controls {
             display: flex;
             gap: 10px;
             justify-content: center;
-            margin-top: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
         }
         .camera-btn {
             padding: 12px 20px;
@@ -119,13 +129,21 @@
             cursor: pointer;
             font-size: 16px;
             transition: all 0.3s;
+            min-width: 100px;
+            touch-action: manipulation;
         }
         .capture-btn {
             background: #3498db;
             color: white;
+            font-weight: bold;
         }
-        .capture-btn:hover {
+        .capture-btn:hover, .capture-btn:active {
             background: #2980b9;
+            transform: scale(0.98);
+        }
+        .capture-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
         }
         .cancel-btn {
             background: #e74c3c;
@@ -407,7 +425,46 @@
                 align-items: center;
             }
             .camera-controls {
-                flex-direction: column;
+                flex-direction: row;
+                justify-content: space-around;
+            }
+            .camera-content {
+                margin: 5px;
+                padding: 10px;
+                max-height: 95vh;
+            }
+            .camera-video {
+                max-width: 100%;
+                margin: 10px 0;
+            }
+            .camera-btn {
+                font-size: 14px;
+                padding: 10px 15px;
+                min-width: 80px;
+            }
+        }
+        
+        /* iPhone specific optimizations */
+        @media (max-width: 480px) {
+            .camera-modal {
+                padding: 5px;
+            }
+            .camera-content {
+                border-radius: 10px;
+                padding: 8px;
+            }
+            .camera-video {
+                border-radius: 8px;
+                margin: 8px 0;
+            }
+            .camera-controls {
+                gap: 8px;
+                margin-top: 10px;
+            }
+            .camera-btn {
+                font-size: 13px;
+                padding: 8px 12px;
+                min-width: 70px;
             }
         }
     </style>
@@ -542,15 +599,19 @@
     <div id="cameraModal" class="camera-modal">
         <div class="camera-content">
             <h3>📷 Scan Patiënt ID</h3>
-            <p>Richt de camera op het patiëntennummer (3e regel, 10 cijfers)</p>
-            <video id="cameraVideo" class="camera-video" autoplay></video>
+            <p style="font-size: 14px; margin: 10px 0; color: #666;">
+                📋 Richt de camera op het patiëntendocument<br>
+                🎯 Zorg dat het 10-cijferige nummer duidelijk zichtbaar is<br>
+                📱 Houd het apparaat stabiel en druk op "Maak Foto"
+            </p>
+            <video id="cameraVideo" class="camera-video" autoplay playsinline muted></video>
             <canvas id="cameraCanvas" style="display: none;"></canvas>
             <div class="camera-controls">
                 <button type="button" id="captureBtn" class="camera-btn capture-btn">📸 Maak Foto</button>
-                <button type="button" id="cancelCameraBtn" class="camera-btn cancel-btn">❌ Annuleer</button>
+                <button type="button" id="cancelCameraBtn" class="camera-btn cancel-btn">❌ Sluiten</button>
             </div>
             <div id="ocrProcessing" class="loading-text" style="display: none;">
-                🔍 Patiëntennummer wordt herkend...
+                🤖 AI analyseert foto voor patiëntennummer...
             </div>
         </div>
     </div>
@@ -627,16 +688,22 @@
                 cameraStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: 'environment', // Use back camera if available
-                        width: { ideal: 1920, max: 1920 },
-                        height: { ideal: 1080, max: 1080 }
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        aspectRatio: { ideal: 16/9 }
                     } 
                 });
                 
                 cameraVideo.srcObject = cameraStream;
                 cameraModal.style.display = 'flex';
                 
+                // Ensure video plays on mobile
+                cameraVideo.play().catch(e => {
+                    console.log('Video autoplay failed, user interaction required');
+                });
+                
                 // Show OCR method info
-                showStatus('📱 Camera geopend. Richt op patiëntgegevens voor automatische scanning.', 'info');
+                showStatus('📱 Camera geopend. Richt op patiëntgegevens en maak een foto.', 'info');
                 
             } catch (error) {
                 console.error('Camera access error:', error);
