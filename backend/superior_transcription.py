@@ -403,16 +403,23 @@ class SuperiorMedicalTranscription:
         
         system_message = """Je bent een ervaren cardioloog die TEE (Transesofageale Echo) verslagen maakt.
         Genereer een gestructureerd TEE verslag volgens het exacte template format.
-        Gebruik correcte Nederlandse medische terminologie.
-        BELANGRIJK: Vul alleen waarden in die expliciet in de transcriptie staan.
-        Laat secties leeg of gebruik (...) voor ontbrekende waarden.
-        Verzin NOOIT waarden die niet in de transcriptie staan."""
+        Gebruik correcte Nederlandse medische terminologie en UTF-8 encoding.
+        BELANGRIJK: Analyseer de transcriptie zorgvuldig en vul zoveel mogelijk details in.
+        Gebruik alleen (...) voor waarden die echt niet in de transcriptie staan.
+        Verzin NOOIT waarden die niet in de transcriptie staan.
+        
+        SPECIALE AANDACHT:
+        - Zorg voor correcte Nederlandse karakters (ë, ï, ü, etc.)
+        - Extraheer alle beschikbare informatie uit de transcriptie
+        - Vul indicatie, supervisie, verpleegkundige, anesthesist in als vermeld
+        - Gebruik exacte waarden voor drukken, dimensies, graden
+        - Vermeld conclusies en aanbevelingen als gegeven"""
         
         user_message = f"""Genereer een TEE verslag voor patiënt {patient_id} op {today}.
         
         Transcriptie: {transcript}
         
-        Gebruik EXACT dit template format:
+        Analyseer de transcriptie zorgvuldig en vul zoveel mogelijk details in. Gebruik EXACT dit template format:
         
         Onderzoeksdatum: {today}
         Bevindingen: TEE ONDERZOEK : 3D TEE met (...) toestel
@@ -431,21 +438,24 @@ class SuperiorMedicalTranscription:
         - De atria zijn (...) gedilateerd.
         - Linker hartoortje is (...) vergroot, er is (...) spontaan contrast, zonder toegevoegde structuur. Hartoortje snelheden (...) cm/s.
         - Interatriaal septum (...)
-        - Mitralisklep: (...), morfologisch (...), er is (...) insufficientie, er is (...) stenose, (...) toegevoegde structuur.
+        - Mitralisklep: (...), morfologisch (...), er is (...) insufficiëntie, er is (...) stenose, (...) toegevoegde structuur.
         * Mitraalinsufficientie vena contracta (...) mm, ERO (...) mm2 en RVol (...) ml/slag.
-        - Aortaklep: (...), morfologisch (...), (...) verkalkt, er is (...) insufficientie, er is (...) stenose (...) toegevoegde structuur.
+        - Aortaklep: (...), morfologisch (...), (...) verkalkt, er is (...) insufficiëntie, er is (...) stenose (...) toegevoegde structuur.
         Dimensies: LVOT (...) mm, aorta sinus (...) mm, sinutubulaire junctie (...) mm, aorta ascendens boven de sinutubulaire junctie (...) mm.
         * Aortaklepinsufficientie vena contracta (...) mm, ERO (...) mm2 en RVol (...) ml/slag.
         * Aortaklepstenose piekgradient (...) mmHg en gemiddelde gradient (...) mmHg, effectief klepoppervlak (...) cm2.
-        - Tricuspiedklep: (...), morfologisch (...), er is (...) insufficientie, (...) toegevoegde structuur.
+        - Tricuspiedklep: (...), morfologisch (...), er is (...) insufficiëntie, (...) toegevoegde structuur.
         * Systolische pulmonaaldruk afgeleid uit TI (...) mmHg + CVD.
-        - Pulmonaalklep is (...), er is (...) insufficientie.
+        - Pulmonaalklep is (...), er is (...) insufficiëntie.
         - Aorta ascendens is (...) gedilateerd, graad (...) atheromatose van de aortawand.
         - Pulmonale arterie is (...) gedilateerd.
         - Vena cava inferior/levervenes zijn (...) verbreed (...) ademvariatie.
         - Pericard: er is (...) pericardvocht.
         
-        Vul alleen waarden in die in de transcriptie staan. Laat (...) staan voor ontbrekende waarden."""
+        CONCLUSIE: (...)
+        AANBEVELINGEN: (...)
+        
+        Vul zoveel mogelijk details in uit de transcriptie. Gebruik correcte Nederlandse karakters."""
         
         report = self.call_gpt([
             {"role": "system", "content": system_message},
