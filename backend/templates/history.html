@@ -5,162 +5,502 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transcriptie Geschiedenis - Medical Dictation v4.0</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        * {
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            color: #333;
         }
+        
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
             background: white;
             border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
         }
-        .header {
-            background: linear-gradient(135deg, #2c3e50, #3498db);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
+        
         .header h1 {
-            margin: 0;
-            font-size: 2.5em;
-            font-weight: 300;
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 600;
         }
-        .nav {
-            padding: 20px 30px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
-        .nav a {
-            color: #3498db;
-            text-decoration: none;
-            margin-right: 20px;
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
             font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
-        .nav a:hover {
-            text-decoration: underline;
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
         }
-        .content {
-            padding: 30px;
-        }
-        .history-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        .history-table th,
-        .history-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #dee2e6;
-        }
-        .history-table th {
+        
+        .btn-secondary {
             background: #f8f9fa;
+            color: #495057;
+            border: 1px solid #dee2e6;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .history-grid {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .history-item {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .history-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .item-info {
+            flex: 1;
+        }
+        
+        .item-title {
+            font-size: 18px;
             font-weight: 600;
             color: #2c3e50;
+            margin-bottom: 8px;
         }
-        .history-table tr:hover {
-            background: #f8f9fa;
+        
+        .item-meta {
+            display: flex;
+            gap: 20px;
+            color: #7f8c8d;
+            font-size: 14px;
+            flex-wrap: wrap;
         }
-        .view-link {
-            color: #3498db;
-            text-decoration: none;
-            font-weight: 500;
+        
+        .item-meta span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        .view-link:hover {
-            text-decoration: underline;
+        
+        .type-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: 500;
-        }
-        .badge-tte {
+        
+        .type-tte {
             background: #e3f2fd;
             color: #1976d2;
         }
-        .badge-spoedconsult {
-            background: #ffebee;
-            color: #d32f2f;
+        
+        .type-tee {
+            background: #f3e5f5;
+            color: #7b1fa2;
         }
+        
+        .type-consultatie {
+            background: #e8f5e8;
+            color: #388e3c;
+        }
+        
+        .type-spoedconsult {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .item-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 6px;
+        }
+        
+        .content-preview {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .content-preview h4 {
+            color: #495057;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .content-preview p {
+            color: #6c757d;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        
         .empty-state {
             text-align: center;
             padding: 60px 20px;
-            color: #6c757d;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         }
+        
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
         .empty-state h3 {
-            margin-bottom: 10px;
             color: #495057;
+            margin-bottom: 10px;
+        }
+        
+        .empty-state p {
+            color: #6c757d;
+            margin-bottom: 30px;
+        }
+        
+        /* Flash messages */
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        
+        .flash-message {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        
+        .flash-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .flash-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .flash-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header {
+                padding: 20px;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .nav-buttons {
+                justify-content: center;
+            }
+            
+            .item-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .item-actions {
+                justify-content: center;
+                margin-top: 15px;
+            }
+            
+            .item-meta {
+                justify-content: center;
+            }
+        }
+        
+        /* Loading animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <h1>📋 Transcriptie Geschiedenis</h1>
-            <p>Overzicht van alle uitgevoerde transcripties</p>
-        </div>
-        
-        <div class="nav">
-            <a href="/">🏠 Terug naar hoofdpagina</a>
-            <a href="/history">📋 Geschiedenis</a>
-        </div>
-        
-        <div class="content">
-            {% if error %}
-                <div style="background: #ffebee; color: #d32f2f; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <strong>Fout:</strong> {{ error }}
+            <div>
+                <h1>📋 Transcriptie Geschiedenis</h1>
+                <p>Bekijk en bewerk uw eerdere transcripties</p>
+            </div>
+            
+            {% if user %}
+            <div class="user-info">
+                <div class="user-avatar">
+                    {{ user.first_name[0] if user.first_name else 'U' }}{{ user.last_name[0] if user.last_name else '' }}
                 </div>
+                <div>
+                    <div style="font-weight: 600;">{{ user.full_name or user.username }}</div>
+                    <div style="font-size: 14px; color: #7f8c8d;">{{ user.email or '' }}</div>
+                </div>
+            </div>
             {% endif %}
             
-            {% if records %}
-                <table class="history-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Patiënt ID</th>
-                            <th>Type</th>
-                            <th>Preview</th>
-                            <th>Datum</th>
-                            <th>Actie</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for record in records %}
-                        <tr>
-                            <td>{{ record[0] }}</td>
-                            <td>{{ record[1] or 'Niet opgegeven' }}</td>
-                            <td>
-                                <span class="badge {% if record[2] == 'TTE' %}badge-tte{% else %}badge-spoedconsult{% endif %}">
-                                    {{ record[2] }}
-                                </span>
-                            </td>
-                            <td>{{ record[4][:100] }}{% if record[4]|length > 100 %}...{% endif %}</td>
-                            <td>{{ record[3] }}</td>
-                            <td>
-                                <a href="/view/{{ record[0] }}" class="view-link">👁️ Bekijken</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <div class="empty-state">
-                    <h3>Geen transcripties gevonden</h3>
-                    <p>Er zijn nog geen transcripties uitgevoerd.</p>
-                    <a href="/" style="color: #3498db; text-decoration: none; font-weight: 500;">
-                        🎤 Start je eerste transcriptie
-                    </a>
+            <div class="nav-buttons">
+                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                    🎤 Nieuwe Transcriptie
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary">
+                    🚪 Uitloggen
+                </a>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
                 </div>
             {% endif %}
-        </div>
+        {% endwith %}
+
+        <!-- History Content -->
+        {% if records %}
+            <div class="history-grid">
+                {% for record in records %}
+                    <div class="history-item">
+                        <div class="item-header">
+                            <div class="item-info">
+                                <div class="item-title">
+                                    {% if record[1] %}
+                                        Patiënt {{ record[1] }}
+                                    {% else %}
+                                        Transcriptie #{{ record[0] }}
+                                    {% endif %}
+                                </div>
+                                <div class="item-meta">
+                                    <span>📅 {{ record[5] if record[5] else 'Onbekend' }}</span>
+                                    <span>🏥 {{ record[2] }}</span>
+                                    {% if record[1] %}
+                                        <span>👤 {{ record[1] }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="type-badge type-{{ record[2].lower() }}">
+                                {{ record[2] }}
+                            </div>
+                        </div>
+                        
+                        <div class="item-actions">
+                            <a href="{{ url_for('review_transcription', record_id=record[0]) }}" 
+                               class="btn btn-primary btn-small">
+                                👁️ Bekijken & Bewerken
+                            </a>
+                            <button onclick="deleteTranscription({{ record[0] }})" 
+                                    class="btn btn-secondary btn-small">
+                                🗑️ Verwijderen
+                            </button>
+                        </div>
+                        
+                        {% if record[3] %}
+                            <div class="content-preview">
+                                <h4>📝 Originele Transcriptie:</h4>
+                                <p>{{ record[3][:200] }}{% if record[3]|length > 200 %}...{% endif %}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <h3>Nog geen transcripties</h3>
+                <p>U heeft nog geen transcripties gemaakt. Begin met uw eerste medische transcriptie!</p>
+                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                    🎤 Start Eerste Transcriptie
+                </a>
+            </div>
+        {% endif %}
     </div>
+
+    <script>
+        function deleteTranscription(recordId) {
+            if (confirm('Weet u zeker dat u deze transcriptie wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.')) {
+                // Show loading state
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<span class="loading"></span> Verwijderen...';
+                button.disabled = true;
+                
+                fetch(`/delete-transcription/${recordId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove the item from the page
+                        button.closest('.history-item').remove();
+                        
+                        // Show success message
+                        showFlashMessage('Transcriptie succesvol verwijderd', 'success');
+                        
+                        // Check if page is now empty
+                        const remainingItems = document.querySelectorAll('.history-item');
+                        if (remainingItems.length === 0) {
+                            location.reload(); // Reload to show empty state
+                        }
+                    } else {
+                        showFlashMessage(data.error || 'Fout bij verwijderen van transcriptie', 'error');
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showFlashMessage('Netwerkfout bij verwijderen van transcriptie', 'error');
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                });
+            }
+        }
+        
+        function showFlashMessage(message, category) {
+            const flashContainer = document.querySelector('.flash-messages') || createFlashContainer();
+            const flashDiv = document.createElement('div');
+            flashDiv.className = `flash-message ${category}`;
+            flashDiv.textContent = message;
+            
+            flashContainer.appendChild(flashDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                flashDiv.remove();
+            }, 5000);
+        }
+        
+        function createFlashContainer() {
+            const container = document.createElement('div');
+            container.className = 'flash-messages';
+            document.querySelector('.container').insertBefore(container, document.querySelector('.history-grid') || document.querySelector('.empty-state'));
+            return container;
+        }
+        
+        // Auto-refresh every 30 seconds to show new transcriptions
+        setInterval(() => {
+            // Only refresh if user is still on the page
+            if (document.visibilityState === 'visible') {
+                const currentCount = document.querySelectorAll('.history-item').length;
+                fetch('/api/transcription-count')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.count > currentCount) {
+                            location.reload();
+                        }
+                    })
+                    .catch(error => console.log('Auto-refresh check failed:', error));
+            }
+        }, 30000);
+    </script>
 </body>
 </html>
 

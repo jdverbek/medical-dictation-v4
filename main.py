@@ -1276,54 +1276,199 @@ def ocr_patient_id():
 @app.route('/history')
 @login_required
 def history():
-    """View transcription history"""
+    """View transcription history for authenticated user"""
     try:
-        conn = sqlite3.connect('medical_app.db')
+        user = get_current_user()
+        if not user:
+            flash('Please log in to access this page', 'error')
+            return redirect(url_for('login'))
+        
+        conn = sqlite3.connect('medical_app_v4.db')
         cursor = conn.cursor()
+        
+        # Get transcription history for current user only
         cursor.execute('''
-            SELECT id, patient_id, verslag_type, created_at, 
-                   substr(original_transcript, 1, 100) as preview
+            SELECT id, patient_id, verslag_type, original_transcript, 
+                   structured_report, created_at
             FROM transcription_history 
+            WHERE user_id = ?
             ORDER BY created_at DESC 
             LIMIT 50
-        ''')
+        ''', (user['id'],))
+        
         history_records = cursor.fetchall()
         conn.close()
         
-        return render_template('history.html', records=history_records)
+        return render_template('history.html', records=history_records, user=user)
+        
     except Exception as e:
         logger.error(f"History error: {e}")
-        return render_template('history.html', records=[], error=str(e))
+        flash(f'Fout bij laden van geschiedenis: {str(e)}', 'error')
+        return render_template('history.html', records=[], user=get_current_user())
 
 @app.route('/view/<int:record_id>')
 @login_required
 def view_record(record_id):
-    """View specific transcription record"""
+    """View specific transcription record (legacy route - redirects to review)"""
+    return redirect(url_for('review_transcription', record_id=record_id))
+
+@app.route('/review/<int:record_id>')
+@login_required
+def review_transcription(record_id):
+    """Review and edit transcription with enhanced interface"""
     try:
-        conn = sqlite3.connect('medical_app.db')
+        user = get_current_user()
+        if not user:
+            flash('Please log in to access this page', 'error')
+            return redirect(url_for('login'))
+        
+        conn = sqlite3.connect('medical_app_v4.db')
         cursor = conn.cursor()
+        
+        # Get transcription record with user verification
         cursor.execute('''
-            SELECT patient_id, verslag_type, original_transcript, 
-                   structured_report, created_at
+            SELECT id, patient_id, verslag_type, original_transcript, 
+                   structured_report, created_at, enhanced_transcript
             FROM transcription_history 
-            WHERE id = ?
-        ''', (record_id,))
-        record = cursor.fetchone()
+            WHERE id = ? AND user_id = ?
+        ''', (record_id, user['id']))
+        
+        record_data = cursor.fetchone()
         conn.close()
         
-        if record:
-            return render_template('view_record.html', 
-                                 patient_id=record[0],
-                                 verslag_type=record[1],
-                                 transcript=record[2],
-                                 report=record[3],
-                                 created_at=record[4])
-        else:
-            return "Record not found", 404
-            
+        if not record_data:
+            flash('Transcriptie niet gevonden of geen toegang', 'error')
+            return redirect(url_for('history'))
+        
+        # Convert to dictionary for easier template access
+        record = {
+            'id': record_data[0],
+            'patient_id': record_data[1],
+            'verslag_type': record_data[2],
+            'original_transcript': record_data[3],
+            'structured_report': record_data[4],
+            'created_at': datetime.datetime.fromisoformat(record_data[5]) if record_data[5] else None,
+            'enhanced_transcript': record_data[6] if len(record_data) > 6 else None
+        }
+        
+        return render_template('review.html', record=record, user=user)
+        
     except Exception as e:
-        logger.error(f"View record error: {e}")
-        return f"Error: {str(e)}", 500
+        logger.error(f"Review transcription error: {e}")
+        flash(f'Fout bij laden van transcriptie: {str(e)}', 'error')
+        return redirect(url_for('history'))
+
+@app.route('/update-transcription/<int:record_id>', methods=['POST'])
+@login_required
+def update_transcription(record_id):
+    """Update transcription content via AJAX"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'})
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'})
+        
+        conn = sqlite3.connect('medical_app_v4.db')
+        cursor = conn.cursor()
+        
+        # Verify user owns this transcription
+        cursor.execute('SELECT id FROM transcription_history WHERE id = ? AND user_id = ?', 
+                      (record_id, user['id']))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Transcription not found or access denied'})
+        
+        # Update the transcription
+        cursor.execute('''
+            UPDATE transcription_history 
+            SET original_transcript = ?, 
+                structured_report = ?, 
+                enhanced_transcript = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND user_id = ?
+        ''', (
+            data.get('original_transcript', ''),
+            data.get('structured_report', ''),
+            data.get('enhanced_transcript', ''),
+            record_id,
+            user['id']
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        # Log the update for security audit
+        log_security_event('TRANSCRIPTION_UPDATED', user_id=user['id'], 
+                          details=f'Updated transcription {record_id}')
+        
+        return jsonify({'success': True, 'message': 'Transcription updated successfully'})
+        
+    except Exception as e:
+        logger.error(f"Update transcription error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/delete-transcription/<int:record_id>', methods=['DELETE'])
+@login_required
+def delete_transcription(record_id):
+    """Delete transcription record via AJAX"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'})
+        
+        conn = sqlite3.connect('medical_app_v4.db')
+        cursor = conn.cursor()
+        
+        # Verify user owns this transcription
+        cursor.execute('SELECT patient_id FROM transcription_history WHERE id = ? AND user_id = ?', 
+                      (record_id, user['id']))
+        result = cursor.fetchone()
+        if not result:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Transcription not found or access denied'})
+        
+        patient_id = result[0]
+        
+        # Delete the transcription
+        cursor.execute('DELETE FROM transcription_history WHERE id = ? AND user_id = ?', 
+                      (record_id, user['id']))
+        
+        conn.commit()
+        conn.close()
+        
+        # Log the deletion for security audit
+        log_security_event('TRANSCRIPTION_DELETED', user_id=user['id'], 
+                          details=f'Deleted transcription {record_id} (Patient: {patient_id})')
+        
+        return jsonify({'success': True, 'message': 'Transcription deleted successfully'})
+        
+    except Exception as e:
+        logger.error(f"Delete transcription error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/transcription-count')
+@login_required
+def transcription_count():
+    """Get current transcription count for auto-refresh"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'count': 0})
+        
+        conn = sqlite3.connect('medical_app_v4.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM transcription_history WHERE user_id = ?', (user['id'],))
+        count = cursor.fetchone()[0]
+        conn.close()
+        
+        return jsonify({'count': count})
+        
+    except Exception as e:
+        logger.error(f"Transcription count error: {e}")
+        return jsonify({'count': 0})
 
 @app.route('/health')
 def health_check():
