@@ -619,30 +619,33 @@
                 const healthData = await healthResponse.json();
                 
                 if (!healthData.ocr_available) {
-                    showStatus('⚠️ OCR functionaliteit niet beschikbaar in cloud deployment. Voer patiënt ID handmatig in.', 'warning');
+                    showStatus('⚠️ OCR functionaliteit niet beschikbaar. Voer patiënt ID handmatig in.', 'warning');
                     return;
                 }
                 
-                // Request camera access
+                // Request camera access with mobile-optimized settings
                 cameraStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: 'environment', // Use back camera if available
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        width: { ideal: 1920, max: 1920 },
+                        height: { ideal: 1080, max: 1080 }
                     } 
                 });
                 
                 cameraVideo.srcObject = cameraStream;
                 cameraModal.style.display = 'flex';
                 
+                // Show OCR method info
+                showStatus('📱 Camera geopend. Richt op patiëntgegevens voor automatische scanning.', 'info');
+                
             } catch (error) {
                 console.error('Camera access error:', error);
                 if (error.name === 'NotAllowedError') {
-                    showStatus('❌ Camera toegang geweigerd. Controleer browser instellingen.', 'error');
+                    showStatus('❌ Camera toegang geweigerd. Controleer browser instellingen en probeer opnieuw.', 'error');
                 } else if (error.name === 'NotFoundError') {
                     showStatus('❌ Geen camera gevonden. Voer patiënt ID handmatig in.', 'error');
                 } else {
-                    showStatus('❌ Camera fout: ' + error.message, 'error');
+                    showStatus('❌ Camera fout: ' + error.message + '. Probeer handmatige invoer.', 'error');
                 }
             }
         });
@@ -678,15 +681,16 @@
                     // Fill patient ID field
                     patientIdInput.value = result.patient_number;
                     
-                    // Show success message
+                    // Show success message with method info
+                    const method = result.method === 'openai_vision' ? '🌐 Cloud OCR' : '🔍 Local OCR';
                     ocrResult.className = 'ocr-result';
-                    ocrResult.innerHTML = `✅ Patiëntennummer gevonden: <strong>${result.patient_number}</strong>`;
+                    ocrResult.innerHTML = `✅ Patiëntennummer gevonden: <strong>${result.patient_number}</strong><br><small>${method}</small>`;
                     ocrResult.classList.remove('hidden');
                     
                     // Close camera modal
                     closeCameraModal();
                     
-                    showStatus('✅ Patiëntennummer succesvol herkend!', 'success');
+                    showStatus(`✅ Patiëntennummer succesvol herkend via ${method}!`, 'success');
                 } else {
                     // Show error
                     ocrResult.className = 'ocr-result ocr-error';

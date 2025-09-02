@@ -10,6 +10,7 @@ anthropic==0.7.7
 
 # HTTP client - Compatible version
 httpx==0.27.2
+requests==2.31.0
 
 # Audio processing
 pydub==0.25.1
@@ -19,7 +20,6 @@ Pillow==10.4.0
 
 # Utilities
 python-dotenv==1.0.0
-requests==2.31.0
 
 # Database (optional)
 psycopg2-binary==2.9.9
