@@ -211,12 +211,54 @@ class SuperiorMedicalTranscription:
                     'error': "⚠️ Geen beschikbare transcriptie modellen gevonden. Probeer later opnieuw."
                 }
             
-            # Get the transcript text
-            corrected_transcript = transcript_response if isinstance(transcript_response, str) else transcript_response.text
+            # Get the transcript text with better null checking
+            if transcript_response is None:
+                return {
+                    'success': False,
+                    'error': "⚠️ Transcriptie response is None. API call gefaald."
+                }
+            
+            # Handle different response types safely
+            try:
+                if isinstance(transcript_response, str):
+                    corrected_transcript = transcript_response
+                elif hasattr(transcript_response, 'text') and transcript_response.text:
+                    corrected_transcript = transcript_response.text
+                elif hasattr(transcript_response, 'content') and transcript_response.content:
+                    corrected_transcript = transcript_response.content
+                else:
+                    return {
+                        'success': False,
+                        'error': f"⚠️ Onbekend response format: {type(transcript_response)}. Geen text attribuut gevonden."
+                    }
+            except Exception as response_error:
+                return {
+                    'success': False,
+                    'error': f"⚠️ Error bij verwerken response: {str(response_error)}"
+                }
+            
+            # Validate transcript before post-processing
+            if not corrected_transcript or not isinstance(corrected_transcript, str):
+                return {
+                    'success': False,
+                    'error': f"⚠️ Ongeldige transcript: {type(corrected_transcript)} - '{corrected_transcript}'"
+                }
             
             # Post-process with GPT-4o for medical terminology correction
             print("DEBUG: Applying GPT-4o post-processing for medical accuracy...")
-            corrected_transcript = self.post_process_with_gpt4o(corrected_transcript)
+            try:
+                post_processed_transcript = self.post_process_with_gpt4o(corrected_transcript)
+                
+                # Use post-processed version if successful, otherwise keep original
+                if post_processed_transcript and isinstance(post_processed_transcript, str) and len(post_processed_transcript.strip()) > 0:
+                    corrected_transcript = post_processed_transcript
+                    print("DEBUG: Post-processing successful")
+                else:
+                    print("DEBUG: Post-processing failed or returned empty, using original transcript")
+                    
+            except Exception as post_error:
+                print(f"DEBUG: Post-processing error: {post_error}, using original transcript")
+                # Continue with original transcript if post-processing fails
             
             # Validation check
             if not corrected_transcript or len(corrected_transcript.strip()) < 10:
@@ -268,6 +310,11 @@ class SuperiorMedicalTranscription:
     def post_process_with_gpt4o(self, transcript):
         """Post-process transcript with GPT-4o for medical accuracy"""
         try:
+            # Validate input
+            if not transcript or not isinstance(transcript, str):
+                print(f"DEBUG: Invalid transcript input for post-processing: {type(transcript)}")
+                return transcript
+            
             response = self.client.chat.completions.create(
                 model="gpt-4o",  # Use GPT-4o for post-processing
                 messages=[
@@ -292,7 +339,18 @@ class SuperiorMedicalTranscription:
                 temperature=0.1,
                 max_tokens=2000
             )
-            return response.choices[0].message.content
+            
+            # Safely extract response
+            if response and hasattr(response, 'choices') and len(response.choices) > 0:
+                choice = response.choices[0]
+                if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
+                    result = choice.message.content
+                    if result and isinstance(result, str):
+                        return result.strip()
+            
+            print("DEBUG: Post-processing response format issue, using original")
+            return transcript
+            
         except Exception as e:
             print(f"DEBUG: Post-processing failed, using original: {e}")
             return transcript  # Return original if post-processing fails
