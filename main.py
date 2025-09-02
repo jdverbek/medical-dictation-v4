@@ -1044,7 +1044,7 @@ def transcribe():
             print(f"🔍 DEBUG: UPDATE - Patient: {patient_id}, Type: {verslag_type}")
             print(f"🔍 DEBUG: UPDATE - Report length: {len(structured_report)}")
             
-            conn = sqlite3.connect('medical_app_v4.db')
+            conn = get_db_connection()
             cursor = conn.cursor()
             
             # Update the most recent record for this user with the final report
@@ -1072,7 +1072,7 @@ def transcribe():
             print(f"✅ UPDATE - Successfully updated {rows_updated} database record(s)")
             
             # Verify the update worked
-            conn = sqlite3.connect('medical_app_v4.db')
+            conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute('SELECT COUNT(*) FROM transcription_history WHERE user_id = ?', (user_id,))
             count = cursor.fetchone()[0]
@@ -1415,7 +1415,7 @@ def history():
             flash('Please log in to access this page', 'error')
             return redirect(url_for('login'))
         
-        conn = sqlite3.connect('medical_app_v4.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         # Get transcription history for current user only
@@ -1454,7 +1454,7 @@ def review_transcription(record_id):
             flash('Please log in to access this page', 'error')
             return redirect(url_for('login'))
         
-        conn = sqlite3.connect('medical_app_v4.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         # Get transcription record with user verification
@@ -1503,7 +1503,7 @@ def update_transcription(record_id):
         if not data:
             return jsonify({'success': False, 'error': 'No data provided'})
         
-        conn = sqlite3.connect('medical_app_v4.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         # Verify user owns this transcription
@@ -1551,7 +1551,7 @@ def delete_transcription(record_id):
         if not user:
             return jsonify({'success': False, 'error': 'Not authenticated'})
         
-        conn = sqlite3.connect('medical_app_v4.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         # Verify user owns this transcription
@@ -1590,7 +1590,7 @@ def transcription_count():
         if not user:
             return jsonify({'count': 0})
         
-        conn = sqlite3.connect('medical_app_v4.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT COUNT(*) FROM transcription_history WHERE user_id = ?', (user['id'],))
         count = cursor.fetchone()[0]

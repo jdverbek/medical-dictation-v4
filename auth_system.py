@@ -1,16 +1,16 @@
 """
-Authentication System for Medical Dictation v4
-Secure login wall with user management and session handling
+Authentication System for Medical Dictation v4.0
+Secure user management with PostgreSQL/SQLite hybrid support
 """
 
-import os
-import sqlite3
 import hashlib
 import secrets
-import datetime
+import time
 import logging
+from datetime import datetime, timedelta
 from functools import wraps
-from flask import session, redirect, url_for, request, flash
+from flask import session, request, redirect, url_for, flash, jsonify
+from database import get_db_connection, is_postgresql
 
 # Configure logging for security audit
 logging.basicConfig(
@@ -32,7 +32,7 @@ rate_limit_storage = {}
 def init_auth_db():
     """Initialize the authentication database with required tables"""
     try:
-        conn = sqlite3.connect(DATABASE_URL)
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         # Create users table
@@ -106,7 +106,7 @@ def verify_password(password, stored_hash, salt):
 def log_security_event(event_type, user_id=None, details=None):
     """Log security events for audit trail"""
     try:
-        conn = sqlite3.connect(DATABASE_URL)
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
@@ -162,7 +162,7 @@ def rate_limit(max_requests=5, window=300):
 def create_user(username, email, first_name, last_name, password, consent_given=False):
     """Create a new user account"""
     try:
-        conn = sqlite3.connect(DATABASE_URL)
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         # Check if username or email already exists
@@ -193,7 +193,7 @@ def create_user(username, email, first_name, last_name, password, consent_given=
 def authenticate_user(username, password):
     """Authenticate user and return user data"""
     try:
-        conn = sqlite3.connect(DATABASE_URL)
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -258,7 +258,7 @@ def get_current_user():
 def save_transcription(user_id, verslag_type, original_transcript, structured_report, patient_id=None, enhanced_transcript=None, quality_feedback=None):
     """Save transcription to user's history"""
     try:
-        conn = sqlite3.connect(DATABASE_URL)
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -276,7 +276,7 @@ def save_transcription(user_id, verslag_type, original_transcript, structured_re
 def get_user_transcription_history(user_id, limit=50):
     """Get user's transcription history"""
     try:
-        conn = sqlite3.connect(DATABASE_URL)
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -308,7 +308,7 @@ def get_user_transcription_history(user_id, limit=50):
 def create_default_admin():
     """Create default admin user if no users exist"""
     try:
-        conn = sqlite3.connect(DATABASE_URL)
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute('SELECT COUNT(*) FROM users')
