@@ -142,20 +142,25 @@ class PatientNumberOCR:
                         "content": [
                             {
                                 "type": "text",
-                                "text": """Analyseer deze afbeelding van patiëntgegevens en extraheer het 10-cijferige patiëntennummer.
+                                "text": """Look at this medical document image and extract ALL numbers you can see.
 
-INSTRUCTIES:
-- Zoek naar een nummer van exact 10 cijfers
-- Het patiëntennummer staat meestal op de 3e regel onder de naam
-- Negeer andere nummers (telefoonnummers, postcodes, etc.)
-- Geef alleen het 10-cijferige patiëntennummer terug
-- Als je meerdere 10-cijferige nummers ziet, kies het eerste
+TASK: Find a 10-digit patient number/ID
 
-FORMAAT ANTWOORD:
-- Als gevonden: geef alleen het 10-cijferige nummer
-- Als niet gevonden: antwoord "NIET_GEVONDEN"
+INSTRUCTIONS:
+- Look for ANY 10-digit number in the image
+- Patient numbers are often near the top of medical documents
+- They might be labeled as: Patient ID, Patiënt ID, ID, Number, etc.
+- Ignore phone numbers, dates, postal codes
+- Return ALL 10-digit numbers you find
 
-Voorbeeld: 1234567890"""
+RESPONSE FORMAT:
+- If you find 10-digit numbers: list them separated by commas
+- If no 10-digit numbers found: respond "NO_10_DIGIT_NUMBERS"
+- Also describe what text/numbers you DO see in the image
+
+Example response: "1234567890, 9876543210" or "NO_10_DIGIT_NUMBERS - I see: John Doe, 12/03/1985, phone: 555-123-4567"
+
+Be thorough - look at the entire image for any 10-digit sequences."""
                             },
                             {
                                 "type": "image_url",
@@ -166,7 +171,7 @@ Voorbeeld: 1234567890"""
                         ]
                     }
                 ],
-                "max_tokens": 50,
+                "max_tokens": 200,
                 "temperature": 0
             }
             
@@ -185,15 +190,16 @@ Voorbeeld: 1234567890"""
                 print(f"🌐 OpenAI Vision extracted: {extracted_text}")
                 
                 # Parse the response
-                if extracted_text == "NIET_GEVONDEN":
+                if "NO_10_DIGIT_NUMBERS" in extracted_text:
                     return {
                         'success': False,
                         'error': 'Geen 10-cijferig patiëntennummer gevonden',
                         'raw_text': extracted_text,
-                        'suggestion': 'Zorg dat het patiëntennummer duidelijk zichtbaar is'
+                        'suggestion': 'Probeer een duidelijkere foto of zorg dat het patiëntennummer volledig zichtbaar is',
+                        'debug_info': f"AI response: {extracted_text}"
                     }
                 
-                # Validate the extracted number
+                # Look for 10-digit numbers in the response
                 patient_numbers = self.find_patient_numbers(extracted_text)
                 if patient_numbers:
                     return {
@@ -201,27 +207,46 @@ Voorbeeld: 1234567890"""
                         'patient_number': patient_numbers[0],
                         'all_found': patient_numbers,
                         'raw_text': extracted_text,
-                        'method': 'openai_vision'
+                        'method': 'openai_vision',
+                        'debug_info': f"AI found: {extracted_text}"
                     }
                 else:
-                    return {
-                        'success': False,
-                        'error': f'Geëxtraheerde tekst bevat geen geldig 10-cijferig nummer: {extracted_text}',
-                        'raw_text': extracted_text,
-                        'suggestion': 'Probeer een duidelijkere foto'
-                    }
+                    # Try to extract any numbers from the response
+                    all_numbers = re.findall(r'\d+', extracted_text)
+                    ten_digit_numbers = [num for num in all_numbers if len(num) == 10]
+                    
+                    if ten_digit_numbers:
+                        return {
+                            'success': True,
+                            'patient_number': ten_digit_numbers[0],
+                            'all_found': ten_digit_numbers,
+                            'raw_text': extracted_text,
+                            'method': 'openai_vision_fallback',
+                            'debug_info': f"Fallback extraction: {ten_digit_numbers}"
+                        }
+                    else:
+                        return {
+                            'success': False,
+                            'error': f'AI zag wel tekst maar geen geldig 10-cijferig nummer',
+                            'raw_text': extracted_text,
+                            'suggestion': 'Probeer een foto waar het patiëntennummer duidelijker zichtbaar is',
+                            'debug_info': f"AI response: {extracted_text}, Found numbers: {all_numbers}"
+                        }
             else:
+                error_text = response.text if response.text else f"HTTP {response.status_code}"
                 return {
                     'success': False,
                     'error': f'OpenAI Vision API fout: {response.status_code}',
-                    'suggestion': 'Probeer opnieuw of gebruik handmatige invoer'
+                    'suggestion': 'Probeer opnieuw of gebruik handmatige invoer',
+                    'debug_info': f"API Error: {error_text}"
                 }
                 
         except Exception as e:
             print(f"❌ OpenAI Vision extraction failed: {str(e)}")
             return {
                 'success': False,
-                'error': f'Cloud OCR fout: {str(e)}'
+                'error': f'Cloud OCR fout: {str(e)}',
+                'debug_info': f"Exception: {str(e)}"
             }
     
     def extract_with_local_ocr(self, image_data) -> Dict[str, Any]:

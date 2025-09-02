@@ -759,9 +759,14 @@
                     
                     showStatus(`✅ Patiëntennummer succesvol herkend via ${method}!`, 'success');
                 } else {
-                    // Show error
+                    // Show error with debug info
+                    let errorHtml = `❌ ${result.error}<br><small>${result.suggestion || ''}</small>`;
+                    if (result.debug_info) {
+                        errorHtml += `<br><details style="margin-top: 10px;"><summary>Debug Info</summary><pre style="font-size: 11px; margin: 5px 0;">${result.debug_info}</pre></details>`;
+                    }
+                    
                     ocrResult.className = 'ocr-result ocr-error';
-                    ocrResult.innerHTML = `❌ ${result.error}<br><small>${result.suggestion || ''}</small>`;
+                    ocrResult.innerHTML = errorHtml;
                     ocrResult.classList.remove('hidden');
                     
                     showStatus('❌ OCR fout: ' + result.error, 'error');
