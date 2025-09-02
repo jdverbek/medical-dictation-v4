@@ -920,17 +920,17 @@ def api_transcribe():
                 'differences': treatment_differences
             },
             'expert_analysis': {
-                'quality_score': expert_analysis.get('agent_1_quality_control', {}).get('quality_score', 0),
-                'primary_diagnosis': expert_analysis.get('agent_2_diagnostic_expert', {}).get('primary_diagnosis', {}),
-                'treatment_plan': expert_analysis.get('agent_3_treatment_protocol', {}).get('treatment_plan', {}),
-                'safety_alerts': expert_analysis.get('agent_1_quality_control', {}).get('safety_alerts', []),
-                'urgency_level': expert_analysis.get('agent_2_diagnostic_expert', {}).get('urgency_level', 'unknown'),
-                'corrections_made': len(expert_analysis.get('agent_1_quality_control', {}).get('corrections', [])),
-                'agents_used': expert_analysis.get('orchestration_summary', {}).get('agents_used', 3),
-                'guideline_citations': expert_analysis.get('agent_3_treatment_protocol', {}).get('guideline_citations', []),
-                'guideline_source': expert_analysis.get('agent_3_treatment_protocol', {}).get('guideline_source', 'Unknown'),
-                'evidence_level': expert_analysis.get('agent_3_treatment_protocol', {}).get('evidence_level', 'Unknown'),
-                'quality_indicators': expert_analysis.get('agent_3_treatment_protocol', {}).get('quality_indicators', {})
+                'quality_score': expert_analysis.get('agent_1_quality_control', {}).get('quality_score', 0) if expert_analysis.get('agent_1_quality_control') else 0,
+                'primary_diagnosis': expert_analysis.get('agent_2_diagnostic_expert', {}).get('primary_diagnosis', {}) if expert_analysis.get('agent_2_diagnostic_expert') else {},
+                'treatment_plan': expert_analysis.get('agent_3_treatment_protocol', {}).get('treatment_plan', {}) if expert_analysis.get('agent_3_treatment_protocol') else {},
+                'safety_alerts': expert_analysis.get('agent_1_quality_control', {}).get('safety_alerts', []) if expert_analysis.get('agent_1_quality_control') else [],
+                'urgency_level': expert_analysis.get('agent_2_diagnostic_expert', {}).get('urgency_level', 'unknown') if expert_analysis.get('agent_2_diagnostic_expert') else 'unknown',
+                'corrections_made': len(expert_analysis.get('agent_1_quality_control', {}).get('corrections', [])) if expert_analysis.get('agent_1_quality_control') and expert_analysis.get('agent_1_quality_control', {}).get('corrections') else 0,
+                'agents_used': expert_analysis.get('orchestration_summary', {}).get('agents_used', 3) if expert_analysis.get('orchestration_summary') else 3,
+                'guideline_citations': expert_analysis.get('agent_3_treatment_protocol', {}).get('guideline_citations', []) if expert_analysis.get('agent_3_treatment_protocol') else [],
+                'guideline_source': expert_analysis.get('agent_3_treatment_protocol', {}).get('guideline_source', 'Unknown') if expert_analysis.get('agent_3_treatment_protocol') else 'Unknown',
+                'evidence_level': expert_analysis.get('agent_3_treatment_protocol', {}).get('evidence_level', 'Unknown') if expert_analysis.get('agent_3_treatment_protocol') else 'Unknown',
+                'quality_indicators': expert_analysis.get('agent_3_treatment_protocol', {}).get('quality_indicators', {}) if expert_analysis.get('agent_3_treatment_protocol') else {}
             }
         })
         
