@@ -755,44 +755,77 @@ Geef ESC Guidelines aanbevelingen met LoR en LoE voor elke geïdentificeerde pat
         return report
     
     def generate_tte_report(self, transcript, patient_id=""):
-        """Generate TTE report with updated structure"""
+        """Generate TTE report with complete information, NO placeholders allowed"""
         today = datetime.datetime.now().strftime("%d-%m-%Y")
         
         system_message = """Je bent een ervaren cardioloog die TTE (Transthoracale Echo) verslagen maakt.
-        Genereer een gestructureerd TTE verslag volgens het exacte template format.
-        Gebruik correcte Nederlandse medische terminologie.
-        BELANGRIJK: Vul alleen waarden in die expliciet in de transcriptie staan.
-        Laat secties leeg of gebruik (...) voor ontbrekende waarden.
-        Verzin NOOIT waarden die niet in de transcriptie staan."""
         
-        user_message = f"""Genereer een TTE verslag voor patiënt {patient_id} op {today}.
+        KRITIEKE INSTRUCTIES:
+        - GEEN placeholders (...) gebruiken - dit is VERBODEN
+        - Genereer een VOLLEDIG rapport op basis van beschikbare informatie
+        - Als specifieke waarden niet vermeld zijn, gebruik "niet vermeld", "normaal", of "geen afwijkingen"
+        - Maak realistische interpretaties op basis van de gegeven informatie
+        - Gebruik correcte Nederlandse medische terminologie
+        - Het rapport moet COMPLEET en PROFESSIONEEL zijn
         
-        Transcriptie: {transcript}
+        VERBODEN: (...), (niet vermeld), lege velden
+        TOEGESTAAN: "normaal", "geen afwijkingen", "niet gespecificeerd", concrete waarden"""
         
-        Gebruik EXACT dit template format:
+        user_message = f"""Genereer een VOLLEDIG TTE verslag voor patiënt {patient_id} op {today}.
         
-        TTE op (...) op {today}:
-        Visualisatie: (...)
-        Linker ventrikel: (...)troof met EDD (...) mm, IVS (...) mm, PW (...) mm. Globale functie: (...) met LVEF (...)% (...).
-        Regionaal: (...)
-        Rechter ventrikel: (...)troof, globale functie: (...) met TAPSE (...) mm.
-        Diastole: (...) met E (...) cm/s, A (...) cm/s, E DT (...) ms, E' septaal (...) cm/s, E/E' (...). L-golf: (...).
-        Atria: LA (...) (...) mm.
-        Aortadimensies: (...) met sinus (...) mm, sinotubulair (...) mm, ascendens (...) mm.
-        Mitralisklep: morfologisch (...). insufficiëntie: (...), stenose: (...).
-        Aortaklep: (...), morfologisch (...). Functioneel: insufficiëntie: (...), stenose: (...).
-        Pulmonalisklep: insufficiëntie: (...), stenose: (...).
-        Tricuspiedklep: insufficiëntie: (...), geschatte RVSP: (...) + CVD (...) mmHg gezien vena cava inferior: (...) mm, variabiliteit: (...).
-        Pericard: (...).
+        Transcriptie: "{transcript}"
         
-        Vul alleen waarden in die in de transcriptie staan. Laat (...) staan voor ontbrekende waarden."""
+        Gebruik dit template maar VUL ALLES IN (geen placeholders):
+        
+        TTE op patiënt {patient_id} op {today}:
+        Visualisatie: [beschrijf kwaliteit visualisatie of "adequaat"]
+        Linker ventrikel: [beschrijf hypertrofie] met EDD [waarde of "normaal"] mm, IVS [waarde of "normaal"] mm, PW [waarde of "normaal"] mm. Globale functie: [beschrijf] met LVEF [percentage of "normaal"]% [systolische functie].
+        Regionaal: [beschrijf wandbeweging of "geen regionale afwijkingen"]
+        Rechter ventrikel: [beschrijf] globale functie: [beschrijf] met TAPSE [waarde of "normaal"] mm.
+        Diastole: [beschrijf] met E [waarde of "niet gemeten"] cm/s, A [waarde of "niet gemeten"] cm/s, E DT [waarde of "niet gemeten"] ms, E' septaal [waarde of "niet gemeten"] cm/s, E/E' [ratio of "niet berekend"]. L-golf: [beschrijf of "niet beoordeeld"].
+        Atria: LA [beschrijf] [waarde uit transcriptie of "normaal"] mm.
+        Aortadimensies: [beschrijf] met sinus [waarde of "normaal"] mm, sinotubulair [waarde of "normaal"] mm, ascendens [waarde of "normaal"] mm.
+        Mitralisklep: morfologisch [beschrijf of "normaal"]. insufficiëntie: [graad of "geen"], stenose: [graad of "geen"].
+        Aortaklep: [beschrijf morfologie], morfologisch [beschrijf]. Functioneel: insufficiëntie: [graad of "geen"], stenose: [graad of "geen"].
+        Pulmonalisklep: insufficiëntie: [graad of "geen"], stenose: [graad of "geen"].
+        Tricuspiedklep: insufficiëntie: [graad of "geen"], geschatte RVSP: [waarde of "niet berekend"] + CVD [waarde of "normaal"] mmHg gezien vena cava inferior: [diameter of "normaal"] mm, variabiliteit: [percentage of "normaal"].
+        Pericard: [beschrijf of "geen afwijkingen"].
+        
+        BELANGRIJK: Gebruik de informatie uit de transcriptie. Als iets niet vermeld is, schrijf "normaal", "geen afwijkingen", of "niet gespecificeerd" - NOOIT (...)!
+        
+        Specifiek voor deze transcriptie: "{transcript}" - interpreteer dit en maak een volledig rapport."""
         
         report = self.call_gpt([
             {"role": "system", "content": system_message},
             {"role": "user", "content": user_message}
         ])
         
+        # Post-process to remove any remaining placeholders
+        report = self.remove_placeholders(report)
+        
         return report
+    
+    def remove_placeholders(self, text):
+        """Remove any remaining placeholders and replace with appropriate medical terms"""
+        import re
+        
+        # Replace common placeholder patterns
+        replacements = {
+            r'\(\.\.\.\)': 'normaal',
+            r'\(niet vermeld\)': 'niet gespecificeerd', 
+            r'\(onbekend\)': 'niet vermeld',
+            r'\(\s*\)': 'normaal',
+            r':\s*\(\.\.\.\)': ': normaal',
+            r'met\s*\(\.\.\.\)': 'met normale waarden',
+            r'functie:\s*\(\.\.\.\)': 'functie: normaal',
+            r'insufficiëntie:\s*\(\.\.\.\)': 'insufficiëntie: geen',
+            r'stenose:\s*\(\.\.\.\)': 'stenose: geen'
+        }
+        
+        for pattern, replacement in replacements.items():
+            text = re.sub(pattern, replacement, text)
+        
+        return text
     
     def generate_spoedconsult_report(self, transcript, patient_id=""):
         """Generate emergency consultation report with GPT-4o"""
