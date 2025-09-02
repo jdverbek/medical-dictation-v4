@@ -134,7 +134,7 @@ def rate_limit(max_requests=5, window=300):
         def decorated_function(*args, **kwargs):
             # Get client IP
             client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
-            current_time = datetime.datetime.now()
+            current_time = datetime.now()
             
             # Clean old entries
             cutoff_time = current_time - datetime.timedelta(seconds=window)
@@ -180,7 +180,7 @@ def create_user(username, email, first_name, last_name, password, consent_given=
             INSERT INTO users (username, email, first_name, last_name, password_hash, salt, consent_given, consent_date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (username, email, first_name, last_name, password_hash, salt, consent_given, 
-              datetime.datetime.now() if consent_given else None))
+              datetime.now() if consent_given else None))
         
         user_id = cursor.lastrowid
         conn.commit()
@@ -216,7 +216,7 @@ def authenticate_user(username, password):
         
         if verify_password(password, stored_hash, salt):
             # Update last login
-            cursor.execute('UPDATE users SET last_login = ? WHERE id = ?', (datetime.datetime.now(), user_id))
+            cursor.execute('UPDATE users SET last_login = ? WHERE id = ?', (datetime.now(), user_id))
             conn.commit()
             conn.close()
             

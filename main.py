@@ -426,7 +426,7 @@ Antwoord in JSON format met concrete aanbevelingen:
                 "agent_1_quality_control": agent_1_result,
                 "agent_2_diagnostic_expert": agent_2_result,
                 "agent_3_treatment_protocol": agent_3_result,
-                "analysis_timestamp": datetime.datetime.now().isoformat(),
+                "analysis_timestamp": datetime.now().isoformat(),
                 "confidence_score": agent_2_result.get("confidence", 0.7)
             }
             
@@ -449,7 +449,7 @@ Antwoord in JSON format met concrete aanbevelingen:
                     "treatment_plan": {"immediate_actions": ["Technische fout - handmatige evaluatie vereist"], "medications": [], "monitoring": [], "follow_up": ""},
                     "esc_guideline_class": "N/A", "evidence_level": "N/A", "esc_2024_citations": [], "quality_indicators": {}
                 },
-                "analysis_timestamp": datetime.datetime.now().isoformat(),
+                "analysis_timestamp": datetime.now().isoformat(),
                 "confidence_score": 0.0
             }
 
@@ -941,7 +941,7 @@ def transcribe():
             conn.close()
             
             print(f"✅ IMMEDIATE SAVE - Successfully saved to database with ID: {record_id}")
-            print(f"🔍 DEBUG: IMMEDIATE SAVE - Record saved at: {datetime.datetime.now()}")
+            print(f"🔍 DEBUG: IMMEDIATE SAVE - Record saved at: {datetime.now()}")
             
         except Exception as e:
             print(f"❌ IMMEDIATE SAVE - Database save failed: {e}")
@@ -1479,7 +1479,7 @@ def review_transcription(record_id):
             'verslag_type': record_data[2],
             'original_transcript': record_data[3],
             'structured_report': record_data[4],
-            'created_at': datetime.datetime.fromisoformat(record_data[5]) if record_data[5] else None,
+            'created_at': datetime.fromisoformat(record_data[5]) if record_data[5] else None,
             'enhanced_transcript': record_data[6] if len(record_data) > 6 else None
         }
         
