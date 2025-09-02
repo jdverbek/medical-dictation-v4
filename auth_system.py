@@ -3,6 +3,7 @@ Authentication System for Medical Dictation v4.0
 Secure user management with PostgreSQL/SQLite hybrid support
 """
 
+import os
 import hashlib
 import secrets
 import time
