@@ -651,7 +651,7 @@ init_db()
 @app.route('/')
 def index():
     """Main interface with enhanced template"""
-    return render_template('enhanced_index_v2.html')
+    return render_template('enhanced_index.html')
 
 @app.route('/transcribe', methods=['POST'])
 @rate_limit(max_requests=20, window=300)

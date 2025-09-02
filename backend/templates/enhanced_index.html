@@ -348,6 +348,146 @@
             font-family: monospace;
             font-size: 12px;
         }
+        
+        /* OCR Functionality Styles */
+        .patient-id-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .patient-id-input {
+            flex: 1;
+        }
+        .ocr-btn {
+            padding: 12px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .ocr-btn:hover {
+            background: #2980b9;
+            transform: translateY(-1px);
+        }
+        .ocr-result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e8;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .ocr-result.ocr-error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .hidden {
+            display: none;
+        }
+        
+        /* Camera Modal */
+        .camera-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .camera-content {
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .camera-video {
+            width: 100%;
+            max-width: 350px;
+            height: auto;
+            border-radius: 10px;
+            margin: 15px 0;
+            background: #000;
+            aspect-ratio: 4/3;
+            object-fit: cover;
+        }
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .camera-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            min-width: 100px;
+            touch-action: manipulation;
+        }
+        .capture-btn {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        .capture-btn:hover, .capture-btn:active {
+            background: #2980b9;
+            transform: scale(0.98);
+        }
+        .capture-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .cancel-btn {
+            background: #e74c3c;
+            color: white;
+        }
+        .cancel-btn:hover {
+            background: #c0392b;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .patient-id-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .ocr-btn {
+                width: 100%;
+            }
+            .camera-content {
+                margin: 5px;
+                padding: 10px;
+                max-height: 95vh;
+            }
+            .camera-video {
+                max-width: 100%;
+                margin: 10px 0;
+            }
+            .camera-btn {
+                font-size: 14px;
+                padding: 10px 15px;
+                min-width: 80px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -371,9 +511,14 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="patientId">🧑‍⚕️ Patiënt ID:</label>
-                <input type="text" id="patientId" name="patient_id" placeholder="Bijv. P12345" required>
-            </div>
+                    <label for="patientId">🧑‍⚕️ Patiënt ID (10 cijfers):</label>
+                    <div class="patient-id-group">
+                        <input type="text" id="patientId" name="patient_id" class="patient-id-input" 
+                               placeholder="Voer patiënt ID in of gebruik OCR" pattern="[0-9]{10}" maxlength="10">
+                        <button type="button" class="ocr-btn" id="ocrBtn">📷 OCR Scan</button>
+                    </div>
+                    <div id="ocrResult" class="ocr-result hidden"></div>
+                </div>
             
             <div class="form-group">
                 <label for="audioFile">🎵 Audio Bestand:</label>
@@ -473,12 +618,34 @@
         </div>
     </div>
 
+    <!-- Camera Modal -->
+    <div id="cameraModal" class="camera-modal">
+        <div class="camera-content">
+            <h3>📷 Scan Patiënt ID</h3>
+            <p style="font-size: 14px; margin: 10px 0; color: #666;">
+                📋 Richt de camera op het patiëntendocument<br>
+                🎯 Zorg dat het 10-cijferige nummer duidelijk zichtbaar is<br>
+                📱 Houd het apparaat stabiel en druk op "Maak Foto"
+            </p>
+            <video id="cameraVideo" class="camera-video" autoplay playsinline muted></video>
+            <canvas id="cameraCanvas" style="display: none;"></canvas>
+            <div class="camera-controls">
+                <button type="button" id="captureBtn" class="camera-btn capture-btn">📸 Maak Foto</button>
+                <button type="button" id="cancelCameraBtn" class="camera-btn cancel-btn">❌ Sluiten</button>
+            </div>
+            <div id="ocrProcessing" class="loading-text" style="display: none;">
+                🤖 AI analyseert foto voor patiëntennummer...
+            </div>
+        </div>
+    </div>
+
     <script>
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
         let isPaused = false;
         let isProcessing = false;
+        let cameraStream = null;
 
         const recordBtn = document.getElementById('recordBtn');
         const pauseBtn = document.getElementById('pauseBtn');
@@ -493,6 +660,17 @@
         const statusMessage = document.getElementById('statusMessage');
         const debugInfo = document.getElementById('debugInfo');
         const debugContent = document.getElementById('debugContent');
+        
+        // OCR Elements
+        const ocrBtn = document.getElementById('ocrBtn');
+        const patientIdInput = document.getElementById('patientId');
+        const ocrResult = document.getElementById('ocrResult');
+        const cameraModal = document.getElementById('cameraModal');
+        const cameraVideo = document.getElementById('cameraVideo');
+        const cameraCanvas = document.getElementById('cameraCanvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const cancelCameraBtn = document.getElementById('cancelCameraBtn');
+        const ocrProcessing = document.getElementById('ocrProcessing');
 
         // Show status message
         function showStatus(message, type = 'info') {
@@ -514,6 +692,127 @@
         function showDebug(info) {
             debugInfo.style.display = 'block';
             debugContent.innerHTML = `<pre>${JSON.stringify(info, null, 2)}</pre>`;
+        }
+
+        // OCR Functionality
+        ocrBtn.addEventListener('click', async () => {
+            try {
+                // Check if OCR is available first
+                const healthResponse = await fetch('/health');
+                const healthData = await healthResponse.json();
+                
+                if (!healthData.ocr_available) {
+                    showStatus('⚠️ OCR functionaliteit niet beschikbaar. Voer patiënt ID handmatig in.', 'warning');
+                    return;
+                }
+                
+                // Request camera access with mobile-optimized settings
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment', // Use back camera if available
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        aspectRatio: { ideal: 16/9 }
+                    } 
+                });
+                
+                cameraVideo.srcObject = cameraStream;
+                cameraModal.style.display = 'flex';
+                
+                // Ensure video plays on mobile
+                cameraVideo.play().catch(e => {
+                    console.log('Video autoplay failed, user interaction required');
+                });
+                
+                // Show OCR method info
+                showStatus('📱 Camera geopend. Richt op patiëntgegevens en maak een foto.', 'info');
+                
+            } catch (error) {
+                console.error('Camera access error:', error);
+                if (error.name === 'NotAllowedError') {
+                    showStatus('❌ Camera toegang geweigerd. Controleer browser instellingen en probeer opnieuw.', 'error');
+                } else if (error.name === 'NotFoundError') {
+                    showStatus('❌ Geen camera gevonden. Voer patiënt ID handmatig in.', 'error');
+                } else {
+                    showStatus('❌ Camera fout: ' + error.message + '. Probeer handmatige invoer.', 'error');
+                }
+            }
+        });
+
+        captureBtn.addEventListener('click', async () => {
+            try {
+                // Show processing indicator
+                ocrProcessing.style.display = 'block';
+                captureBtn.disabled = true;
+                
+                // Capture image from video
+                const canvas = cameraCanvas;
+                const context = canvas.getContext('2d');
+                canvas.width = cameraVideo.videoWidth;
+                canvas.height = cameraVideo.videoHeight;
+                context.drawImage(cameraVideo, 0, 0);
+                
+                // Convert to base64
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                
+                // Send to OCR endpoint
+                const response = await fetch('/ocr-patient-id', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Fill patient ID field
+                    patientIdInput.value = result.patient_number;
+                    
+                    // Show success message with method info
+                    const method = result.method === 'openai_vision' ? '🌐 Cloud OCR' : '🔍 Local OCR';
+                    ocrResult.className = 'ocr-result';
+                    ocrResult.innerHTML = `✅ Patiëntennummer gevonden: <strong>${result.patient_number}</strong><br><small>${method}</small>`;
+                    ocrResult.classList.remove('hidden');
+                    
+                    // Close camera modal
+                    closeCameraModal();
+                    
+                    showStatus(`✅ Patiëntennummer succesvol herkend via ${method}!`, 'success');
+                } else {
+                    // Show error with debug info
+                    let errorHtml = `❌ ${result.error}<br><small>${result.suggestion || ''}</small>`;
+                    if (result.debug_info) {
+                        errorHtml += `<br><details style="margin-top: 10px;"><summary>Debug Info</summary><pre style="font-size: 11px; margin: 5px 0;">${result.debug_info}</pre></details>`;
+                    }
+                    
+                    ocrResult.className = 'ocr-result ocr-error';
+                    ocrResult.innerHTML = errorHtml;
+                    ocrResult.classList.remove('hidden');
+                    
+                    showStatus('❌ OCR fout: ' + result.error, 'error');
+                }
+                
+            } catch (error) {
+                console.error('OCR error:', error);
+                showStatus('❌ OCR verwerking gefaald: ' + error.message, 'error');
+            } finally {
+                ocrProcessing.style.display = 'none';
+                captureBtn.disabled = false;
+            }
+        });
+
+        cancelCameraBtn.addEventListener('click', closeCameraModal);
+
+        function closeCameraModal() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            cameraModal.style.display = 'none';
+            ocrProcessing.style.display = 'none';
+            captureBtn.disabled = false;
         }
 
         // Recording functionality with pause/resume support
