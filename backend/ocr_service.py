@@ -144,12 +144,13 @@ class PatientNumberOCR:
                                 "type": "text",
                                 "text": """Look at this medical software interface screenshot and find the patient ID number.
 
-TASK: Extract the patient ID number (exactly 10 digits)
+TASK: Extract the patient identification number
 
 WHAT TO LOOK FOR:
-- A 10-digit patient ID number (like "0033001339")
+- A patient ID number that is 9-10 digits long
+- Can start with ANY digit (0-9), not necessarily zero
+- Examples: 5501151942, 0033001339, 1234567890, 9876543210
 - Usually displayed near the patient name and basic info
-- Often starts with zeros (e.g., 0033001339, 0012345678)
 - This is the main patient identifier in the medical system
 - May be labeled as "Patient ID", "ID", or just displayed as a number
 
@@ -157,19 +158,20 @@ TYPICAL LOCATIONS:
 - Near patient name and demographic information
 - In the patient header/info section
 - Could be anywhere in the patient information area
-- May be next to a patient photo or photo placeholder
+- May be next to a patient photo or photo placeholder (gray or colored area)
 
 WHAT TO IGNORE:
-- Phone numbers (usually shorter or have formatting)
-- Dates (like 15-06-1986, different format)
-- Short reference numbers (less than 10 digits)
-- Any number that's not exactly 10 digits
+- Phone numbers (usually have spaces, dashes, or different formatting)
+- Dates (like 15-06-1986, different format with slashes/dashes)
+- Short reference numbers (less than 9 digits)
+- Very long numbers (more than 10 digits)
+- Numbers that are clearly timestamps or system IDs
 
 RESPONSE FORMAT:
-- If you find the 10-digit patient ID: return just the number (e.g., "0033001339")
+- If you find a 9-10 digit patient ID: return just the number (e.g., "5501151942")
 - If not found: respond "NO_PATIENT_ID - I see these numbers: [list all numbers you find]"
 
-Scan the entire interface for any 10-digit number that could be a patient ID."""
+Scan the entire interface for any 9-10 digit number that could be a patient ID. Pay special attention to numbers that start with digits other than zero."""
                             },
                             {
                                 "type": "image_url",
@@ -354,24 +356,56 @@ Scan the entire interface for any 10-digit number that could be a patient ID."""
     def find_patient_numbers_flexible(self, text):
         """
         Find patient numbers (9-10 digits) in text with flexible matching
+        Handles numbers with or without leading zeros
         """
-        # Pattern for 9-10 digits (to handle both cases)
+        import re
+        
+        # Clean the text first
+        text = text.strip()
+        
+        # Pattern for 9-10 digits with word boundaries
         patterns = [
-            r'\b\d{10}\b',  # Exactly 10 digits
-            r'\b\d{9}\b',   # Exactly 9 digits
+            r'\b(\d{10})\b',  # Exactly 10 digits
+            r'\b(\d{9})\b',   # Exactly 9 digits
+            r'(\d{10})',      # 10 digits without strict boundaries
+            r'(\d{9})',       # 9 digits without strict boundaries
         ]
         
         unique_numbers = []
         for pattern in patterns:
             matches = re.findall(pattern, text)
             for match in matches:
-                if match not in unique_numbers:
-                    # Pad 9-digit numbers to 10 digits with leading zero
-                    if len(match) == 9:
-                        match = '0' + match
+                if match not in unique_numbers and self._is_valid_patient_number(match):
                     unique_numbers.append(match)
         
         return unique_numbers
+    
+    def _is_valid_patient_number(self, number_str):
+        """
+        Validate if a number string could be a patient number
+        """
+        if not number_str or not number_str.isdigit():
+            return False
+        
+        # Must be 9 or 10 digits
+        if len(number_str) < 9 or len(number_str) > 10:
+            return False
+        
+        # Reject obvious non-patient numbers
+        invalid_patterns = [
+            r'^0{5,}',          # Too many leading zeros (00000...)
+            r'^1{5,}',          # Too many ones (11111...)
+            r'^9{5,}',          # Too many nines (99999...)
+            r'^(19|20)\d{8}$',  # Looks like a timestamp (19xxxxxxxx, 20xxxxxxxx)
+            r'^123456789[0-9]?$',  # Sequential test numbers
+            r'^987654321[0-9]?$',  # Sequential test numbers
+        ]
+        
+        for pattern in invalid_patterns:
+            if re.match(pattern, number_str):
+                return False
+        
+        return True
     
     def find_patient_numbers(self, text):
         """

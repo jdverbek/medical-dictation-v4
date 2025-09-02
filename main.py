@@ -940,19 +940,31 @@ def transcribe():
         
         print(f"🔍 DEBUG: Generated report preview: {structured_report[:100]}...")
         
-        # Store in database
+        # Store in database with enhanced transcript
         try:
-            conn = sqlite3.connect('medical_app.db')
+            user = get_current_user()
+            user_id = user['id'] if user else 1  # Fallback for compatibility
+            
+            conn = sqlite3.connect('medical_app_v4.db')
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO transcription_history 
-                (patient_id, verslag_type, original_transcript, structured_report)
-                VALUES (?, ?, ?, ?)
-            ''', (patient_id, verslag_type, raw_transcript, structured_report))
+                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                user_id, 
+                patient_id, 
+                verslag_type, 
+                raw_transcript, 
+                structured_report,
+                enhanced_transcription_result['enhanced_transcript'] if enhanced_transcription_result else raw_transcript
+            ))
             conn.commit()
             conn.close()
+            print(f"✅ Saved to database with enhanced transcript")
         except Exception as e:
             logger.error(f"Database error: {e}")
+            print(f"❌ Database save failed: {e}")
         
         # Return comprehensive JSON response
         return jsonify({
