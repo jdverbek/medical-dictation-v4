@@ -492,8 +492,41 @@
 </head>
 <body>
     <div class="container">
-        <h1>🏥 Medical Dictation v4.0</h1>
-        <div class="subtitle">AI-Powered Medical Transcription System</div>
+        <!-- Navigation Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #f8f9fa;">
+            <div>
+                <h1 style="margin: 0; font-size: 24px;">🏥 Medical Dictation v4.0</h1>
+                <div class="subtitle" style="margin: 5px 0 0 0; text-align: left;">AI-Powered Medical Transcription System</div>
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <a href="{{ url_for('history') }}" style="
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    color: white;
+                    text-decoration: none;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    📋 Review & Geschiedenis
+                </a>
+                <a href="{{ url_for('logout') }}" style="
+                    background: #f8f9fa;
+                    color: #495057;
+                    text-decoration: none;
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    border: 1px solid #dee2e6;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    🚪 Uitloggen
+                </a>
+            </div>
+        </div>
 
         <!-- Status Messages -->
         <div id="statusMessage"></div>
