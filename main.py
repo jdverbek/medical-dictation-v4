@@ -814,6 +814,10 @@ def index():
 @rate_limit(max_requests=20, window=300)
 def transcribe():
     """Superior transcription endpoint with enhanced features"""
+    import sys
+    sys.stdout.write("🔍 SIMPLE TEST: /transcribe function called\n")
+    sys.stdout.flush()
+    
     try:
         # Get form data
         verslag_type = request.form.get('verslag_type', 'TTE')
