@@ -1084,7 +1084,13 @@ def transcribe():
 @rate_limit(max_requests=20, window=300)
 def api_transcribe():
     """API endpoint for transcription"""
-    print(f"🔍 DEBUG: ===== API_TRANSCRIBE FUNCTION STARTED =====")
+    try:
+        logger.info("🔍 DEBUG: ===== API_TRANSCRIBE FUNCTION STARTED =====")
+        print("🔍 DEBUG: ===== API_TRANSCRIBE FUNCTION STARTED =====", flush=True)
+    except Exception as e:
+        logger.error(f"🔍 DEBUG: Exception in function start: {e}")
+        print(f"🔍 DEBUG: Exception in function start: {e}", flush=True)
+    
     try:
         # Check if audio file is present
         if 'audio' not in request.files:
