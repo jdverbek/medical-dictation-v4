@@ -195,7 +195,20 @@ def create_user(username, email, first_name, last_name, password, consent_given=
                   datetime.now() if consent_given else None))
             
             # Get the ID from RETURNING clause in PostgreSQL
-            user_id = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            print(f"🔍 DEBUG: PostgreSQL RETURNING result: {result}")
+            print(f"🔍 DEBUG: Result type: {type(result)}")
+            
+            if result:
+                if isinstance(result, (list, tuple)):
+                    user_id = result[0]
+                else:
+                    user_id = result
+                print(f"🔍 DEBUG: Extracted user_id: {user_id}")
+            else:
+                print("❌ DEBUG: No result from RETURNING clause")
+                conn.close()
+                return False, "Failed to get user ID from database"
         else:
             # SQLite version
             cursor.execute('''
