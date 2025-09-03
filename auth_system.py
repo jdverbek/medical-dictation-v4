@@ -133,11 +133,15 @@ def log_security_event(event_type, user_id=None, details=None):
     except Exception as e:
         security_logger.error(f"Failed to log security event: {e}")
 
-def rate_limit(max_requests=5, window=300):
-    """Rate limiting decorator"""
+def rate_limit(max_requests=20, window=300):
+    """Rate limiting decorator - Only applies to POST requests (login/register attempts)"""
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            # Only apply rate limiting to POST requests (actual login/register attempts)
+            if request.method != 'POST':
+                return f(*args, **kwargs)
+                
             # Get client IP
             client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
             current_time = datetime.now()

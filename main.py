@@ -750,10 +750,15 @@ def login():
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
-@rate_limit(max_requests=3, window=300)  # 3 attempts per 5 minutes
 def register():
     """Register route with security logging"""
-    if request.method == 'POST':
+    if request.method == 'GET':
+        # No rate limiting for viewing the registration form
+        return render_template('register.html')
+    
+    # Apply rate limiting only to POST requests
+    @rate_limit(max_requests=10, window=300)  # 10 attempts per 5 minutes
+    def handle_registration():
         # Get and sanitize form data
         username = request.form.get('username', '').strip()
         email = request.form.get('email', '').strip().lower()
