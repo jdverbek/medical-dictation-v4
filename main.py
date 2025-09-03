@@ -1292,6 +1292,8 @@ def api_transcribe():
                 ai_treatment = "AI aanbevelingen niet beschikbaar"
                 treatment_differences = ["Vergelijking niet mogelijk"]
         
+        print(f"🔍 DEBUG: About to start immediate save - reached this point successfully")
+        
         # 💾 IMMEDIATE SAVE TO DATABASE (PostgreSQL only)
         print(f"🔍 DEBUG: API IMMEDIATE SAVE - Starting database save right after transcription")
         print(f"🔍 DEBUG: API IMMEDIATE SAVE - Using PostgreSQL")
@@ -1826,73 +1828,50 @@ def debug_database():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check connection and database info
-        if is_postgresql():
-            cursor.execute("SELECT current_database(), version()")
-            db_info = cursor.fetchone()
-            
-            # Count records
-            cursor.execute("SELECT COUNT(*) FROM transcription_history")
-            count = cursor.fetchone()[0]
-            
-            # Get recent records
-            cursor.execute("""
-                SELECT id, patient_id, verslag_type, created_at 
-                FROM transcription_history 
-                ORDER BY created_at DESC LIMIT 5
-            """)
-            recent = cursor.fetchall()
-            
-            # Test insert
-            cursor.execute("""
-                INSERT INTO transcription_history 
-                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (1, "TEST123", "DEBUG", "Test transcription", "Test report", "Test enhanced"))
-            test_id = cursor.fetchone()[0]
-            
-        else:
-            cursor.execute("SELECT 'SQLite' as db, sqlite_version() as version")
-            db_info = cursor.fetchone()
-            
-            cursor.execute("SELECT COUNT(*) FROM transcription_history")
-            count = cursor.fetchone()[0]
-            
-            cursor.execute("""
-                SELECT id, patient_id, verslag_type, created_at 
-                FROM transcription_history 
-                ORDER BY created_at DESC LIMIT 5
-            """)
-            recent = cursor.fetchall()
-            
-            cursor.execute("""
-                INSERT INTO transcription_history 
-                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
-                VALUES (?, %s, %s, %s, %s, %s)
-            """, (1, "TEST123", "DEBUG", "Test transcription", "Test report", "Test enhanced"))
-            test_id = cursor.lastrowid
+        # Check connection and database info - PostgreSQL only
+        cursor.execute("SELECT current_database(), version()")
+        db_info = cursor.fetchone()
+        
+        # Count records
+        cursor.execute("SELECT COUNT(*) FROM transcription_history")
+        count_result = cursor.fetchone()
+        count = count_result['count'] if isinstance(count_result, dict) else count_result[0]
+        
+        # Get recent records
+        cursor.execute("""
+            SELECT id, patient_id, verslag_type, created_at 
+            FROM transcription_history 
+            ORDER BY created_at DESC LIMIT 5
+        """)
+        recent = cursor.fetchall()
+        
+        # Test insert
+        cursor.execute("""
+            INSERT INTO transcription_history 
+            (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (1, "TEST123", "DEBUG", "Test transcription", "Test report", "Test enhanced"))
+        test_result = cursor.fetchone()
+        test_id = test_result['id'] if isinstance(test_result, dict) else test_result[0]
         
         conn.commit()
         
         # Verify the test record exists
-        if is_postgresql():
-            cursor.execute("SELECT * FROM transcription_history WHERE id = %s", (test_id,))
-        else:
-            cursor.execute("SELECT * FROM transcription_history WHERE id = %s", (test_id,))
+        cursor.execute("SELECT * FROM transcription_history WHERE id = %s", (test_id,))
         test_record = cursor.fetchone()
         
         conn.close()
         
         return jsonify({
             "success": True,
-            "database_type": "PostgreSQL" if is_postgresql() else "SQLite",
+            "database_type": "PostgreSQL",
             "database_info": db_info,
             "total_records": count,
-            "recent_records": [{"id": r[0], "patient_id": r[1], "type": r[2], "created_at": str(r[3])} for r in recent],
+            "recent_records": [{"id": r['id'], "patient_id": r['patient_id'], "type": r['verslag_type'], "created_at": str(r['created_at'])} for r in recent],
             "test_insert_id": test_id,
             "test_record_found": test_record is not None,
-            "test_record": test_record if test_record else None
+            "test_record": dict(test_record) if test_record else None
         })
         
     except Exception as e:
