@@ -1634,6 +1634,42 @@ def debug_environment():
         "working_directory": os.getcwd()
     })
 
+@app.route('/debug-url-parsing')
+@login_required
+def debug_url_parsing():
+    """Debug DATABASE_URL parsing"""
+    import os
+    from urllib.parse import urlparse
+    
+    database_url = os.environ.get('DATABASE_URL')
+    
+    if not database_url:
+        return jsonify({"error": "DATABASE_URL not found"})
+    
+    # Parse URL
+    result = urlparse(database_url)
+    
+    # Safe URL display (hide password)
+    safe_url = database_url.replace(result.password or '', '***') if result.password else database_url
+    
+    return jsonify({
+        "success": True,
+        "database_url_length": len(database_url),
+        "database_url_safe": safe_url,
+        "parsed_components": {
+            "scheme": result.scheme,
+            "hostname": result.hostname,
+            "port": result.port,
+            "username": result.username,
+            "password_present": bool(result.password),
+            "path": result.path,
+            "database_name": result.path[1:] if result.path else None,
+            "query": result.query,
+            "fragment": result.fragment
+        },
+        "url_starts_with": database_url[:50] + "..." if len(database_url) > 50 else database_url
+    })
+
 @app.route('/debug-db-connection')
 @login_required
 def debug_database_connection():
