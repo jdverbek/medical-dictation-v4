@@ -334,6 +334,7 @@ def api_transcribe():
         print(f"🔍 API DEBUG: Template selected = '{verslag_type}'")
         print(f"🔍 API DEBUG: Patient ID = '{patient_id}'")
         print(f"🔍 API DEBUG: Audio filename = '{audio_file.filename}'")
+        print(f"🔍 DEBUG: API_TRANSCRIBE FUNCTION REACHED - flask_app_superior.py")
         
         # Transcribe audio with report type
         transcription_result = transcription_service.transcribe_audio(audio_file, verslag_type)        
@@ -481,6 +482,8 @@ def api_transcribe():
                 print(f"⚠️ Treatment comparison failed: {e}")
                 ai_treatment = "AI aanbevelingen niet beschikbaar"
                 treatment_differences = ["Vergelijking niet mogelijk"]
+        
+        print(f"🔍 DEBUG: About to start database save - flask_app_superior.py")
         
         # 💾 SAVE TO POSTGRESQL DATABASE
         try:
