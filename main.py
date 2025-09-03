@@ -1179,6 +1179,37 @@ def api_transcribe():
                 # Use improved transcript from Agent 1
                 improved_transcript = expert_analysis.get('agent_1_quality_control', {}).get('improved_transcript', transcript)
                 print(f"🤖 API DEBUG: Expert analysis completed successfully!")
+                
+                # 💾 IMMEDIATE DATABASE SAVE AFTER MEDICAL EXPERTS
+                print(f"🔍 DEBUG: IMMEDIATE SAVE AFTER EXPERTS - Starting database save")
+                try:
+                    # Get current user
+                    user = get_current_user()
+                    user_id = user.get('id') if user else 1
+                    
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    
+                    cursor.execute('''
+                        INSERT INTO transcription_history 
+                        (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    ''', (user_id, patient_id, verslag_type, transcript, "Processing...", improved_transcript, datetime.now()))
+                    
+                    result = cursor.fetchone()
+                    record_id = result['id'] if isinstance(result, dict) else result[0]
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    print(f"✅ IMMEDIATE SAVE AFTER EXPERTS - Successfully saved with ID: {record_id}")
+                    
+                except Exception as e:
+                    print(f"❌ IMMEDIATE SAVE AFTER EXPERTS - Failed: {e}")
+                    import traceback
+                    print(f"🔍 DEBUG: Save error traceback: {traceback.format_exc()}")
+                
             except Exception as e:
                 print(f"⚠️ API DEBUG: Expert analysis failed: {e}")
                 import traceback
