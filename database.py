@@ -73,6 +73,8 @@ def init_db():
                 structured_report TEXT,
                 enhanced_transcript TEXT,
                 quality_feedback TEXT,
+                improved_report TEXT,
+                differential_diagnosis TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP
             )
