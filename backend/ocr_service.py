@@ -147,31 +147,33 @@ class PatientNumberOCR:
 TASK: Extract the patient identification number
 
 WHAT TO LOOK FOR:
-- A patient ID number that is 9-10 digits long
-- Can start with ANY digit (0-9), not necessarily zero
-- Examples: 5501151942, 0033001339, 1234567890, 9876543210
-- Usually displayed near the patient name and basic info
+- A patient ID number that is typically 9-10 digits long
+- Can start with ANY digit (0-9), including numbers starting with 5, 0, 1, etc.
+- Examples: 5508201059, 0033001339, 1234567890, 9876543210
+- Usually displayed prominently near the patient name and basic info
 - This is the main patient identifier in the medical system
 - May be labeled as "Patient ID", "ID", or just displayed as a number
 
-TYPICAL LOCATIONS:
-- Near patient name and demographic information
-- In the patient header/info section
-- Could be anywhere in the patient information area
-- May be next to a patient photo or photo placeholder (gray or colored area)
+TYPICAL LOCATIONS IN MEDICAL SOFTWARE:
+- In the patient header section (top area)
+- Near patient name and demographic information (name, birth date)
+- Could be in a yellow/highlighted field or box
+- May be next to a patient photo or photo placeholder
+- Often displayed in a larger or bold font
+- Usually the longest number sequence visible
 
 WHAT TO IGNORE:
-- Phone numbers (usually have spaces, dashes, or different formatting)
-- Dates (like 15-06-1986, different format with slashes/dashes)
-- Short reference numbers (less than 9 digits)
-- Very long numbers (more than 10 digits)
+- Phone numbers (usually have spaces, dashes, or different formatting like 0487333549)
+- Dates (like 28-08-1955, different format with slashes/dashes)
+- Short reference numbers (less than 8 digits)
+- Very long numbers (more than 11 digits)
 - Numbers that are clearly timestamps or system IDs
 
 RESPONSE FORMAT:
-- If you find a 9-10 digit patient ID: return just the number (e.g., "5501151942")
+- If you find a 9-10 digit patient ID: return just the number (e.g., "5508201059")
 - If not found: respond "NO_PATIENT_ID - I see these numbers: [list all numbers you find]"
 
-Scan the entire interface for any 9-10 digit number that could be a patient ID. Pay special attention to numbers that start with digits other than zero."""
+Look carefully at the entire interface, especially areas with patient information. The patient ID is usually the most prominent number after the patient's name."""
                             },
                             {
                                 "type": "image_url",
@@ -362,21 +364,36 @@ Scan the entire interface for any 9-10 digit number that could be a patient ID. 
         
         # Clean the text first
         text = text.strip()
+        print(f"🔍 Searching for patient numbers in: {repr(text)}")
         
-        # Pattern for 9-10 digits with word boundaries
+        # Multiple patterns to catch different formats
         patterns = [
-            r'\b(\d{10})\b',  # Exactly 10 digits
-            r'\b(\d{9})\b',   # Exactly 9 digits
-            r'(\d{10})',      # 10 digits without strict boundaries
-            r'(\d{9})',       # 9 digits without strict boundaries
+            r'\b(\d{10})\b',          # Exactly 10 digits with word boundaries
+            r'\b(\d{9})\b',           # Exactly 9 digits with word boundaries  
+            r'(\d{10})',              # 10 digits without strict boundaries
+            r'(\d{9})',               # 9 digits without strict boundaries
+            r'(\d{4}\s*\d{3}\s*\d{3})', # Spaced format: 5508 201 059
+            r'(\d{4}\s*\d{6})',       # Spaced format: 5508 201059
         ]
         
         unique_numbers = []
         for pattern in patterns:
             matches = re.findall(pattern, text)
             for match in matches:
-                if match not in unique_numbers and self._is_valid_patient_number(match):
-                    unique_numbers.append(match)
+                # Remove spaces and validate
+                clean_number = re.sub(r'\s+', '', match)
+                if clean_number not in unique_numbers and self._is_valid_patient_number(clean_number):
+                    unique_numbers.append(clean_number)
+                    print(f"✅ Found valid patient number: {clean_number}")
+        
+        # If no exact matches, try to find any sequence of 9-10 digits
+        if not unique_numbers:
+            all_digits = re.findall(r'\d+', text)
+            print(f"🔍 All digit sequences found: {all_digits}")
+            for digits in all_digits:
+                if len(digits) >= 9 and len(digits) <= 10 and self._is_valid_patient_number(digits):
+                    unique_numbers.append(digits)
+                    print(f"✅ Found fallback patient number: {digits}")
         
         return unique_numbers
     
