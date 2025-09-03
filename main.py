@@ -750,77 +750,74 @@ def login():
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
+@rate_limit(max_requests=10, window=300)  # 10 attempts per 5 minutes for POST only
 def register():
     """Register route with security logging"""
     if request.method == 'GET':
         # No rate limiting for viewing the registration form
         return render_template('register.html')
     
-    # Apply rate limiting only to POST requests
-    @rate_limit(max_requests=10, window=300)  # 10 attempts per 5 minutes
-    def handle_registration():
-        # Get and sanitize form data
-        username = request.form.get('username', '').strip()
-        email = request.form.get('email', '').strip().lower()
-        first_name = request.form.get('first_name', '').strip()
-        last_name = request.form.get('last_name', '').strip()
-        password = request.form.get('password', '')
-        gdpr_consent = request.form.get('consent_given') == 'on'
-        
-        # Input validation
-        if not all([username, email, first_name, last_name, password]):
-            log_security_event('REGISTRATION_ATTEMPT_FAILED', details='Missing required fields')
-            flash('All fields are required', 'error')
-            return render_template('register.html')
-        
-        # Validate input lengths and characters
-        if (len(username) > 50 or len(email) > 100 or 
-            len(first_name) > 50 or len(last_name) > 50):
-            log_security_event('REGISTRATION_ATTEMPT_SUSPICIOUS', details='Field length exceeded')
-            flash('Input fields too long', 'error')
-            return render_template('register.html')
-        
-        # Check for suspicious characters
-        suspicious_chars = ['<', '>', '"', "'", '&', 'script', 'javascript']
-        for field in [username, email, first_name, last_name]:
-            if any(char in field.lower() for char in suspicious_chars):
-                log_security_event('REGISTRATION_ATTEMPT_SUSPICIOUS', 
-                                 details=f'Suspicious characters in input: {field[:20]}')
-                flash('Invalid characters in input fields', 'error')
-                return render_template('register.html')
-        
-        # Validate email format
-        import re
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(email_pattern, email):
-            log_security_event('REGISTRATION_ATTEMPT_FAILED', details=f'Invalid email format: {email}')
-            flash('Invalid email format', 'error')
-            return render_template('register.html')
-        
-        # Password strength validation
-        if len(password) < 8:
-            log_security_event('REGISTRATION_ATTEMPT_FAILED', details='Weak password')
-            flash('Password must be at least 8 characters long', 'error')
-            return render_template('register.html')
-        
-        if not gdpr_consent:
-            log_security_event('REGISTRATION_ATTEMPT_FAILED', details='GDPR consent not given')
-            flash('You must agree to the GDPR terms to register', 'error')
-            return render_template('register.html')
-        
-        # Create user account
-        success, result = create_user(username, email, first_name, last_name, password, gdpr_consent)
-        
-        if success:
-            log_security_event('REGISTRATION_SUCCESS', user_id=result, details=f'New user: {username}')
-            flash('Account created successfully! Please log in.', 'success')
-            return redirect(url_for('login'))
-        else:
-            log_security_event('REGISTRATION_ATTEMPT_FAILED', details=f'Failed registration: {result}')
-            flash(result, 'error')
+    # Handle POST request (registration attempt)
+    # Get and sanitize form data
+    username = request.form.get('username', '').strip()
+    email = request.form.get('email', '').strip().lower()
+    first_name = request.form.get('first_name', '').strip()
+    last_name = request.form.get('last_name', '').strip()
+    password = request.form.get('password', '')
+    gdpr_consent = request.form.get('consent_given') == 'on'
+    
+    # Input validation
+    if not all([username, email, first_name, last_name, password]):
+        log_security_event('REGISTRATION_ATTEMPT_FAILED', details='Missing required fields')
+        flash('All fields are required', 'error')
+        return render_template('register.html')
+    
+    # Validate input lengths and characters
+    if (len(username) > 50 or len(email) > 100 or 
+        len(first_name) > 50 or len(last_name) > 50):
+        log_security_event('REGISTRATION_ATTEMPT_SUSPICIOUS', details='Field length exceeded')
+        flash('Input fields too long', 'error')
+        return render_template('register.html')
+    
+    # Check for suspicious characters
+    suspicious_chars = ['<', '>', '"', "'", '&', 'script', 'javascript']
+    for field in [username, email, first_name, last_name]:
+        if any(char in field.lower() for char in suspicious_chars):
+            log_security_event('REGISTRATION_ATTEMPT_SUSPICIOUS', 
+                             details=f'Suspicious characters in input: {field[:20]}')
+            flash('Invalid characters in input fields', 'error')
             return render_template('register.html')
     
-    return render_template('register.html')
+    # Validate email format
+    import re
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, email):
+        log_security_event('REGISTRATION_ATTEMPT_FAILED', details=f'Invalid email format: {email}')
+        flash('Invalid email format', 'error')
+        return render_template('register.html')
+    
+    # Password strength validation
+    if len(password) < 8:
+        log_security_event('REGISTRATION_ATTEMPT_FAILED', details='Weak password')
+        flash('Password must be at least 8 characters long', 'error')
+        return render_template('register.html')
+    
+    if not gdpr_consent:
+        log_security_event('REGISTRATION_ATTEMPT_FAILED', details='GDPR consent not given')
+        flash('You must agree to the GDPR terms to register', 'error')
+        return render_template('register.html')
+    
+    # Create user account
+    success, result = create_user(username, email, first_name, last_name, password, gdpr_consent)
+    
+    if success:
+        log_security_event('REGISTRATION_SUCCESS', user_id=result, details=f'New user: {username}')
+        flash('Account created successfully! Please log in.', 'success')
+        return redirect(url_for('login'))
+    else:
+        log_security_event('REGISTRATION_ATTEMPT_FAILED', details=f'Failed registration: {result}')
+        flash(result, 'error')
+        return render_template('register.html')
 
 @app.route('/logout')
 def logout():
