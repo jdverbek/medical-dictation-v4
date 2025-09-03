@@ -1292,6 +1292,102 @@ def api_transcribe():
                 ai_treatment = "AI aanbevelingen niet beschikbaar"
                 treatment_differences = ["Vergelijking niet mogelijk"]
         
+        # 💾 IMMEDIATE SAVE TO DATABASE (same as /transcribe endpoint)
+        print(f"🔍 DEBUG: API IMMEDIATE SAVE - Starting database save right after transcription")
+        print(f"🔍 DEBUG: API IMMEDIATE SAVE - Using {'PostgreSQL' if is_postgresql() else 'SQLite'}")
+        
+        try:
+            # Get current user
+            user = get_current_user()
+            print(f"🔍 DEBUG: API IMMEDIATE SAVE - Current user: {user}")
+            
+            user_id = None
+            if not user:
+                print("❌ DEBUG: API IMMEDIATE SAVE - No user found in session!")
+                # Try to get user_id from session directly
+                if 'user_id' in session:
+                    user_id = session['user_id']
+                    print(f"🔍 DEBUG: API IMMEDIATE SAVE - Found user_id in session: {user_id}")
+                else:
+                    user_id = 1  # Fallback to admin user
+                    print(f"🔍 DEBUG: API IMMEDIATE SAVE - Using fallback user_id: {user_id}")
+            else:
+                user_id = user.get('id') if isinstance(user, dict) else user[0]
+                print(f"🔍 DEBUG: API IMMEDIATE SAVE - Using user from get_current_user: {user_id}")
+            
+            print(f"🔍 DEBUG: API IMMEDIATE SAVE - Final user_id: {user_id}")
+            print(f"🔍 DEBUG: API IMMEDIATE SAVE - Patient: {patient_id}, Type: {verslag_type}")
+            print(f"🔍 DEBUG: API IMMEDIATE SAVE - Transcript length: {len(transcript)}")
+            
+            # Save to database immediately
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            if is_postgresql():
+                cursor.execute('''
+                    INSERT INTO transcription_history 
+                    (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                ''', (
+                    user_id,
+                    patient_id or 'Unknown',
+                    verslag_type,
+                    transcript,
+                    report,
+                    improved_transcript,
+                    str(quality_feedback) if quality_feedback else 'No feedback',
+                    datetime.now()
+                ))
+                result = cursor.fetchone()
+                record_id = result[0] if result else None
+            else:
+                cursor.execute('''
+                    INSERT INTO transcription_history 
+                    (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    user_id,
+                    patient_id or 'Unknown',
+                    verslag_type,
+                    transcript,
+                    report,
+                    improved_transcript,
+                    str(quality_feedback) if quality_feedback else 'No feedback',
+                    datetime.now()
+                ))
+                record_id = cursor.lastrowid
+            
+            conn.commit()
+            conn.close()
+            
+            print(f"✅ API IMMEDIATE SAVE - Successfully saved to database with ID: {record_id}")
+            print(f"🔍 DEBUG: API IMMEDIATE SAVE - Record saved at: {datetime.now()}")
+            
+        except Exception as e:
+            print(f"❌ API IMMEDIATE SAVE - Database save failed: {e}")
+            import traceback
+            print(f"🔍 DEBUG: API IMMEDIATE SAVE - Full error traceback: {traceback.format_exc()}")
+            
+            # Try alternative save method
+            try:
+                print(f"🔍 DEBUG: API IMMEDIATE SAVE - Trying alternative save method...")
+                success = save_transcription(
+                    user_id=user_id,
+                    patient_id=patient_id or 'Unknown',
+                    verslag_type=verslag_type,
+                    original_transcript=transcript,
+                    structured_report=report,
+                    enhanced_transcript=improved_transcript,
+                    quality_feedback=str(quality_feedback) if quality_feedback else 'No feedback'
+                )
+                if success:
+                    print(f"✅ API IMMEDIATE SAVE - Alternative save method succeeded!")
+                else:
+                    print(f"❌ API IMMEDIATE SAVE - Alternative save also failed: {success}")
+            except Exception as e2:
+                print(f"❌ API IMMEDIATE SAVE - Alternative save also failed: {e2}")
+        
         return jsonify({
             'success': True,
             'transcript': improved_transcript,  # Show improved transcript
