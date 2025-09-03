@@ -1493,23 +1493,37 @@ def history():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get transcription history for current user only
-        cursor.execute('''
-            SELECT id, patient_id, verslag_type, original_transcript, 
-                   structured_report, created_at
-            FROM transcription_history 
-            WHERE user_id = %s
-            ORDER BY created_at DESC 
-            LIMIT 50
-        ''', (user['id'],))
+        # Get transcription history for current user only - database agnostic
+        if is_postgresql():
+            cursor.execute('''
+                SELECT id, patient_id, verslag_type, original_transcript, 
+                       structured_report, created_at
+                FROM transcription_history 
+                WHERE user_id = %s
+                ORDER BY created_at DESC 
+                LIMIT 50
+            ''', (user['id'],))
+        else:
+            cursor.execute('''
+                SELECT id, patient_id, verslag_type, original_transcript, 
+                       structured_report, created_at
+                FROM transcription_history 
+                WHERE user_id = ?
+                ORDER BY created_at DESC 
+                LIMIT 50
+            ''', (user['id'],))
         
         history_records = cursor.fetchall()
         conn.close()
+        
+        print(f"🔍 DEBUG: History query returned {len(history_records)} records for user {user['id']}")
         
         return render_template('history.html', records=history_records, user=user)
         
     except Exception as e:
         logger.error(f"History error: {e}")
+        import traceback
+        print(f"🔍 DEBUG: History error traceback: {traceback.format_exc()}")
         flash(f'Fout bij laden van geschiedenis: {str(e)}', 'error')
         return render_template('history.html', records=[], user=get_current_user())
 
@@ -1532,13 +1546,21 @@ def review_transcription(record_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get transcription record with user verification
-        cursor.execute('''
-            SELECT id, patient_id, verslag_type, original_transcript, 
-                   structured_report, created_at, enhanced_transcript
-            FROM transcription_history 
-            WHERE id = %s AND user_id = %s
-        ''', (record_id, user['id']))
+        # Get transcription record with user verification - database agnostic
+        if is_postgresql():
+            cursor.execute('''
+                SELECT id, patient_id, verslag_type, original_transcript, 
+                       structured_report, created_at, enhanced_transcript
+                FROM transcription_history 
+                WHERE id = %s AND user_id = %s
+            ''', (record_id, user['id']))
+        else:
+            cursor.execute('''
+                SELECT id, patient_id, verslag_type, original_transcript, 
+                       structured_report, created_at, enhanced_transcript
+                FROM transcription_history 
+                WHERE id = ? AND user_id = ?
+            ''', (record_id, user['id']))
         
         record_data = cursor.fetchone()
         conn.close()
@@ -1562,6 +1584,8 @@ def review_transcription(record_id):
         
     except Exception as e:
         logger.error(f"Review transcription error: {e}")
+        import traceback
+        print(f"🔍 DEBUG: Review error traceback: {traceback.format_exc()}")
         flash(f'Fout bij laden van transcriptie: {str(e)}', 'error')
         return redirect(url_for('history'))
 
