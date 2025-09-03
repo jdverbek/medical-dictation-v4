@@ -18,10 +18,10 @@ def get_db_connection():
     if database_url:
         # PostgreSQL on Render
         try:
-            print(f"🔍 DEBUG: Attempting to import psycopg2...")
-            import psycopg2
-            from psycopg2.extras import RealDictCursor
-            print(f"✅ DEBUG: psycopg2 imported successfully")
+            print(f"🔍 DEBUG: Attempting to import psycopg...")
+            import psycopg
+            from psycopg.rows import dict_row
+            print(f"✅ DEBUG: psycopg imported successfully")
             
             print(f"🔍 DEBUG: Parsing DATABASE_URL...")
             result = urlparse(database_url)
@@ -31,20 +31,21 @@ def get_db_connection():
             print(f"🔍 DEBUG: User: {result.username}")
             
             print(f"🔍 DEBUG: Attempting PostgreSQL connection...")
-            conn = psycopg2.connect(
-                database=result.path[1:],
+            conn = psycopg.connect(
+                dbname=result.path[1:],
                 user=result.username,
                 password=result.password,
                 host=result.hostname,
-                port=result.port
+                port=result.port,
+                row_factory=dict_row
             )
             print(f"✅ DEBUG: Connected to PostgreSQL database successfully!")
             return conn
             
         except ImportError as e:
-            print(f"❌ DEBUG: psycopg2 import failed: {e}")
+            print(f"❌ DEBUG: psycopg import failed: {e}")
             print("🔄 DEBUG: Falling back to SQLite")
-            # Fall back to SQLite if psycopg2 not available
+            # Fall back to SQLite if psycopg not available
             conn = sqlite3.connect('medical_app_v4.db')
             conn.row_factory = sqlite3.Row
             return conn

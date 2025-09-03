@@ -21,6 +21,6 @@ Pillow==10.4.0
 # Utilities
 python-dotenv==1.0.0
 
-# Database (optional)
-psycopg2-binary==2.9.9
+# Database (Python 3.13 compatible)
+psycopg[binary]==3.2.3
 

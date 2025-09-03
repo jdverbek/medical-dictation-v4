@@ -1651,15 +1651,15 @@ def debug_database_connection():
                 "using": "SQLite fallback"
             })
         
-        # Test psycopg2 import
+        # Test psycopg import
         try:
-            import psycopg2
-            psycopg2_available = True
-            psycopg2_version = psycopg2.__version__
+            import psycopg
+            psycopg_available = True
+            psycopg_version = psycopg.__version__
         except ImportError as e:
             return jsonify({
                 "success": False,
-                "error": f"psycopg2 import failed: {e}",
+                "error": f"psycopg import failed: {e}",
                 "database_url_present": True,
                 "using": "SQLite fallback"
             })
@@ -1669,8 +1669,8 @@ def debug_database_connection():
         
         # Test PostgreSQL connection
         try:
-            conn = psycopg2.connect(
-                database=result.path[1:],
+            conn = psycopg.connect(
+                dbname=result.path[1:],
                 user=result.username,
                 password=result.password,
                 host=result.hostname,
@@ -1690,7 +1690,7 @@ def debug_database_connection():
             return jsonify({
                 "success": True,
                 "database_type": "PostgreSQL",
-                "psycopg2_version": psycopg2_version,
+                "psycopg_version": psycopg_version,
                 "database_name": database_name,
                 "postgres_version": version,
                 "connection_params": {
@@ -1706,8 +1706,8 @@ def debug_database_connection():
                 "success": False,
                 "error": f"PostgreSQL connection failed: {e}",
                 "error_type": str(type(e)),
-                "psycopg2_available": True,
-                "psycopg2_version": psycopg2_version,
+                "psycopg_available": True,
+                "psycopg_version": psycopg_version,
                 "connection_params": {
                     "host": result.hostname,
                     "port": result.port,
