@@ -1779,7 +1779,7 @@ def review_transcription(record_id):
                 </div>
                 
                 <div class="differential-content" id="differential_section">
-                    <h2>🔍 Differentiaaldiagnose & Behandelingsadvies</h2>
+                    <h2>🔍 Conservatieve Cardiologische Analyse</h2>
                     <div class="report-content" id="differential_report"></div>
                 </div>
                 
@@ -1791,7 +1791,7 @@ def review_transcription(record_id):
                         🔧 Corrigeer Rapport
                     </button>
                     <button type="button" onclick="getDifferentialDiagnosis()" class="btn-info" id="differential_btn">
-                        🔍 Differentiaaldiagnose
+                        🔍 Cardiologische Analyse
                     </button>
                     <button type="button" onclick="window.location.href='/history'" class="btn-secondary">
                         ← Terug naar Geschiedenis
@@ -1880,7 +1880,7 @@ def review_transcription(record_id):
                         if (result.success) {{
                             document.getElementById('differential_report').textContent = result.differential_diagnosis;
                             document.getElementById('differential_section').style.display = 'block';
-                            alert('✅ Differentiaaldiagnose opgesteld door Expert Cardioloog!');
+                            alert('✅ Conservatieve analyse opgesteld door Cardioloog!');
                         }} else {{
                             alert('❌ Fout bij analyse: ' + result.error);
                         }}
@@ -2078,26 +2078,46 @@ def differential_diagnosis():
         # Use OpenAI GPT-4 for differential diagnosis
         import openai
         
-        prompt = f"""U bent een expert cardioloog met internationale ervaring. Stel een nauwe, gerichte differentiaaldiagnose op basis van de bevindingen in dit rapport, alsook concrete aanbevelingen voor behandeling (bij medicatie: inclusief dosis en contra-indicaties) en follow-up op basis van de meest recente internationale richtlijnen.
+        prompt = f"""U bent een ervaren cardioloog die een conservatieve, evidence-based differentiaaldiagnose opstelt. BELANGRIJK: Geef GEEN gevaarlijke of ongefundeerde behandelingsadviezen.
 
-Geef voor elke diagnose:
-1. Waarschijnlijkheid (hoog/matig/laag)
-2. Ondersteunende bevindingen
-3. Aanvullend onderzoek indien nodig
-4. Behandelingsadvies met specifieke medicatie en dosering
-5. Contra-indicaties
-6. Follow-up schema
-7. Bronvermelding (richtlijn + Level of Recommendation + Level of Evidence)
+INSTRUCTIES:
+1. Analyseer alleen de SIGNIFICANTE bevindingen uit het rapport
+2. Geef alleen CONSERVATIEVE, evidence-based aanbevelingen
+3. Verwijs naar cardioloog/specialist voor complexe beslissingen
+4. Vermijd gevaarlijke adviezen zoals onnodige operaties
+
+STRUCTUUR:
+1. SIGNIFICANTE BEVINDINGEN:
+   - Lijst alleen klinisch relevante afwijkingen
+   - Negeer normale varianten en minimale afwijkingen
+
+2. MOGELIJKE DIAGNOSES (alleen bij duidelijke pathologie):
+   - Waarschijnlijkheid: hoog/matig/laag
+   - Ondersteunende bevindingen
+
+3. CONSERVATIEVE AANBEVELINGEN:
+   - Alleen evidence-based follow-up
+   - Verwijs naar specialist bij twijfel
+   - Geen operatieve adviezen zonder duidelijke indicatie
+
+4. FOLLOW-UP:
+   - Standaard cardiologische follow-up schema's
+   - Gebaseerd op ESC/AHA richtlijnen
+
+VERMIJD:
+- Operatieve adviezen bij minimale afwijkingen
+- Medicatie zonder duidelijke indicatie
+- Gevaarlijke of experimentele behandelingen
 
 Medisch rapport:
 {report_text}
 
-Differentiaaldiagnose en behandelingsadvies:"""
+Conservatieve cardiologische analyse:"""
 
         response = openai.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "Je bent een expert cardioloog die differentiaaldiagnoses opstelt met evidence-based behandelingsadviezen. Geef gestructureerde, concrete adviezen met bronvermeldingen."},
+                {"role": "system", "content": "Je bent een conservatieve cardioloog die veilige, evidence-based analyses geeft. Vermijd gevaarlijke behandelingsadviezen. Focus op significante bevindingen en verwijs naar specialist bij twijfel."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=3000,
