@@ -48,8 +48,8 @@ def init_auth_db():
                 salt TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_login TIMESTAMP,
-                is_active BOOLEAN DEFAULT 1,
-                consent_given BOOLEAN DEFAULT 0,
+                is_active BOOLEAN DEFAULT true,
+                consent_given BOOLEAN DEFAULT false,
                 consent_date TIMESTAMP
             )
         ''')
