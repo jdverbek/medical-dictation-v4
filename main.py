@@ -1774,7 +1774,7 @@ def review_transcription(record_id):
                 </div>
                 
                 <div class="enhanced-content" id="enhanced_section">
-                    <h2>✨ Verbeterd Rapport (Professor Cardiologie)</h2>
+                    <h2>🔧 Gecorrigeerd Rapport (Professor Cardiologie)</h2>
                     <div class="report-content" id="enhanced_report"></div>
                 </div>
                 
@@ -1788,7 +1788,7 @@ def review_transcription(record_id):
                         📋 Kopieer Rapport
                     </button>
                     <button type="button" onclick="improveReport()" class="btn-warning" id="improve_btn">
-                        ✨ Verbeter Rapport
+                        🔧 Corrigeer Rapport
                     </button>
                     <button type="button" onclick="getDifferentialDiagnosis()" class="btn-info" id="differential_btn">
                         🔍 Differentiaaldiagnose
@@ -1823,7 +1823,7 @@ def review_transcription(record_id):
                 function improveReport() {{
                     const btn = document.getElementById('improve_btn');
                     const originalText = btn.innerHTML;
-                    btn.innerHTML = '⏳ Verbeteren...';
+                    btn.innerHTML = '⏳ Corrigeren...';
                     btn.classList.add('loading');
                     
                     const reportText = document.getElementById('medical_report').textContent;
@@ -1843,13 +1843,13 @@ def review_transcription(record_id):
                         if (result.success) {{
                             document.getElementById('enhanced_report').textContent = result.improved_report;
                             document.getElementById('enhanced_section').style.display = 'block';
-                            alert('✅ Rapport verbeterd door Professor Cardiologie!');
+                            alert('✅ Rapport gecorrigeerd door Professor Cardiologie!');
                         }} else {{
-                            alert('❌ Fout bij verbeteren: ' + result.error);
+                            alert('❌ Fout bij corrigeren: ' + result.error);
                         }}
                     }})
                     .catch(error => {{
-                        alert('❌ Fout bij verbeteren: ' + error);
+                        alert('❌ Fout bij corrigeren: ' + error);
                     }})
                     .finally(() => {{
                         btn.innerHTML = originalText;
@@ -1994,17 +1994,41 @@ def improve_report():
         # Use OpenAI to improve the report
         import openai
         
-        prompt = f"""U bent een professor cardiologie met 30 jaar ervaring. Corrigeer de fouten in dit medisch rapport en verbeter de medische terminologie, structuur en duidelijkheid. Behoud alle belangrijke medische informatie maar maak het rapport professioneler en nauwkeuriger.
+        prompt = f"""U bent een professor cardiologie met 30 jaar ervaring. Corrigeer ALLEEN de volgende aspecten in dit medisch rapport:
+
+1. TYPO'S EN TERMINOLOGIE:
+   - Corrigeer medische termen (vb: "hartdoorsluiting" → "hartoorsluiting/LAA closure")
+   - Fix anatomische termen en afkortingen
+   - Corrigeer spelfouten in medische terminologie
+
+2. INCONSISTENTIES:
+   - Los tegenstrijdigheden op (vb: "aorta 50mm" vs "normale aorta")
+   - Zorg voor consistente metingen en bevindingen
+   - Harmoniseer terminologie door het rapport
+
+3. DIAGNOSES VERBETEREN:
+   - Vervang vage termen zoals "aortasclerose" door specifieke diagnoses
+   - Voeg ontbrekende klinische aanbevelingen toe:
+     * Bij bicuspiede klep: check aortadilatatie + coarctatio + screening 1e graads verwanten
+     * Bij significante klepafwijkingen: follow-up schema
+     * Bij congenitale afwijkingen: familie screening
+
+4. BEHOUD:
+   - Alle originele bevindingen en metingen
+   - Originele structuur en stijl
+   - Alle patiëntspecifieke informatie
+
+Geef ALLEEN het gecorrigeerde rapport terug, zonder uitleg of toevoegingen.
 
 Origineel rapport:
 {report_text}
 
-Verbeterd rapport:"""
+Gecorrigeerd rapport:"""
 
         response = openai.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "Je bent een professor cardiologie die medische rapporten verbetert. Geef alleen het verbeterde rapport terug, zonder extra uitleg."},
+                {"role": "system", "content": "Je bent een professor cardiologie die medische rapporten corrigeert. Focus op typo's, inconsistenties en vage diagnoses. Behoud alle originele bevindingen en structuur. Geef alleen het gecorrigeerde rapport terug."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=2000,
