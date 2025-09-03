@@ -1084,6 +1084,10 @@ def transcribe():
 @rate_limit(max_requests=20, window=300)
 def api_transcribe():
     """API endpoint for transcription"""
+    import sys
+    sys.stdout.write("🔍 SIMPLE TEST: api_transcribe function called\n")
+    sys.stdout.flush()
+    
     try:
         logger.info("🔍 DEBUG: ===== API_TRANSCRIBE FUNCTION STARTED =====")
         print("🔍 DEBUG: ===== API_TRANSCRIBE FUNCTION STARTED =====", flush=True)
