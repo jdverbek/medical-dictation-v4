@@ -1613,6 +1613,27 @@ def transcription_count():
         logger.error(f"Transcription count error: {e}")
         return jsonify({'count': 0})
 
+@app.route('/debug-env')
+@login_required
+def debug_environment():
+    """Debug endpoint to check environment variables"""
+    import os
+    
+    database_url = os.environ.get('DATABASE_URL')
+    
+    return jsonify({
+        "success": True,
+        "database_url_present": bool(database_url),
+        "database_url_prefix": database_url[:30] + "..." if database_url else None,
+        "environment_vars": {
+            "PORT": os.environ.get('PORT'),
+            "RENDER": os.environ.get('RENDER'),
+            "RENDER_SERVICE_NAME": os.environ.get('RENDER_SERVICE_NAME'),
+        },
+        "python_path": os.environ.get('PYTHONPATH'),
+        "working_directory": os.getcwd()
+    })
+
 @app.route('/debug-db')
 @login_required
 def debug_database():
