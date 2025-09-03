@@ -39,7 +39,7 @@ def init_auth_db():
         # Create users table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
                 email TEXT UNIQUE NOT NULL,
                 first_name TEXT NOT NULL,
@@ -57,7 +57,7 @@ def init_auth_db():
         # Create transcription_history table for user's previous outputs
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS transcription_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL,
                 patient_id TEXT,
                 verslag_type TEXT NOT NULL,
@@ -73,7 +73,7 @@ def init_auth_db():
         # Create security_events table for audit logging
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS security_events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 event_type TEXT NOT NULL,
                 user_id INTEGER,
                 ip_address TEXT,
@@ -115,7 +115,7 @@ def log_security_event(event_type, user_id=None, details=None):
         
         cursor.execute('''
             INSERT INTO security_events (event_type, user_id, ip_address, user_agent, details)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
         ''', (event_type, user_id, ip_address, user_agent, details))
         
         conn.commit()
@@ -167,7 +167,7 @@ def create_user(username, email, first_name, last_name, password, consent_given=
         cursor = conn.cursor()
         
         # Check if username or email already exists
-        cursor.execute('SELECT id FROM users WHERE username = ? OR email = ?', (username, email))
+        cursor.execute('SELECT id FROM users WHERE username = %s OR email = %s', (username, email))
         if cursor.fetchone():
             conn.close()
             return False, "Username or email already exists"
@@ -178,7 +178,7 @@ def create_user(username, email, first_name, last_name, password, consent_given=
         # Insert new user
         cursor.execute('''
             INSERT INTO users (username, email, first_name, last_name, password_hash, salt, consent_given, consent_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ''', (username, email, first_name, last_name, password_hash, salt, consent_given, 
               datetime.now() if consent_given else None))
         
@@ -216,7 +216,7 @@ def authenticate_user(username, password):
         
         if verify_password(password, stored_hash, salt):
             # Update last login
-            cursor.execute('UPDATE users SET last_login = ? WHERE id = ?', (datetime.now(), user_id))
+            cursor.execute('UPDATE users SET last_login = %s WHERE id = %s', (datetime.now(), user_id))
             conn.commit()
             conn.close()
             
@@ -264,7 +264,7 @@ def save_transcription(user_id, verslag_type, original_transcript, structured_re
         
         cursor.execute('''
             INSERT INTO transcription_history (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         ''', (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback))
         
         conn.commit()

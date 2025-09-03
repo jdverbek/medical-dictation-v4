@@ -926,7 +926,7 @@ def transcribe():
                 cursor.execute('''
                     INSERT INTO transcription_history 
                     (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    VALUES (?, %s, %s, %s, %s, %s)
                 ''', (
                     user_id, 
                     patient_id, 
@@ -1050,10 +1050,10 @@ def transcribe():
             # Update the most recent record for this user with the final report
             cursor.execute('''
                 UPDATE transcription_history 
-                SET structured_report = ?, 
-                    enhanced_transcript = ?,
-                    quality_feedback = ?
-                WHERE user_id = ? AND patient_id = ? AND verslag_type = ?
+                SET structured_report = %s, 
+                    enhanced_transcript = %s,
+                    quality_feedback = %s
+                WHERE user_id = %s AND patient_id = %s AND verslag_type = %s
                 ORDER BY created_at DESC 
                 LIMIT 1
             ''', (
@@ -1074,7 +1074,7 @@ def transcribe():
             # Verify the update worked
             conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute('SELECT COUNT(*) FROM transcription_history WHERE user_id = ?', (user_id,))
+            cursor.execute('SELECT COUNT(*) FROM transcription_history WHERE user_id = %s', (user_id,))
             count = cursor.fetchone()[0]
             conn.close()
             print(f"🔍 DEBUG: UPDATE - Total records for user {user_id}: {count}")
@@ -1430,7 +1430,7 @@ def history():
             SELECT id, patient_id, verslag_type, original_transcript, 
                    structured_report, created_at
             FROM transcription_history 
-            WHERE user_id = ?
+            WHERE user_id = %s
             ORDER BY created_at DESC 
             LIMIT 50
         ''', (user['id'],))
@@ -1469,7 +1469,7 @@ def review_transcription(record_id):
             SELECT id, patient_id, verslag_type, original_transcript, 
                    structured_report, created_at, enhanced_transcript
             FROM transcription_history 
-            WHERE id = ? AND user_id = ?
+            WHERE id = %s AND user_id = %s
         ''', (record_id, user['id']))
         
         record_data = cursor.fetchone()
@@ -1514,7 +1514,7 @@ def update_transcription(record_id):
         cursor = conn.cursor()
         
         # Verify user owns this transcription
-        cursor.execute('SELECT id FROM transcription_history WHERE id = ? AND user_id = ?', 
+        cursor.execute('SELECT id FROM transcription_history WHERE id = %s AND user_id = %s', 
                       (record_id, user['id']))
         if not cursor.fetchone():
             conn.close()
@@ -1523,11 +1523,11 @@ def update_transcription(record_id):
         # Update the transcription
         cursor.execute('''
             UPDATE transcription_history 
-            SET original_transcript = ?, 
-                structured_report = ?, 
-                enhanced_transcript = ?,
+            SET original_transcript = %s, 
+                structured_report = %s, 
+                enhanced_transcript = %s,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND user_id = ?
+            WHERE id = %s AND user_id = %s
         ''', (
             data.get('original_transcript', ''),
             data.get('structured_report', ''),
@@ -1562,7 +1562,7 @@ def delete_transcription(record_id):
         cursor = conn.cursor()
         
         # Verify user owns this transcription
-        cursor.execute('SELECT patient_id FROM transcription_history WHERE id = ? AND user_id = ?', 
+        cursor.execute('SELECT patient_id FROM transcription_history WHERE id = %s AND user_id = %s', 
                       (record_id, user['id']))
         result = cursor.fetchone()
         if not result:
@@ -1576,7 +1576,7 @@ def delete_transcription(record_id):
             cursor.execute('DELETE FROM transcription_history WHERE id = %s AND user_id = %s', 
                           (record_id, user['id']))
         else:
-            cursor.execute('DELETE FROM transcription_history WHERE id = ? AND user_id = ?', 
+            cursor.execute('DELETE FROM transcription_history WHERE id = %s AND user_id = %s', 
                           (record_id, user['id']))
         
         conn.commit()
@@ -1603,7 +1603,7 @@ def transcription_count():
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT COUNT(*) FROM transcription_history WHERE user_id = ?', (user['id'],))
+        cursor.execute('SELECT COUNT(*) FROM transcription_history WHERE user_id = %s', (user['id'],))
         count = cursor.fetchone()[0]
         conn.close()
         
@@ -1812,7 +1812,7 @@ def debug_database():
             cursor.execute("""
                 INSERT INTO transcription_history 
                 (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, %s, %s, %s, %s, %s)
             """, (1, "TEST123", "DEBUG", "Test transcription", "Test report", "Test enhanced"))
             test_id = cursor.lastrowid
         
@@ -1822,7 +1822,7 @@ def debug_database():
         if is_postgresql():
             cursor.execute("SELECT * FROM transcription_history WHERE id = %s", (test_id,))
         else:
-            cursor.execute("SELECT * FROM transcription_history WHERE id = ?", (test_id,))
+            cursor.execute("SELECT * FROM transcription_history WHERE id = %s", (test_id,))
         test_record = cursor.fetchone()
         
         conn.close()
