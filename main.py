@@ -1084,6 +1084,7 @@ def transcribe():
 @rate_limit(max_requests=20, window=300)
 def api_transcribe():
     """API endpoint for transcription"""
+    print(f"🔍 DEBUG: ===== API_TRANSCRIBE FUNCTION STARTED =====")
     try:
         # Check if audio file is present
         if 'audio' not in request.files:
@@ -1171,6 +1172,10 @@ def api_transcribe():
                 expert_analysis = {}
         else:
             print(f"⚠️ API DEBUG: Expert agents not available, using basic processing")
+        
+        print(f"🔍 DEBUG: Expert analysis section completed, moving to report generation")
+        print(f"🔍 DEBUG: improved_transcript length: {len(improved_transcript)}")
+        print(f"🔍 DEBUG: verslag_type: '{verslag_type}'")
         
         # Generate report
         print(f"🔍 API DEBUG: About to generate report for type: '{verslag_type}'")
