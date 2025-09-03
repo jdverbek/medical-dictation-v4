@@ -371,41 +371,41 @@
                         <div class="item-header">
                             <div class="item-info">
                                 <div class="item-title">
-                                    {% if record[1] %}
-                                        Patiënt {{ record[1] }}
+                                    {% if record.patient_id %}
+                                        Patiënt {{ record.patient_id }}
                                     {% else %}
-                                        Transcriptie #{{ record[0] }}
+                                        Transcriptie #{{ record.id }}
                                     {% endif %}
                                 </div>
                                 <div class="item-meta">
-                                    <span>📅 {{ record[5] if record[5] else 'Onbekend' }}</span>
-                                    <span>🏥 {{ record[2] }}</span>
-                                    {% if record[1] %}
-                                        <span>👤 {{ record[1] }}</span>
+                                    <span>📅 {{ record.created_at if record.created_at else 'Onbekend' }}</span>
+                                    <span>🏥 {{ record.verslag_type }}</span>
+                                    {% if record.patient_id %}
+                                        <span>👤 {{ record.patient_id }}</span>
                                     {% endif %}
                                 </div>
                             </div>
                             
-                            <div class="type-badge type-{{ record[2].lower() }}">
-                                {{ record[2] }}
+                            <div class="type-badge type-{{ record.verslag_type.lower() }}">
+                                {{ record.verslag_type }}
                             </div>
                         </div>
                         
                         <div class="item-actions">
-                            <a href="{{ url_for('review_transcription', record_id=record[0]) }}" 
+                            <a href="{{ url_for('review_transcription', record_id=record.id) }}" 
                                class="btn btn-primary btn-small">
                                 👁️ Bekijken & Bewerken
                             </a>
-                            <button onclick="deleteTranscription({{ record[0] }})" 
+                            <button onclick="deleteTranscription({{ record.id }})" 
                                     class="btn btn-secondary btn-small">
                                 🗑️ Verwijderen
                             </button>
                         </div>
                         
-                        {% if record[3] %}
+                        {% if record.original_transcript %}
                             <div class="content-preview">
                                 <h4>📝 Originele Transcriptie:</h4>
-                                <p>{{ record[3][:200] }}{% if record[3]|length > 200 %}...{% endif %}</p>
+                                <p>{{ record.original_transcript[:200] }}{% if record.original_transcript|length > 200 %}...{% endif %}</p>
                             </div>
                         {% endif %}
                     </div>
