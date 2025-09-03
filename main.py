@@ -1292,9 +1292,9 @@ def api_transcribe():
                 ai_treatment = "AI aanbevelingen niet beschikbaar"
                 treatment_differences = ["Vergelijking niet mogelijk"]
         
-        # 💾 IMMEDIATE SAVE TO DATABASE (same as /transcribe endpoint)
+        # 💾 IMMEDIATE SAVE TO DATABASE (PostgreSQL only)
         print(f"🔍 DEBUG: API IMMEDIATE SAVE - Starting database save right after transcription")
-        print(f"🔍 DEBUG: API IMMEDIATE SAVE - Using {'PostgreSQL' if is_postgresql() else 'SQLite'}")
+        print(f"🔍 DEBUG: API IMMEDIATE SAVE - Using PostgreSQL")
         
         try:
             # Get current user
@@ -1319,44 +1319,27 @@ def api_transcribe():
             print(f"🔍 DEBUG: API IMMEDIATE SAVE - Patient: {patient_id}, Type: {verslag_type}")
             print(f"🔍 DEBUG: API IMMEDIATE SAVE - Transcript length: {len(transcript)}")
             
-            # Save to database immediately
+            # Save to database immediately - PostgreSQL only
             conn = get_db_connection()
             cursor = conn.cursor()
             
-            if is_postgresql():
-                cursor.execute('''
-                    INSERT INTO transcription_history 
-                    (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                ''', (
-                    user_id,
-                    patient_id or 'Unknown',
-                    verslag_type,
-                    transcript,
-                    report,
-                    improved_transcript,
-                    str(quality_feedback) if quality_feedback else 'No feedback',
-                    datetime.now()
-                ))
-                result = cursor.fetchone()
-                record_id = result[0] if result else None
-            else:
-                cursor.execute('''
-                    INSERT INTO transcription_history 
-                    (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    user_id,
-                    patient_id or 'Unknown',
-                    verslag_type,
-                    transcript,
-                    report,
-                    improved_transcript,
-                    str(quality_feedback) if quality_feedback else 'No feedback',
-                    datetime.now()
-                ))
-                record_id = cursor.lastrowid
+            cursor.execute('''
+                INSERT INTO transcription_history 
+                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            ''', (
+                user_id,
+                patient_id or 'Unknown',
+                verslag_type,
+                transcript,
+                report,
+                improved_transcript,
+                str(quality_feedback) if quality_feedback else 'No feedback',
+                datetime.now()
+            ))
+            result = cursor.fetchone()
+            record_id = result[0] if result else None
             
             conn.commit()
             conn.close()
@@ -1493,25 +1476,15 @@ def history():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get transcription history for current user only - database agnostic
-        if is_postgresql():
-            cursor.execute('''
-                SELECT id, patient_id, verslag_type, original_transcript, 
-                       structured_report, created_at
-                FROM transcription_history 
-                WHERE user_id = %s
-                ORDER BY created_at DESC 
-                LIMIT 50
-            ''', (user['id'],))
-        else:
-            cursor.execute('''
-                SELECT id, patient_id, verslag_type, original_transcript, 
-                       structured_report, created_at
-                FROM transcription_history 
-                WHERE user_id = ?
-                ORDER BY created_at DESC 
-                LIMIT 50
-            ''', (user['id'],))
+        # Get transcription history for current user only - PostgreSQL
+        cursor.execute('''
+            SELECT id, patient_id, verslag_type, original_transcript, 
+                   structured_report, created_at
+            FROM transcription_history 
+            WHERE user_id = %s
+            ORDER BY created_at DESC 
+            LIMIT 50
+        ''', (user['id'],))
         
         history_records = cursor.fetchall()
         conn.close()
@@ -1546,21 +1519,13 @@ def review_transcription(record_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get transcription record with user verification - database agnostic
-        if is_postgresql():
-            cursor.execute('''
-                SELECT id, patient_id, verslag_type, original_transcript, 
-                       structured_report, created_at, enhanced_transcript
-                FROM transcription_history 
-                WHERE id = %s AND user_id = %s
-            ''', (record_id, user['id']))
-        else:
-            cursor.execute('''
-                SELECT id, patient_id, verslag_type, original_transcript, 
-                       structured_report, created_at, enhanced_transcript
-                FROM transcription_history 
-                WHERE id = ? AND user_id = ?
-            ''', (record_id, user['id']))
+        # Get transcription record with user verification - PostgreSQL
+        cursor.execute('''
+            SELECT id, patient_id, verslag_type, original_transcript, 
+                   structured_report, created_at, enhanced_transcript
+            FROM transcription_history 
+            WHERE id = %s AND user_id = %s
+        ''', (record_id, user['id']))
         
         record_data = cursor.fetchone()
         conn.close()
@@ -1571,13 +1536,13 @@ def review_transcription(record_id):
         
         # Convert to dictionary for easier template access
         record = {
-            'id': record_data[0],
-            'patient_id': record_data[1],
-            'verslag_type': record_data[2],
-            'original_transcript': record_data[3],
-            'structured_report': record_data[4],
-            'created_at': datetime.fromisoformat(record_data[5]) if record_data[5] else None,
-            'enhanced_transcript': record_data[6] if len(record_data) > 6 else None
+            'id': record_data['id'],
+            'patient_id': record_data['patient_id'],
+            'verslag_type': record_data['verslag_type'],
+            'original_transcript': record_data['original_transcript'],
+            'structured_report': record_data['structured_report'],
+            'created_at': record_data['created_at'],
+            'enhanced_transcript': record_data['enhanced_transcript']
         }
         
         return render_template('review.html', record=record, user=user)

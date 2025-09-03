@@ -1,156 +1,94 @@
 """
 Database abstraction layer for Medical Dictation v4.0
-Supports both PostgreSQL (cloud) and SQLite (local development)
+PostgreSQL only - simplified and reliable
 """
 
 import os
-import sqlite3
 from urllib.parse import urlparse
 
 def get_db_connection():
-    """Get database connection (PostgreSQL on Render, SQLite locally)"""
+    """Get PostgreSQL database connection"""
     database_url = os.environ.get('DATABASE_URL')
     
-    if database_url:
-        # PostgreSQL on Render
-        try:
-            import psycopg
-            from psycopg.rows import dict_row
-            
-            result = urlparse(database_url)
-            
-            conn = psycopg.connect(
-                dbname=result.path[1:],
-                user=result.username,
-                password=result.password,
-                host=result.hostname,
-                port=result.port,
-                row_factory=dict_row
-            )
-            return conn
-            
-        except ImportError as e:
-            print(f"❌ psycopg import failed: {e}")
-            print("🔄 Falling back to SQLite")
-            # Fall back to SQLite if psycopg not available
-            conn = sqlite3.connect('medical_app_v4.db')
-            conn.row_factory = sqlite3.Row
-            return conn
-            
-        except Exception as e:
-            print(f"❌ PostgreSQL connection failed: {e}")
-            print("🔄 Falling back to SQLite")
-            # Fall back to SQLite if PostgreSQL connection fails
-            conn = sqlite3.connect('medical_app_v4.db')
-            conn.row_factory = sqlite3.Row
-            return conn
-    else:
-        # SQLite for local development
-        conn = sqlite3.connect('medical_app_v4.db')
-        conn.row_factory = sqlite3.Row
+    if not database_url:
+        raise ValueError("DATABASE_URL environment variable is required")
+    
+    try:
+        import psycopg
+        from psycopg.rows import dict_row
+        
+        result = urlparse(database_url)
+        
+        conn = psycopg.connect(
+            dbname=result.path[1:],
+            user=result.username,
+            password=result.password,
+            host=result.hostname,
+            port=result.port,
+            row_factory=dict_row
+        )
         return conn
+        
+    except ImportError as e:
+        raise ImportError(f"psycopg not available: {e}")
+        
+    except Exception as e:
+        raise ConnectionError(f"PostgreSQL connection failed: {e}")
 
 def is_postgresql():
-    """Check if we're using PostgreSQL"""
-    return bool(os.environ.get('DATABASE_URL'))
+    """Always returns True - we only use PostgreSQL"""
+    return True
 
 def init_db():
-    """Initialize database tables (works for both PostgreSQL and SQLite)"""
+    """Initialize PostgreSQL database tables"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
-        if is_postgresql():
-            # PostgreSQL schema
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username TEXT UNIQUE NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    first_name TEXT NOT NULL,
-                    last_name TEXT NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    salt TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_login TIMESTAMP,
-                    is_active BOOLEAN DEFAULT true,
-                    consent_given BOOLEAN DEFAULT false,
-                    consent_date TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS transcription_history (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER NOT NULL,
-                    patient_id TEXT,
-                    verslag_type TEXT NOT NULL,
-                    original_transcript TEXT,
-                    structured_report TEXT,
-                    enhanced_transcript TEXT,
-                    quality_feedback TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS security_events (
-                    id SERIAL PRIMARY KEY,
-                    event_type TEXT NOT NULL,
-                    user_id INTEGER,
-                    ip_address TEXT,
-                    user_agent TEXT,
-                    details TEXT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-        else:
-            # SQLite schema
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    first_name TEXT NOT NULL,
-                    last_name TEXT NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    salt TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_login TIMESTAMP,
-                    is_active BOOLEAN DEFAULT 1,
-                    consent_given BOOLEAN DEFAULT 0,
-                    consent_date TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS transcription_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    patient_id TEXT,
-                    verslag_type TEXT NOT NULL,
-                    original_transcript TEXT,
-                    structured_report TEXT,
-                    enhanced_transcript TEXT,
-                    quality_feedback TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users (id)
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS security_events (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    event_type TEXT NOT NULL,
-                    user_id INTEGER,
-                    ip_address TEXT,
-                    user_agent TEXT,
-                    details TEXT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+        # PostgreSQL schema only
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                first_name TEXT NOT NULL,
+                last_name TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                salt TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login TIMESTAMP,
+                is_active BOOLEAN DEFAULT true,
+                consent_given BOOLEAN DEFAULT false,
+                consent_date TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS transcription_history (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                patient_id TEXT,
+                verslag_type TEXT NOT NULL,
+                original_transcript TEXT,
+                structured_report TEXT,
+                enhanced_transcript TEXT,
+                quality_feedback TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS security_events (
+                id SERIAL PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                user_id INTEGER,
+                ip_address TEXT,
+                user_agent TEXT,
+                details TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         
         conn.commit()
         
@@ -162,7 +100,7 @@ def init_db():
         conn.close()
 
 def execute_query(query, params=None, fetch_one=False, fetch_all=False):
-    """Execute a database query with proper error handling"""
+    """Execute a PostgreSQL query with proper error handling"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -192,10 +130,7 @@ def execute_query(query, params=None, fetch_one=False, fetch_all=False):
         conn.close()
 
 def get_last_insert_id(conn, cursor):
-    """Get the last inserted ID (works for both PostgreSQL and SQLite)"""
-    if is_postgresql():
-        cursor.execute("SELECT LASTVAL()")
-        return cursor.fetchone()[0]
-    else:
-        return cursor.lastrowid
+    """Get the last inserted ID for PostgreSQL"""
+    cursor.execute("SELECT LASTVAL()")
+    return cursor.fetchone()[0]
 

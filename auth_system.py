@@ -113,16 +113,10 @@ def log_security_event(event_type, user_id=None, details=None):
         ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
         user_agent = request.environ.get('HTTP_USER_AGENT', 'unknown')
         
-        if is_postgresql():
-            cursor.execute('''
-                INSERT INTO security_events (event_type, user_id, ip_address, user_agent, details)
-                VALUES (%s, %s, %s, %s, %s)
-            ''', (event_type, user_id, ip_address, user_agent, details))
-        else:
-            cursor.execute('''
-                INSERT INTO security_events (event_type, user_id, ip_address, user_agent, details)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (event_type, user_id, ip_address, user_agent, details))
+        cursor.execute('''
+            INSERT INTO security_events (event_type, user_id, ip_address, user_agent, details)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (event_type, user_id, ip_address, user_agent, details))
         
         conn.commit()
         conn.close()
@@ -177,10 +171,7 @@ def create_user(username, email, first_name, last_name, password, consent_given=
         cursor = conn.cursor()
         
         # Check if username or email already exists
-        if is_postgresql():
-            cursor.execute('SELECT id FROM users WHERE username = %s OR email = %s', (username, email))
-        else:
-            cursor.execute('SELECT id FROM users WHERE username = ? OR email = ?', (username, email))
+        cursor.execute('SELECT id FROM users WHERE username = %s OR email = %s', (username, email))
             
         if cursor.fetchone():
             conn.close()
@@ -189,40 +180,29 @@ def create_user(username, email, first_name, last_name, password, consent_given=
         # Hash password
         password_hash, salt = hash_password(password)
         
-        # Insert new user with proper PostgreSQL/SQLite handling
-        if is_postgresql():
-            cursor.execute('''
-                INSERT INTO users (username, email, first_name, last_name, password_hash, salt, consent_given, consent_date)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            ''', (username, email, first_name, last_name, password_hash, salt, consent_given, 
-                  datetime.now() if consent_given else None))
-            
-            # Get the ID from RETURNING clause in PostgreSQL
-            result = cursor.fetchone()
-            print(f"🔍 DEBUG: PostgreSQL RETURNING result: {result}")
-            print(f"🔍 DEBUG: Result type: {type(result)}")
-            
-            if result:
-                if isinstance(result, (list, tuple)):
-                    user_id = result[0]
-                else:
-                    user_id = result
-                print(f"🔍 DEBUG: Extracted user_id: {user_id}")
+        # Insert new user with PostgreSQL RETURNING clause
+        cursor.execute('''
+            INSERT INTO users (username, email, first_name, last_name, password_hash, salt, consent_given, consent_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        ''', (username, email, first_name, last_name, password_hash, salt, consent_given, 
+              datetime.now() if consent_given else None))
+        
+        # Get the ID from RETURNING clause
+        result = cursor.fetchone()
+        print(f"🔍 DEBUG: PostgreSQL RETURNING result: {result}")
+        print(f"🔍 DEBUG: Result type: {type(result)}")
+        
+        if result:
+            if isinstance(result, (list, tuple)):
+                user_id = result[0]
             else:
-                print("❌ DEBUG: No result from RETURNING clause")
-                conn.close()
-                return False, "Failed to get user ID from database"
+                user_id = result
+            print(f"🔍 DEBUG: Extracted user_id: {user_id}")
         else:
-            # SQLite version
-            cursor.execute('''
-                INSERT INTO users (username, email, first_name, last_name, password_hash, salt, consent_given, consent_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (username, email, first_name, last_name, password_hash, salt, consent_given, 
-                  datetime.now() if consent_given else None))
-            
-            # Get the ID using lastrowid in SQLite
-            user_id = cursor.lastrowid
+            print("❌ DEBUG: No result from RETURNING clause")
+            conn.close()
+            return False, "Failed to get user ID from database"
         
         conn.commit()
         conn.close()
@@ -238,16 +218,10 @@ def authenticate_user(username, password):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        if is_postgresql():
-            cursor.execute('''
-                SELECT id, username, email, first_name, last_name, password_hash, salt, is_active
-                FROM users WHERE username = %s
-            ''', (username,))
-        else:
-            cursor.execute('''
-                SELECT id, username, email, first_name, last_name, password_hash, salt, is_active
-                FROM users WHERE username = ?
-            ''', (username,))
+        cursor.execute('''
+            SELECT id, username, email, first_name, last_name, password_hash, salt, is_active
+            FROM users WHERE username = %s OR email = %s
+        ''', (username, username))
         
         user = cursor.fetchone()
         
@@ -255,18 +229,15 @@ def authenticate_user(username, password):
             conn.close()
             return False, "Invalid credentials"
         
-        # Handle both dictionary (PostgreSQL) and tuple (SQLite) results
-        if isinstance(user, dict):
-            user_id = user['id']
-            username = user['username']
-            email = user['email']
-            first_name = user['first_name']
-            last_name = user['last_name']
-            stored_hash = user['password_hash']
-            salt = user['salt']
-            is_active = user['is_active']
-        else:
-            user_id, username, email, first_name, last_name, stored_hash, salt, is_active = user
+        # PostgreSQL with dict_row returns dictionary
+        user_id = user['id']
+        username = user['username']
+        email = user['email']
+        first_name = user['first_name']
+        last_name = user['last_name']
+        stored_hash = user['password_hash']
+        salt = user['salt']
+        is_active = user['is_active']
         
         if not is_active:
             conn.close()
@@ -274,10 +245,7 @@ def authenticate_user(username, password):
         
         if verify_password(password, stored_hash, salt):
             # Update last login
-            if is_postgresql():
-                cursor.execute('UPDATE users SET last_login = %s WHERE id = %s', (datetime.now(), user_id))
-            else:
-                cursor.execute('UPDATE users SET last_login = ? WHERE id = ?', (datetime.now(), user_id))
+            cursor.execute('UPDATE users SET last_login = %s WHERE id = %s', (datetime.now(), user_id))
             
             conn.commit()
             conn.close()
@@ -324,16 +292,10 @@ def save_transcription(user_id, verslag_type, original_transcript, structured_re
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        if is_postgresql():
-            cursor.execute('''
-                INSERT INTO transcription_history (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ''', (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback))
-        else:
-            cursor.execute('''
-                INSERT INTO transcription_history (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback))
+        cursor.execute('''
+            INSERT INTO transcription_history (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback))
         
         conn.commit()
         conn.close()
