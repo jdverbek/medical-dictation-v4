@@ -1634,6 +1634,97 @@ def debug_environment():
         "working_directory": os.getcwd()
     })
 
+@app.route('/debug-db-connection')
+@login_required
+def debug_database_connection():
+    """Debug endpoint to test database connection directly"""
+    import os
+    from urllib.parse import urlparse
+    
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        
+        if not database_url:
+            return jsonify({
+                "success": False,
+                "error": "DATABASE_URL not found",
+                "using": "SQLite fallback"
+            })
+        
+        # Test psycopg2 import
+        try:
+            import psycopg2
+            psycopg2_available = True
+            psycopg2_version = psycopg2.__version__
+        except ImportError as e:
+            return jsonify({
+                "success": False,
+                "error": f"psycopg2 import failed: {e}",
+                "database_url_present": True,
+                "using": "SQLite fallback"
+            })
+        
+        # Parse DATABASE_URL
+        result = urlparse(database_url)
+        
+        # Test PostgreSQL connection
+        try:
+            conn = psycopg2.connect(
+                database=result.path[1:],
+                user=result.username,
+                password=result.password,
+                host=result.hostname,
+                port=result.port
+            )
+            
+            # Test a simple query
+            cursor = conn.cursor()
+            cursor.execute("SELECT version()")
+            version = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT current_database()")
+            database_name = cursor.fetchone()[0]
+            
+            conn.close()
+            
+            return jsonify({
+                "success": True,
+                "database_type": "PostgreSQL",
+                "psycopg2_version": psycopg2_version,
+                "database_name": database_name,
+                "postgres_version": version,
+                "connection_params": {
+                    "host": result.hostname,
+                    "port": result.port,
+                    "database": result.path[1:],
+                    "user": result.username
+                }
+            })
+            
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "error": f"PostgreSQL connection failed: {e}",
+                "error_type": str(type(e)),
+                "psycopg2_available": True,
+                "psycopg2_version": psycopg2_version,
+                "connection_params": {
+                    "host": result.hostname,
+                    "port": result.port,
+                    "database": result.path[1:],
+                    "user": result.username
+                },
+                "using": "SQLite fallback"
+            })
+            
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+
 @app.route('/debug-db')
 @login_required
 def debug_database():
