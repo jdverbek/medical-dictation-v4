@@ -1579,7 +1579,7 @@ def review_transcription(record_id):
         # Get transcription record with user verification - PostgreSQL
         cursor.execute('''
             SELECT id, patient_id, verslag_type, original_transcript, 
-                   structured_report, created_at, enhanced_transcript
+                   structured_report, created_at, enhanced_transcript, quality_feedback
             FROM transcription_history 
             WHERE id = %s AND user_id = %s
         ''', (record_id, user['id']))
@@ -1591,21 +1591,241 @@ def review_transcription(record_id):
             flash('Transcriptie niet gevonden of geen toegang', 'error')
             return redirect(url_for('history'))
         
-        # Convert to dictionary for easier template access
-        record = {
-            'id': record_data['id'],
-            'patient_id': record_data['patient_id'],
-            'verslag_type': record_data['verslag_type'],
-            'original_transcript': record_data['original_transcript'],
-            'structured_report': record_data['structured_report'],
-            'created_at': record_data['created_at'],
-            'enhanced_transcript': record_data['enhanced_transcript']
-        }
+        # PostgreSQL with dict_row returns dictionary already
+        # Check if it's a dictionary or tuple
+        if isinstance(record_data, dict):
+            record = {
+                'id': record_data['id'],
+                'patient_id': record_data['patient_id'] or 'Unknown',
+                'verslag_type': record_data['verslag_type'] or 'Unknown',
+                'original_transcript': record_data['original_transcript'] or '',
+                'structured_report': record_data['structured_report'] or '',
+                'created_at': record_data['created_at'],
+                'enhanced_transcript': record_data.get('enhanced_transcript') or record_data['original_transcript'] or '',
+                'quality_feedback': record_data.get('quality_feedback', '')
+            }
+        else:
+            # Handle tuple response (shouldn't happen with psycopg dict_row)
+            record = {
+                'id': record_data[0],
+                'patient_id': record_data[1] or 'Unknown',
+                'verslag_type': record_data[2] or 'Unknown',
+                'original_transcript': record_data[3] or '',
+                'structured_report': record_data[4] or '',
+                'created_at': record_data[5],
+                'enhanced_transcript': record_data[6] if len(record_data) > 6 else record_data[3] or '',
+                'quality_feedback': record_data[7] if len(record_data) > 7 else ''
+            }
         
-        return render_template('review.html', record=record, user=user)
+        print(f"🔍 DEBUG: Review page loading for record {record_id}")
+        print(f"🔍 DEBUG: Record data: {record}")
+        
+        # Since the template is missing, return a simple HTML response
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="nl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Review Transcriptie - Medical Dictation v4.0</title>
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                }}
+                .container {{
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 12px;
+                    padding: 30px;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                }}
+                h1 {{
+                    color: #333;
+                    margin-bottom: 10px;
+                }}
+                .meta {{
+                    color: #666;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 2px solid #f0f0f0;
+                }}
+                .content-section {{
+                    margin-bottom: 30px;
+                }}
+                h2 {{
+                    color: #4a5568;
+                    font-size: 1.3em;
+                    margin-bottom: 15px;
+                    padding: 10px;
+                    background: #f7fafc;
+                    border-left: 4px solid #667eea;
+                }}
+                .content-box {{
+                    background: #f9fafb;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 20px;
+                    font-family: 'Monaco', 'Courier New', monospace;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                }}
+                textarea {{
+                    width: 100%;
+                    min-height: 200px;
+                    padding: 15px;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    font-family: 'Monaco', 'Courier New', monospace;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    resize: vertical;
+                }}
+                .button-group {{
+                    display: flex;
+                    gap: 10px;
+                    margin-top: 30px;
+                }}
+                button {{
+                    padding: 12px 24px;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                }}
+                .btn-primary {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                }}
+                .btn-primary:hover {{
+                    transform: translateY(-2px);
+                    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+                }}
+                .btn-secondary {{
+                    background: #e2e8f0;
+                    color: #4a5568;
+                }}
+                .btn-danger {{
+                    background: #f56565;
+                    color: white;
+                }}
+                .btn-success {{
+                    background: #48bb78;
+                    color: white;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>📝 Review Transcriptie</h1>
+                <div class="meta">
+                    <strong>Patiënt ID:</strong> {record['patient_id']} | 
+                    <strong>Type:</strong> {record['verslag_type']} | 
+                    <strong>Datum:</strong> {record['created_at'].strftime('%d-%m-%Y %H:%M') if record['created_at'] else 'Unknown'}
+                </div>
+                
+                <form id="editForm">
+                    <div class="content-section">
+                        <h2>🎤 Originele Transcriptie</h2>
+                        <textarea id="original_transcript" name="original_transcript">{record['original_transcript']}</textarea>
+                    </div>
+                    
+                    <div class="content-section">
+                        <h2>✨ Verbeterde Transcriptie</h2>
+                        <textarea id="enhanced_transcript" name="enhanced_transcript">{record['enhanced_transcript']}</textarea>
+                    </div>
+                    
+                    <div class="content-section">
+                        <h2>📋 Gestructureerd Rapport</h2>
+                        <textarea id="structured_report" name="structured_report">{record['structured_report']}</textarea>
+                    </div>
+                    
+                    {f'''
+                    <div class="content-section">
+                        <h2>🔍 Quality Control Feedback</h2>
+                        <div class="content-box">{record['quality_feedback']}</div>
+                    </div>
+                    ''' if record.get('quality_feedback') else ''}
+                    
+                    <div class="button-group">
+                        <button type="button" onclick="saveChanges()" class="btn-primary">💾 Opslaan</button>
+                        <button type="button" onclick="copyToClipboard('structured_report')" class="btn-success">📋 Kopieer Rapport</button>
+                        <button type="button" onclick="window.location.href='/history'" class="btn-secondary">← Terug naar Geschiedenis</button>
+                        <button type="button" onclick="deleteRecord()" class="btn-danger">🗑️ Verwijderen</button>
+                    </div>
+                </form>
+            </div>
+            
+            <script>
+                function saveChanges() {{
+                    const data = {{
+                        original_transcript: document.getElementById('original_transcript').value,
+                        enhanced_transcript: document.getElementById('enhanced_transcript').value,
+                        structured_report: document.getElementById('structured_report').value
+                    }};
+                    
+                    fetch('/update-transcription/{record['id']}', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json'
+                        }},
+                        body: JSON.stringify(data)
+                    }})
+                    .then(response => response.json())
+                    .then(result => {{
+                        if (result.success) {{
+                            alert('✅ Wijzigingen opgeslagen!');
+                        }} else {{
+                            alert('❌ Fout bij opslaan: ' + result.error);
+                        }}
+                    }})
+                    .catch(error => {{
+                        alert('❌ Fout bij opslaan: ' + error);
+                    }});
+                }}
+                
+                function copyToClipboard(elementId) {{
+                    const element = document.getElementById(elementId);
+                    element.select();
+                    document.execCommand('copy');
+                    alert('✅ Gekopieerd naar klembord!');
+                }}
+                
+                function deleteRecord() {{
+                    if (confirm('Weet u zeker dat u deze transcriptie wilt verwijderen?')) {{
+                        fetch('/delete-transcription/{record['id']}', {{
+                            method: 'DELETE'
+                        }})
+                        .then(response => response.json())
+                        .then(result => {{
+                            if (result.success) {{
+                                alert('✅ Transcriptie verwijderd!');
+                                window.location.href = '/history';
+                            }} else {{
+                                alert('❌ Fout bij verwijderen: ' + result.error);
+                            }}
+                        }})
+                        .catch(error => {{
+                            alert('❌ Fout bij verwijderen: ' + error);
+                        }});
+                    }}
+                }}
+            </script>
+        </body>
+        </html>
+        """
+        
+        return html_content
         
     except Exception as e:
-        logger.error(f"Review transcription error: {e}")
+        print(f"❌ Review page error: {e}")
         import traceback
         print(f"🔍 DEBUG: Review error traceback: {traceback.format_exc()}")
         flash(f'Fout bij laden van transcriptie: {str(e)}', 'error')
