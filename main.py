@@ -637,37 +637,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Rate limiting storage (simple in-memory for demo)
-rate_limit_storage = {}
-
-def rate_limit(max_requests=20, window=300):
-    """Rate limiting decorator"""
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # Simple rate limiting implementation
-            client_ip = request.remote_addr
-            current_time = time.time()
-            
-            if client_ip not in rate_limit_storage:
-                rate_limit_storage[client_ip] = []
-            
-            # Clean old requests
-            rate_limit_storage[client_ip] = [
-                req_time for req_time in rate_limit_storage[client_ip]
-                if current_time - req_time < window
-            ]
-            
-            # Check rate limit
-            if len(rate_limit_storage[client_ip]) >= max_requests:
-                return jsonify({'error': 'Rate limit exceeded'}), 429
-            
-            # Add current request
-            rate_limit_storage[client_ip].append(current_time)
-            
-            return f(*args, **kwargs)
-        return decorated_function
-    return decorator
+# Rate limiting is handled by auth_system.py
 
 @app.after_request
 def add_security_headers(response):
@@ -704,7 +674,7 @@ init_db()
 
 # Authentication Routes
 @app.route('/login', methods=['GET', 'POST'])
-@rate_limit(max_requests=5, window=300)  # 5 attempts per 5 minutes
+@rate_limit(max_requests=15, window=300)  # 15 attempts per 5 minutes
 def login():
     """Login route with security logging"""
     if request.method == 'POST':
