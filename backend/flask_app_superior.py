@@ -267,18 +267,40 @@ def transcribe():
         
         print(f"🔍 DEBUG: Generated report preview: {structured_report[:100]}...")
         
-        # Store in database
+        # Store in PostgreSQL database
         try:
-            conn = sqlite3.connect('medical_app.db')
+            # Import PostgreSQL connection from main app
+            import sys
+            sys.path.append('/home/ubuntu/medical-dictation-v4')
+            from database import get_db_connection
+            
+            print(f"🔍 DEBUG: FLASK_APP_SUPERIOR - Saving to PostgreSQL database")
+            
+            conn = get_db_connection()
             cursor = conn.cursor()
+            
+            # Get current user (fallback to user_id 1 if not available)
+            user_id = session.get('user_id', 1)
+            
             cursor.execute('''
                 INSERT INTO transcription_history 
-                (patient_id, verslag_type, original_transcript, structured_report)
-                VALUES (?, ?, ?, ?)
-            ''', (patient_id, verslag_type, corrected_transcript, structured_report))
+                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            ''', (user_id, patient_id, verslag_type, corrected_transcript, structured_report, corrected_transcript, datetime.datetime.now()))
+            
+            result = cursor.fetchone()
+            record_id = result['id'] if isinstance(result, dict) else result[0]
+            
             conn.commit()
             conn.close()
+            
+            print(f"✅ FLASK_APP_SUPERIOR - Successfully saved to PostgreSQL with ID: {record_id}")
+            
         except Exception as e:
+            print(f"❌ FLASK_APP_SUPERIOR - Database save failed: {e}")
+            import traceback
+            print(f"🔍 DEBUG: FLASK_APP_SUPERIOR - Full error traceback: {traceback.format_exc()}")
             logger.error(f"Database error: {e}")
         
         # Return results
@@ -459,6 +481,41 @@ def api_transcribe():
                 print(f"⚠️ Treatment comparison failed: {e}")
                 ai_treatment = "AI aanbevelingen niet beschikbaar"
                 treatment_differences = ["Vergelijking niet mogelijk"]
+        
+        # 💾 SAVE TO POSTGRESQL DATABASE
+        try:
+            # Import PostgreSQL connection from main app
+            import sys
+            sys.path.append('/home/ubuntu/medical-dictation-v4')
+            from database import get_db_connection
+            
+            print(f"🔍 DEBUG: API FLASK_APP_SUPERIOR - Saving to PostgreSQL database")
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get current user (fallback to user_id 1 if not available)
+            user_id = session.get('user_id', 1)
+            
+            cursor.execute('''
+                INSERT INTO transcription_history 
+                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            ''', (user_id, patient_id, verslag_type, transcript, report, improved_transcript, datetime.datetime.now()))
+            
+            result = cursor.fetchone()
+            record_id = result['id'] if isinstance(result, dict) else result[0]
+            
+            conn.commit()
+            conn.close()
+            
+            print(f"✅ API FLASK_APP_SUPERIOR - Successfully saved to PostgreSQL with ID: {record_id}")
+            
+        except Exception as e:
+            print(f"❌ API FLASK_APP_SUPERIOR - Database save failed: {e}")
+            import traceback
+            print(f"🔍 DEBUG: API FLASK_APP_SUPERIOR - Full error traceback: {traceback.format_exc()}")
         
         return jsonify({
             'success': True,
