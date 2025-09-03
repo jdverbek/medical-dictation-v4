@@ -1215,9 +1215,12 @@ def api_transcribe():
                 esc_recommendations = f"ESC Guidelines aanbevelingen fout: {str(e)}"
         
         # Extract treatment from transcript for comparison
+        print(f"🔍 DEBUG: About to extract treatment from transcript")
         dictated_treatment = extract_treatment_from_transcript(improved_transcript)
+        print(f"🔍 DEBUG: Dictated treatment extracted: {dictated_treatment[:100] if dictated_treatment else 'None'}...")
         
         # Get AI treatment recommendations
+        print(f"🔍 DEBUG: About to get AI treatment recommendations")
         ai_treatment = ""
         treatment_differences = []
         
@@ -1372,6 +1375,8 @@ def api_transcribe():
                     print(f"❌ API IMMEDIATE SAVE - Alternative save also failed: {success}")
             except Exception as e2:
                 print(f"❌ API IMMEDIATE SAVE - Alternative save also failed: {e2}")
+        
+        print(f"🔍 DEBUG: About to return JSON response - api_transcribe completed successfully")
         
         return jsonify({
             'success': True,
