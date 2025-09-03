@@ -113,16 +113,10 @@ def log_security_event(event_type, user_id=None, details=None):
         ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
         user_agent = request.environ.get('HTTP_USER_AGENT', 'unknown')
         
-        if is_postgresql():
-            cursor.execute('''
-                INSERT INTO security_events (event_type, user_id, ip_address, user_agent, details)
-                VALUES (%s, %s, %s, %s, %s)
-            ''', (event_type, user_id, ip_address, user_agent, details))
-        else:
-            cursor.execute('''
-                INSERT INTO security_events (event_type, user_id, ip_address, user_agent, details)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (event_type, user_id, ip_address, user_agent, details))
+        cursor.execute('''
+            INSERT INTO security_events (event_type, user_id, ip_address, user_agent, details)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (event_type, user_id, ip_address, user_agent, details))
         
         conn.commit()
         conn.close()
@@ -143,7 +137,7 @@ def rate_limit(max_requests=5, window=300):
             current_time = datetime.now()
             
             # Clean old entries
-            cutoff_time = current_time - timedelta(seconds=window)
+            cutoff_time = current_time - datetime.timedelta(seconds=window)
             if client_ip in rate_limit_storage:
                 rate_limit_storage[client_ip] = [
                     timestamp for timestamp in rate_limit_storage[client_ip] 
@@ -173,11 +167,7 @@ def create_user(username, email, first_name, last_name, password, consent_given=
         cursor = conn.cursor()
         
         # Check if username or email already exists
-        if is_postgresql():
-            cursor.execute('SELECT id FROM users WHERE username = %s OR email = %s', (username, email))
-        else:
-            cursor.execute('SELECT id FROM users WHERE username = ? OR email = ?', (username, email))
-            
+        cursor.execute('SELECT id FROM users WHERE username = %s OR email = %s', (username, email))
         if cursor.fetchone():
             conn.close()
             return False, "Username or email already exists"
@@ -185,28 +175,14 @@ def create_user(username, email, first_name, last_name, password, consent_given=
         # Hash password
         password_hash, salt = hash_password(password)
         
-        # Insert new user with proper PostgreSQL/SQLite handling
-        if is_postgresql():
-            cursor.execute('''
-                INSERT INTO users (username, email, first_name, last_name, password_hash, salt, consent_given, consent_date)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            ''', (username, email, first_name, last_name, password_hash, salt, consent_given, 
-                  datetime.now() if consent_given else None))
-            
-            # Get the ID from RETURNING clause in PostgreSQL
-            user_id = cursor.fetchone()[0]
-        else:
-            # SQLite version
-            cursor.execute('''
-                INSERT INTO users (username, email, first_name, last_name, password_hash, salt, consent_given, consent_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (username, email, first_name, last_name, password_hash, salt, consent_given, 
-                  datetime.now() if consent_given else None))
-            
-            # Get the ID using lastrowid in SQLite
-            user_id = cursor.lastrowid
+        # Insert new user
+        cursor.execute('''
+            INSERT INTO users (username, email, first_name, last_name, password_hash, salt, consent_given, consent_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (username, email, first_name, last_name, password_hash, salt, consent_given, 
+              datetime.now() if consent_given else None))
         
+        user_id = cursor.lastrowid
         conn.commit()
         conn.close()
         
@@ -221,16 +197,10 @@ def authenticate_user(username, password):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        if is_postgresql():
-            cursor.execute('''
-                SELECT id, username, email, first_name, last_name, password_hash, salt, is_active
-                FROM users WHERE username = %s
-            ''', (username,))
-        else:
-            cursor.execute('''
-                SELECT id, username, email, first_name, last_name, password_hash, salt, is_active
-                FROM users WHERE username = ?
-            ''', (username,))
+        cursor.execute('''
+            SELECT id, username, email, first_name, last_name, password_hash, salt, is_active
+            FROM users WHERE username = ?
+        ''', (username,))
         
         user = cursor.fetchone()
         
@@ -238,18 +208,7 @@ def authenticate_user(username, password):
             conn.close()
             return False, "Invalid credentials"
         
-        # Handle both dictionary (PostgreSQL) and tuple (SQLite) results
-        if isinstance(user, dict):
-            user_id = user['id']
-            username = user['username']
-            email = user['email']
-            first_name = user['first_name']
-            last_name = user['last_name']
-            stored_hash = user['password_hash']
-            salt = user['salt']
-            is_active = user['is_active']
-        else:
-            user_id, username, email, first_name, last_name, stored_hash, salt, is_active = user
+        user_id, username, email, first_name, last_name, stored_hash, salt, is_active = user
         
         if not is_active:
             conn.close()
@@ -257,11 +216,7 @@ def authenticate_user(username, password):
         
         if verify_password(password, stored_hash, salt):
             # Update last login
-            if is_postgresql():
-                cursor.execute('UPDATE users SET last_login = %s WHERE id = %s', (datetime.now(), user_id))
-            else:
-                cursor.execute('UPDATE users SET last_login = ? WHERE id = ?', (datetime.now(), user_id))
-            
+            cursor.execute('UPDATE users SET last_login = %s WHERE id = %s', (datetime.now(), user_id))
             conn.commit()
             conn.close()
             
@@ -307,16 +262,10 @@ def save_transcription(user_id, verslag_type, original_transcript, structured_re
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        if is_postgresql():
-            cursor.execute('''
-                INSERT INTO transcription_history (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ''', (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback))
-        else:
-            cursor.execute('''
-                INSERT INTO transcription_history (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback))
+        cursor.execute('''
+            INSERT INTO transcription_history (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback))
         
         conn.commit()
         conn.close()
@@ -331,44 +280,27 @@ def get_user_transcription_history(user_id, limit=50):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        if is_postgresql():
-            cursor.execute('''
-                SELECT id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback, created_at
-                FROM transcription_history 
-                WHERE user_id = %s
-                ORDER BY created_at DESC
-                LIMIT %s
-            ''', (user_id, limit))
-        else:
-            cursor.execute('''
-                SELECT id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback, created_at
-                FROM transcription_history 
-                WHERE user_id = ?
-                ORDER BY created_at DESC
-                LIMIT ?
-            ''', (user_id, limit))
+        cursor.execute('''
+            SELECT id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, quality_feedback, created_at
+            FROM transcription_history 
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        ''', (user_id, limit))
         
         history = cursor.fetchall()
         conn.close()
         
-        # Handle both dictionary (PostgreSQL) and tuple (SQLite) results
-        result = []
-        for row in history:
-            if isinstance(row, dict):
-                result.append(row)
-            else:
-                result.append({
-                    'id': row[0],
-                    'patient_id': row[1],
-                    'verslag_type': row[2],
-                    'original_transcript': row[3],
-                    'structured_report': row[4],
-                    'enhanced_transcript': row[5],
-                    'quality_feedback': row[6],
-                    'created_at': row[7]
-                })
-        
-        return result
+        return [{
+            'id': row[0],
+            'patient_id': row[1],
+            'verslag_type': row[2],
+            'original_transcript': row[3],
+            'structured_report': row[4],
+            'enhanced_transcript': row[5],
+            'quality_feedback': row[6],
+            'created_at': row[7]
+        } for row in history]
         
     except Exception as e:
         print(f"Error fetching transcription history: {e}")
@@ -380,12 +312,8 @@ def create_default_admin():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        if is_postgresql():
-            cursor.execute('SELECT COUNT(*) FROM users')
-            user_count = cursor.fetchone()[0]
-        else:
-            cursor.execute('SELECT COUNT(*) FROM users')
-            user_count = cursor.fetchone()[0]
+        cursor.execute('SELECT COUNT(*) FROM users')
+        user_count = cursor.fetchone()[0]
         
         if user_count == 0:
             # Create default admin user
