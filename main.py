@@ -2737,6 +2737,79 @@ def debug_database():
             "traceback": traceback.format_exc()
         }), 500
 
+@app.route('/migrate-db')
+@login_required
+def migrate_database():
+    """Migrate database to add new administrative columns"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if columns already exist
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'transcription_history'
+        """)
+        existing_columns = [row[0] if isinstance(row, tuple) else row['column_name'] for row in cursor.fetchall()]
+        
+        migrations_needed = []
+        
+        # Add contact_location column if it doesn't exist
+        if 'contact_location' not in existing_columns:
+            cursor.execute("""
+                ALTER TABLE transcription_history 
+                ADD COLUMN contact_location VARCHAR(50) DEFAULT 'Poli'
+            """)
+            migrations_needed.append('contact_location')
+        
+        # Add is_completed column if it doesn't exist
+        if 'is_completed' not in existing_columns:
+            cursor.execute("""
+                ALTER TABLE transcription_history 
+                ADD COLUMN is_completed BOOLEAN DEFAULT FALSE
+            """)
+            migrations_needed.append('is_completed')
+        
+        # Add billing_ok column if it doesn't exist
+        if 'billing_ok' not in existing_columns:
+            cursor.execute("""
+                ALTER TABLE transcription_history 
+                ADD COLUMN billing_ok BOOLEAN DEFAULT FALSE
+            """)
+            migrations_needed.append('billing_ok')
+        
+        # Add updated_at column if it doesn't exist
+        if 'updated_at' not in existing_columns:
+            cursor.execute("""
+                ALTER TABLE transcription_history 
+                ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            """)
+            migrations_needed.append('updated_at')
+        
+        conn.commit()
+        conn.close()
+        
+        if migrations_needed:
+            return jsonify({
+                'success': True,
+                'message': f'Database migrated successfully! Added columns: {", ".join(migrations_needed)}',
+                'migrations': migrations_needed
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'message': 'Database is already up to date!',
+                'migrations': []
+            })
+        
+    except Exception as e:
+        print(f"❌ Database migration error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/health')
 def health_check():
     """Health check endpoint"""
