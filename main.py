@@ -2510,195 +2510,157 @@ def review_transcription(record_id):
         print(f"🔍 DEBUG: Review error traceback: {traceback.format_exc()}")
         flash(f'Fout bij laden van transcriptie: {str(e)}', 'error')
         return redirect(url_for('history'))
-                audio {{
-                    width: 100%;
-                    margin-top: 10px;
-                }}
-                .enhanced-content {{
-                    margin-top: 20px;
-                    padding: 20px;
-                    background: #f0fff4;
-                    border-radius: 8px;
-                    border-left: 4px solid #48bb78;
-                    display: none;
-                }}
-                .differential-content {{
-                    margin-top: 20px;
-                    padding: 20px;
-                    background: #fff5f5;
-                    border-radius: 8px;
-                    border-left: 4px solid #f56565;
-                    display: none;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>📋 Medisch Rapport</h1>
-                <div class="meta">
-                    <strong>Patiënt ID:</strong> {record['patient_id']} | 
-                    <strong>Type:</strong> {record['verslag_type']} | 
-                    <strong>Datum:</strong> {record['created_at'].strftime('%d-%m-%Y %H:%M') if record['created_at'] else 'Unknown'}
-                </div>
-                
-                <div class="report-section">
-                    <h2>📋 Gestructureerd Medisch Rapport</h2>
-                    <div class="report-content" id="medical_report">{record['structured_report']}</div>
-                </div>
-                
-                <div class="enhanced-content" id="enhanced_section">
-                    <h2>🔧 Gecorrigeerd Rapport (Professor Cardiologie)</h2>
-                    <div class="report-content" id="enhanced_report"></div>
-                </div>
-                
-                <div class="differential-content" id="differential_section">
-                    <h2>🔍 Conservatieve Cardiologische Analyse</h2>
-                    <div class="report-content" id="differential_report"></div>
-                </div>
-                
-                <div class="button-group">
-                    <button type="button" onclick="copyToClipboard('medical_report')" class="btn-success">
-                        📋 Kopieer Rapport
-                    </button>
-                    <button type="button" onclick="improveReport()" class="btn-warning" id="improve_btn">
-                        🔧 Corrigeer Rapport
-                    </button>
-                    <button type="button" onclick="getDifferentialDiagnosis()" class="btn-info" id="differential_btn">
-                        🔍 Cardiologische Analyse
-                    </button>
-                    <button type="button" onclick="window.location.href='/history'" class="btn-secondary">
-                        ← Terug naar Geschiedenis
-                    </button>
-                    <button type="button" onclick="deleteRecord()" class="btn-danger">
-                        🗑️ Verwijderen
-                    </button>
-                </div>
-            </div>
-            
-            <script>
-                function copyToClipboard(elementId) {{
-                    const element = document.getElementById(elementId);
-                    const text = element.textContent;
-                    navigator.clipboard.writeText(text).then(() => {{
-                        alert('✅ Rapport gekopieerd naar klembord!');
-                    }}).catch(() => {{
-                        // Fallback for older browsers
-                        const textArea = document.createElement('textarea');
-                        textArea.value = text;
-                        document.body.appendChild(textArea);
-                        textArea.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(textArea);
-                        alert('✅ Rapport gekopieerd naar klembord!');
-                    }});
-                }}
-                
-                function improveReport() {{
-                    const btn = document.getElementById('improve_btn');
-                    const originalText = btn.innerHTML;
-                    btn.innerHTML = '⏳ Corrigeren...';
-                    btn.classList.add('loading');
-                    
-                    const reportText = document.getElementById('medical_report').textContent;
-                    
-                    fetch('/api/improve-report', {{
-                        method: 'POST',
-                        headers: {{
-                            'Content-Type': 'application/json'
-                        }},
-                        body: JSON.stringify({{
-                            report: reportText,
-                            record_id: {record['id']}
-                        }})
-                    }})
-                    .then(response => response.json())
-                    .then(result => {{
-                        if (result.success) {{
-                            document.getElementById('enhanced_report').textContent = result.improved_report;
-                            document.getElementById('enhanced_section').style.display = 'block';
-                            alert('✅ Rapport gecorrigeerd door Professor Cardiologie!');
-                        }} else {{
-                            alert('❌ Fout bij corrigeren: ' + result.error);
-                        }}
-                    }})
-                    .catch(error => {{
-                        alert('❌ Fout bij corrigeren: ' + error);
-                    }})
-                    .finally(() => {{
-                        btn.innerHTML = originalText;
-                        btn.classList.remove('loading');
-                    }});
-                }}
-                
-                function getDifferentialDiagnosis() {{
-                    const btn = document.getElementById('differential_btn');
-                    const originalText = btn.innerHTML;
-                    btn.innerHTML = '⏳ Analyseren...';
-                    btn.classList.add('loading');
-                    
-                    const reportText = document.getElementById('medical_report').textContent;
-                    
-                    fetch('/api/differential-diagnosis', {{
-                        method: 'POST',
-                        headers: {{
-                            'Content-Type': 'application/json'
-                        }},
-                        body: JSON.stringify({{
-                            report: reportText,
-                            record_id: {record['id']}
-                        }})
-                    }})
-                    .then(response => response.json())
-                    .then(result => {{
-                        if (result.success) {{
-                            document.getElementById('differential_report').textContent = result.differential_diagnosis;
-                            document.getElementById('differential_section').style.display = 'block';
-                            alert('✅ Conservatieve analyse opgesteld door Cardioloog!');
-                        }} else {{
-                            alert('❌ Fout bij analyse: ' + result.error);
-                        }}
-                    }})
-                    .catch(error => {{
-                        alert('❌ Fout bij analyse: ' + error);
-                    }})
-                    .finally(() => {{
-                        btn.innerHTML = originalText;
-                        btn.classList.remove('loading');
-                    }});
-                }}
-                
-                function deleteRecord() {{
-                    if (confirm('Weet u zeker dat u deze transcriptie wilt verwijderen?')) {{
-                        fetch('/delete-transcription/{record['id']}', {{
-                            method: 'DELETE'
-                        }})
-                        .then(response => response.json())
-                        .then(result => {{
-                            if (result.success) {{
-                                alert('✅ Transcriptie verwijderd!');
-                                window.location.href = '/history';
-                            }} else {{
-                                alert('❌ Fout bij verwijderen: ' + result.error);
-                            }}
-                        }})
-                        .catch(error => {{
-                            alert('❌ Fout bij verwijderen: ' + error);
-                        }});
-                    }}
-                }}
-            </script>
-        </body>
-        </html>
-        """
+
+@app.route('/api/improve-report', methods=['POST'])
+@login_required
+def improve_report():
+    """Improve medical report using Professor Cardiology expertise"""
+    try:
+        data = request.get_json()
+        report_text = data.get('report_content', '')
+        record_id = data.get('record_id')
         
-        return html_content
+        if not report_text:
+            return jsonify({'success': False, 'error': 'Geen rapport tekst ontvangen'})
+        
+        # Use OpenAI to improve the report
+        import openai
+        
+        prompt = f"""U bent een professor cardiologie met 30 jaar ervaring. Corrigeer ALLEEN de volgende aspecten in dit medisch rapport:
+
+1. TYPO'S EN TERMINOLOGIE:
+   - Corrigeer medische termen (vb: "hartdoorsluiting" → "hartoorsluiting/LAA closure")
+   - Fix anatomische termen en afkortingen
+   - Corrigeer spelfouten in medische terminologie
+
+2. INCONSISTENTIES:
+   - Harmoniseer tegenstrijdige bevindingen (vb: "aorta 50mm" vs "normale aorta")
+   - Zorg voor consistente metingen en terminologie
+
+3. DIAGNOSES VERBETEREN:
+   - Vervang vage termen door specifieke diagnoses
+   - Bij bicuspiede klep: voeg aanbeveling toe voor aortadilatatie/coarctatio screening + familie screening
+   - Bij significante klepafwijkingen: voeg follow-up schema toe
+
+BEHOUD ALLE ORIGINELE BEVINDINGEN EN STRUCTUUR. Geef alleen het gecorrigeerde rapport terug.
+
+Origineel rapport:
+{report_text}"""
+
+        response = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Je bent een professor cardiologie die medische rapporten corrigeert voor nauwkeurigheid en consistentie."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
+        )
+        
+        improved_report = response.choices[0].message.content
+        
+        # Save to database if record_id provided
+        if record_id:
+            user = get_current_user()
+            user_id = user.get('id') if user else 1
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                UPDATE transcription_history 
+                SET improved_report = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND user_id = %s
+            ''', (improved_report, record_id, user_id))
+            
+            conn.commit()
+            conn.close()
+        
+        return jsonify({
+            'success': True,
+            'improved_report': improved_report
+        })
         
     except Exception as e:
-        print(f"❌ Review page error: {e}")
-        import traceback
-        print(f"🔍 DEBUG: Review error traceback: {traceback.format_exc()}")
-        flash(f'Fout bij laden van transcriptie: {str(e)}', 'error')
-        return redirect(url_for('history'))
+        print(f"❌ Improve report error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/differential-diagnosis', methods=['POST'])
+@login_required
+def differential_diagnosis():
+    """Generate conservative cardiological analysis"""
+    try:
+        data = request.get_json()
+        report_text = data.get('report_content', '')
+        record_id = data.get('record_id')
+        
+        if not report_text:
+            return jsonify({'success': False, 'error': 'Geen rapport tekst ontvangen'})
+        
+        # Use OpenAI for conservative analysis
+        import openai
+        
+        prompt = f"""U bent een ervaren cardioloog. Geef een CONSERVATIEVE cardiologische analyse van dit rapport.
+
+BELANGRIJKE VEILIGHEIDSINSTRUCTIES:
+- Geef GEEN operatieve adviezen bij minimale afwijkingen
+- Geef GEEN medicatie zonder duidelijke indicatie  
+- Vermijd gevaarlijke of experimentele behandelingen
+- Focus op SIGNIFICANTE bevindingen alleen
+
+Analyseer alleen als er duidelijke pathologie is:
+
+1. SIGNIFICANTE BEVINDINGEN:
+   - Alleen klinisch relevante afwijkingen benoemen
+   - Negeer normale varianten en minimale afwijkingen
+
+2. MOGELIJKE DIAGNOSES:
+   - Alleen bij duidelijke pathologie
+   - Met waarschijnlijkheid (hoog/matig/laag)
+
+3. CONSERVATIEVE AANBEVELINGEN:
+   - Specialist verwijzing bij complexe beslissingen
+   - Standaard follow-up volgens ESC/AHA richtlijnen
+   - Geen operatieve adviezen zonder duidelijke indicatie
+
+Rapport:
+{report_text}"""
+
+        response = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Je bent een conservatieve cardioloog die veiligheid boven uitgebreide analyse stelt."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2
+        )
+        
+        analysis = response.choices[0].message.content
+        
+        # Save to database if record_id provided
+        if record_id:
+            user = get_current_user()
+            user_id = user.get('id') if user else 1
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                UPDATE transcription_history 
+                SET differential_diagnosis = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND user_id = %s
+            ''', (analysis, record_id, user_id))
+            
+            conn.commit()
+            conn.close()
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis
+        })
+        
+    except Exception as e:
+        print(f"❌ Differential diagnosis error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/update-transcription/<int:record_id>', methods=['POST'])
 @login_required
