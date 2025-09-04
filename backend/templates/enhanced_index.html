@@ -1419,12 +1419,60 @@
 
             fetch('/api/ocr-extract', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'same-origin'
             })
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 302 || response.redirected) {
+                    showStatus('❌ Sessie verlopen - opnieuw inloggen vereist', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    return null;
+                }
+                return response.json();
+            })
             .then(data => {
+                if (!data) return;
+                
                 if (data.success && data.patient_number) {
                     document.getElementById('adminPatientId').value = data.patient_number;
+                    showStatus('✅ Patiënt ID herkend: ' + data.patient_number, 'success');
+                } else {
+                    showStatus('❌ OCR verwerking gefaald: ' + (data.error || 'Onbekende fout'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('❌ Fout bij OCR verwerking', 'error');
+            });
+        }
+
+        function processOCRImage(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            fetch('/api/ocr-extract', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'  // Ensure cookies are sent
+            })
+            .then(response => {
+                if (response.status === 302 || response.redirected) {
+                    // Authentication failed - redirect to login
+                    showStatus('❌ Sessie verlopen - opnieuw inloggen vereist', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    return null;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data) return; // Authentication redirect handled above
+                
+                if (data.success && data.patient_number) {
+                    updatePatientIdField(data.patient_number);
                     showStatus('✅ Patiënt ID herkend: ' + data.patient_number, 'success');
                 } else {
                     showStatus('❌ OCR verwerking gefaald: ' + (data.error || 'Onbekende fout'), 'error');
