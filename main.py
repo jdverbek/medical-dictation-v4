@@ -2727,18 +2727,18 @@ def delete_transcription(record_id):
             conn.close()
             return jsonify({'success': False, 'error': 'Transcription not found or access denied'})
         
-        patient_id = result[0]
+        patient_id = result['patient_id'] if isinstance(result, dict) else result[0]
         
-        # Delete the transcription
-        if is_postgresql():
-            cursor.execute('DELETE FROM transcription_history WHERE id = %s AND user_id = %s', 
-                          (record_id, user['id']))
-        else:
-            cursor.execute('DELETE FROM transcription_history WHERE id = %s AND user_id = %s', 
-                          (record_id, user['id']))
+        # Delete the transcription (PostgreSQL only)
+        cursor.execute('DELETE FROM transcription_history WHERE id = %s AND user_id = %s', 
+                      (record_id, user['id']))
         
+        rows_affected = cursor.rowcount
         conn.commit()
         conn.close()
+        
+        if rows_affected == 0:
+            return jsonify({'success': False, 'error': 'No records were deleted'})
         
         # Log the deletion for security audit
         log_security_event('TRANSCRIPTION_DELETED', user_id=user['id'], 
