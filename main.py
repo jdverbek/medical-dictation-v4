@@ -1483,14 +1483,22 @@ def api_ocr_extract():
                 'suggestion': 'Voer patiënt ID handmatig in'
             }), 503
         
-        data = request.get_json()
-        if not data or 'image' not in data:
+        # Handle FormData from file upload
+        if 'image' not in request.files:
             return jsonify({
                 'success': False,
-                'error': 'Geen afbeelding data ontvangen'
+                'error': 'Geen afbeelding bestand ontvangen'
             }), 400
         
-        image_data = data['image']
+        image_file = request.files['image']
+        if image_file.filename == '':
+            return jsonify({
+                'success': False,
+                'error': 'Geen bestand geselecteerd'
+            }), 400
+        
+        # Read image data
+        image_data = image_file.read()
         
         # Extract patient number using OCR
         result = ocr_service.extract_patient_number(image_data)
@@ -1504,6 +1512,28 @@ def api_ocr_extract():
                     'raw_text': result.get('raw_text', ''),
                     'method': result.get('method', 'unknown'),
                     'debug_info': result.get('debug_info', '')
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Geëxtraheerd nummer is geen geldig patiënt ID',
+                    'extracted': result['patient_number'],
+                    'suggestion': 'Controleer de afbeelding en probeer opnieuw'
+                }), 400
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'OCR extractie gefaald'),
+                'raw_text': result.get('raw_text', ''),
+                'suggestion': 'Probeer een duidelijkere afbeelding'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"OCR extraction error: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Server fout bij OCR verwerking: {str(e)}'
+        }), 500
                 })
             else:
                 return jsonify({

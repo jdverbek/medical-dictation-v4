@@ -14,11 +14,15 @@ import time
 import logging
 from functools import wraps
 from superior_transcription import SuperiorMedicalTranscription
+from ocr_service import PatientNumberOCR
 
 app = Flask(__name__, template_folder='templates')
 
 # Initialize transcription service
 transcription_service = SuperiorMedicalTranscription()
+
+# Initialize OCR service
+ocr_service = PatientNumberOCR()
 
 # Configure session with secure settings (from v2)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
@@ -603,6 +607,108 @@ def view_record(record_id):
     except Exception as e:
         logger.error(f"View record error: {e}")
         return f"Error: {str(e)}", 500
+
+@app.route('/logout')
+def logout():
+    """Logout user and clear session"""
+    session.clear()
+    flash('You have been logged out successfully.', 'info')
+    return redirect(url_for('index'))
+
+@app.route('/api/ocr-extract', methods=['POST'])
+def ocr_extract():
+    """Extract patient number from uploaded image using OCR"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'Geen afbeelding geüpload'
+            }), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'error': 'Geen bestand geselecteerd'
+            }), 400
+        
+        # Read image data
+        image_data = file.read()
+        
+        # Use OCR service to extract patient number
+        result = ocr_service.extract_patient_number(image_data)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        logger.error(f"OCR extraction error: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'OCR verwerking gefaald: {str(e)}'
+        }), 500
+
+@app.route('/api/admin-note', methods=['POST'])
+def admin_note():
+    """Save administrative note"""
+    try:
+        patient_id = request.form.get('patient_id', '').strip()
+        report_type = request.form.get('report_type', '').strip()
+        contact_location = request.form.get('contact_location', '').strip()
+        note_text = request.form.get('note_text', '').strip()
+        
+        # Validate required fields
+        if not all([patient_id, report_type, contact_location, note_text]):
+            return jsonify({
+                'success': False,
+                'error': 'Alle velden zijn verplicht'
+            }), 400
+        
+        # Validate patient ID format
+        if not patient_id.isdigit() or len(patient_id) != 10:
+            return jsonify({
+                'success': False,
+                'error': 'Patiënt ID moet exact 10 cijfers bevatten'
+            }), 400
+        
+        # Save to database
+        conn = sqlite3.connect('medical_app.db')
+        cursor = conn.cursor()
+        
+        # Create admin_notes table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS admin_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id TEXT NOT NULL,
+                report_type TEXT NOT NULL,
+                contact_location TEXT NOT NULL,
+                note_text TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Insert the admin note
+        cursor.execute('''
+            INSERT INTO admin_notes (patient_id, report_type, contact_location, note_text)
+            VALUES (?, ?, ?, ?)
+        ''', (patient_id, report_type, contact_location, note_text))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Administratieve nota succesvol opgeslagen'
+        })
+        
+    except Exception as e:
+        logger.error(f"Admin note error: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Fout bij opslaan: {str(e)}'
+        }), 500
 
 @app.route('/health')
 def health_check():

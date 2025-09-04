@@ -1346,11 +1346,17 @@
         // Admin Note Modal Functions
         function showAdminNoteModal() {
             // Pre-fill patient ID if already recognized via OCR
-            const currentPatientId = document.getElementById('patient-id').value;
-            if (currentPatientId && currentPatientId.length === 10) {
-                document.getElementById('adminPatientId').value = currentPatientId;
+            const currentPatientIdElement = document.getElementById('patientId');
+            if (currentPatientIdElement && currentPatientIdElement.value && currentPatientIdElement.value.length === 10) {
+                const adminPatientIdElement = document.getElementById('adminPatientId');
+                if (adminPatientIdElement) {
+                    adminPatientIdElement.value = currentPatientIdElement.value;
+                }
             }
-            document.getElementById('adminNoteModal').style.display = 'block';
+            const modal = document.getElementById('adminNoteModal');
+            if (modal) {
+                modal.style.display = 'block';
+            }
         }
 
         function hideAdminNoteModal() {
