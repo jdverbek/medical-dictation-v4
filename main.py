@@ -1880,174 +1880,636 @@ def review_transcription(record_id):
     """Review and edit transcription with enhanced interface"""
     try:
         user = get_current_user()
-        if not user:
-            flash('Please log in to access this page', 'error')
-            return redirect(url_for('login'))
+        user_id = user.get('id') if user else 1
+        
+        print(f"🔍 DEBUG: Review page loading for record {record_id}")
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get transcription record with user verification - PostgreSQL
+        # Get transcription record with all fields including audio_filename
         cursor.execute('''
             SELECT id, patient_id, verslag_type, original_transcript, 
-                   structured_report, created_at, enhanced_transcript, quality_feedback
+                   structured_report, enhanced_transcript, created_at, 
+                   quality_feedback, improved_report, differential_diagnosis,
+                   audio_filename
             FROM transcription_history 
             WHERE id = %s AND user_id = %s
-        ''', (record_id, user['id']))
+        ''', (record_id, user_id))
         
-        record_data = cursor.fetchone()
+        record = cursor.fetchone()
         conn.close()
         
-        if not record_data:
-            flash('Transcriptie niet gevonden of geen toegang', 'error')
+        if not record:
+            flash('Transcriptie niet gevonden', 'error')
             return redirect(url_for('history'))
         
-        # PostgreSQL with dict_row returns dictionary already
-        # Check if it's a dictionary or tuple
-        if isinstance(record_data, dict):
-            record = {
-                'id': record_data['id'],
-                'patient_id': record_data['patient_id'] or 'Unknown',
-                'verslag_type': record_data['verslag_type'] or 'Unknown',
-                'original_transcript': record_data['original_transcript'] or '',
-                'structured_report': record_data['structured_report'] or '',
-                'created_at': record_data['created_at'],
-                'enhanced_transcript': record_data.get('enhanced_transcript') or record_data['original_transcript'] or '',
-                'quality_feedback': record_data.get('quality_feedback', '')
-            }
+        # Handle both dict and tuple responses
+        if isinstance(record, dict):
+            data = record
         else:
-            # Handle tuple response (shouldn't happen with psycopg dict_row)
-            record = {
-                'id': record_data[0],
-                'patient_id': record_data[1] or 'Unknown',
-                'verslag_type': record_data[2] or 'Unknown',
-                'original_transcript': record_data[3] or '',
-                'structured_report': record_data[4] or '',
-                'created_at': record_data[5],
-                'enhanced_transcript': record_data[6] if len(record_data) > 6 else record_data[3] or '',
-                'quality_feedback': record_data[7] if len(record_data) > 7 else ''
+            data = {
+                'id': record[0],
+                'patient_id': record[1],
+                'verslag_type': record[2],
+                'original_transcript': record[3],
+                'structured_report': record[4],
+                'enhanced_transcript': record[5],
+                'created_at': record[6],
+                'quality_feedback': record[7] if len(record) > 7 else None,
+                'improved_report': record[8] if len(record) > 8 else None,
+                'differential_diagnosis': record[9] if len(record) > 9 else None,
+                'audio_filename': record[10] if len(record) > 10 else None
             }
         
-        print(f"🔍 DEBUG: Review page loading for record {record_id}")
-        print(f"🔍 DEBUG: Record data: {record}")
+        # Ensure all fields have default values
+        for field in ['original_transcript', 'structured_report', 'enhanced_transcript', 
+                     'quality_feedback', 'improved_report', 'differential_diagnosis']:
+            if data.get(field) is None:
+                data[field] = ''
         
-        # Since the template is missing, return a simple HTML response
-        html_content = f"""
-        <!DOCTYPE html>
-        <html lang="nl">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Medisch Rapport - Medical Dictation v4.0</title>
-            <style>
-                body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    min-height: 100vh;
+        # Format date
+        created_date = data['created_at'].strftime('%d/%m/%Y %H:%M') if data['created_at'] else 'Onbekend'
+        
+        # Generate complete HTML page with enhanced functionality
+        html_content = f'''<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Transcriptie - Medical Dictation v4.0</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }}
+
+        .container {{
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }}
+
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }}
+
+        .header h1 {{
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }}
+
+        .header p {{
+            font-size: 1.2em;
+            opacity: 0.9;
+        }}
+
+        .content {{
+            padding: 30px;
+        }}
+
+        .info-section {{
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 5px solid #667eea;
+        }}
+
+        .info-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }}
+
+        .info-item {{
+            display: flex;
+            flex-direction: column;
+        }}
+
+        .info-label {{
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }}
+
+        .info-value {{
+            font-size: 1.1em;
+            color: #212529;
+        }}
+
+        .audio-section {{
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 5px solid #007bff;
+        }}
+
+        .audio-controls {{
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }}
+
+        .audio-player {{
+            flex: 1;
+            min-width: 300px;
+        }}
+
+        .audio-info {{
+            color: #495057;
+            font-size: 0.9em;
+        }}
+
+        .report-section {{
+            margin-bottom: 30px;
+        }}
+
+        .section-title {{
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }}
+
+        .report-textarea {{
+            width: 100%;
+            min-height: 400px;
+            padding: 20px;
+            border: 2px solid #dee2e6;
+            border-radius: 12px;
+            font-family: Georgia, serif;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }}
+
+        .report-textarea:focus {{
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }}
+
+        .button-group {{
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }}
+
+        .btn {{
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }}
+
+        .btn-primary {{
+            background: #007bff;
+            color: white;
+        }}
+
+        .btn-primary:hover {{
+            background: #0056b3;
+            transform: translateY(-2px);
+        }}
+
+        .btn-success {{
+            background: #28a745;
+            color: white;
+        }}
+
+        .btn-success:hover {{
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }}
+
+        .btn-warning {{
+            background: #ffc107;
+            color: #212529;
+        }}
+
+        .btn-warning:hover {{
+            background: #e0a800;
+            transform: translateY(-2px);
+        }}
+
+        .btn-secondary {{
+            background: #6c757d;
+            color: white;
+        }}
+
+        .btn-secondary:hover {{
+            background: #545b62;
+            transform: translateY(-2px);
+        }}
+
+        .btn-danger {{
+            background: #dc3545;
+            color: white;
+        }}
+
+        .btn-danger:hover {{
+            background: #c82333;
+            transform: translateY(-2px);
+        }}
+
+        .collapsible-section {{
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }}
+
+        .collapsible-header {{
+            background: #f8f9fa;
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #495057;
+        }}
+
+        .collapsible-content {{
+            padding: 20px;
+            display: none;
+            background: white;
+        }}
+
+        .collapsible-content.active {{
+            display: block;
+        }}
+
+        .loading {{
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }}
+
+        .success-message {{
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }}
+
+        .error-message {{
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }}
+
+        @media (max-width: 768px) {{
+            .container {{
+                margin: 10px;
+                border-radius: 15px;
+            }}
+
+            .header {{
+                padding: 20px;
+            }}
+
+            .header h1 {{
+                font-size: 2em;
+            }}
+
+            .content {{
+                padding: 20px;
+            }}
+
+            .button-group {{
+                flex-direction: column;
+            }}
+
+            .btn {{
+                justify-content: center;
+            }}
+
+            .audio-controls {{
+                flex-direction: column;
+                align-items: stretch;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Review Transcriptie</h1>
+            <p>Bekijk en bewerk medisch rapport</p>
+        </div>
+
+        <div class="content">
+            <div class="info-section">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">🧑‍⚕️ Patiënt ID</div>
+                        <div class="info-value">{data['patient_id']}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">📋 Type Verslag</div>
+                        <div class="info-value">{data['verslag_type']}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">📅 Datum</div>
+                        <div class="info-value">{created_date}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">🆔 Record ID</div>
+                        <div class="info-value">#{data['id']}</div>
+                    </div>
+                </div>
+            </div>
+
+            {f'''
+            <div class="audio-section">
+                <h3 style="margin-bottom: 15px; color: #007bff;">🎵 Audio Opname</h3>
+                <div class="audio-controls">
+                    <audio controls class="audio-player" preload="metadata">
+                        <source src="/audio/{data['audio_filename']}" type="audio/mpeg">
+                        <source src="/audio/{data['audio_filename']}" type="audio/wav">
+                        <source src="/audio/{data['audio_filename']}" type="audio/m4a">
+                        <source src="/audio/{data['audio_filename']}" type="audio/webm">
+                        Je browser ondersteunt geen audio playback.
+                    </audio>
+                    <div class="audio-info">
+                        📁 {data['audio_filename']}<br>
+                        🎧 Compatibel met iPhone/Safari
+                    </div>
+                </div>
+            </div>
+            ''' if data.get('audio_filename') else ''}
+
+            <div class="report-section">
+                <div class="section-title">📄 Medisch Rapport</div>
+                <textarea id="reportContent" class="report-textarea" placeholder="Medisch rapport wordt geladen...">{data['structured_report']}</textarea>
+                
+                <div class="button-group">
+                    <button class="btn btn-success" onclick="saveReport()">💾 Rapport Opslaan</button>
+                    <button class="btn btn-primary" onclick="copyToClipboard()">📋 Kopieer naar Klembord</button>
+                    <button class="btn btn-warning" onclick="correctReport()">🔧 Corrigeer Rapport</button>
+                    <button class="btn btn-secondary" onclick="analyzeReport()">🔍 Cardiologische Analyse</button>
+                    <a href="/history" class="btn btn-secondary">← Terug naar Overzicht</a>
+                </div>
+
+                <div class="success-message" id="successMessage"></div>
+                <div class="error-message" id="errorMessage"></div>
+                <div class="loading" id="loadingMessage">⏳ Bezig met verwerken...</div>
+            </div>
+
+            <div class="collapsible-section">
+                <div class="collapsible-header" onclick="toggleSection('correctedSection')">
+                    <span>🔧 Gecorrigeerd Rapport</span>
+                    <span>▼</span>
+                </div>
+                <div class="collapsible-content" id="correctedSection">
+                    <textarea class="report-textarea" readonly style="min-height: 200px;" placeholder="Klik op 'Corrigeer Rapport' om een gecorrigeerde versie te genereren">{data.get('improved_report', '')}</textarea>
+                </div>
+            </div>
+
+            <div class="collapsible-section">
+                <div class="collapsible-header" onclick="toggleSection('analysisSection')">
+                    <span>🔍 Conservatieve Cardiologische Analyse</span>
+                    <span>▼</span>
+                </div>
+                <div class="collapsible-content" id="analysisSection">
+                    <textarea class="report-textarea" readonly style="min-height: 300px;" placeholder="Klik op 'Cardiologische Analyse' om een conservatieve analyse te genereren">{data.get('differential_diagnosis', '')}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSection(sectionId) {{
+            const content = document.getElementById(sectionId);
+            const header = content.previousElementSibling;
+            const arrow = header.querySelector('span:last-child');
+            
+            if (content.classList.contains('active')) {{
+                content.classList.remove('active');
+                arrow.textContent = '▼';
+            }} else {{
+                content.classList.add('active');
+                arrow.textContent = '▲';
+            }}
+        }}
+
+        async function saveReport() {{
+            const content = document.getElementById('reportContent').value;
+            const loadingMsg = document.getElementById('loadingMessage');
+            const successMsg = document.getElementById('successMessage');
+            const errorMsg = document.getElementById('errorMessage');
+            
+            // Hide previous messages
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+            loadingMsg.style.display = 'block';
+            
+            try {{
+                const response = await fetch('/api/save-report', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json',
+                    }},
+                    body: JSON.stringify({{
+                        record_id: {record_id},
+                        report_content: content
+                    }})
+                }});
+                
+                const result = await response.json();
+                loadingMsg.style.display = 'none';
+                
+                if (result.success) {{
+                    successMsg.textContent = '✅ Rapport succesvol opgeslagen!';
+                    successMsg.style.display = 'block';
+                }} else {{
+                    errorMsg.textContent = '❌ Fout bij opslaan: ' + result.error;
+                    errorMsg.style.display = 'block';
                 }}
-                .container {{
-                    max-width: 900px;
-                    margin: 0 auto;
-                    background: white;
-                    border-radius: 12px;
-                    padding: 30px;
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            }} catch (error) {{
+                loadingMsg.style.display = 'none';
+                errorMsg.textContent = '❌ Fout bij opslaan: ' + error.message;
+                errorMsg.style.display = 'block';
+            }}
+        }}
+
+        function copyToClipboard() {{
+            const content = document.getElementById('reportContent').value;
+            navigator.clipboard.writeText(content).then(() => {{
+                const successMsg = document.getElementById('successMessage');
+                successMsg.textContent = '📋 Rapport gekopieerd naar klembord!';
+                successMsg.style.display = 'block';
+                setTimeout(() => successMsg.style.display = 'none', 3000);
+            }}).catch(err => {{
+                const errorMsg = document.getElementById('errorMessage');
+                errorMsg.textContent = '❌ Fout bij kopiëren naar klembord';
+                errorMsg.style.display = 'block';
+            }});
+        }}
+
+        async function correctReport() {{
+            const content = document.getElementById('reportContent').value;
+            const loadingMsg = document.getElementById('loadingMessage');
+            const errorMsg = document.getElementById('errorMessage');
+            
+            if (!content.trim()) {{
+                errorMsg.textContent = '❌ Geen rapport om te corrigeren';
+                errorMsg.style.display = 'block';
+                return;
+            }}
+            
+            errorMsg.style.display = 'none';
+            loadingMsg.style.display = 'block';
+            
+            try {{
+                const response = await fetch('/api/improve-report', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json',
+                    }},
+                    body: JSON.stringify({{
+                        record_id: {record_id},
+                        report_content: content
+                    }})
+                }});
+                
+                const result = await response.json();
+                loadingMsg.style.display = 'none';
+                
+                if (result.success) {{
+                    const correctedSection = document.getElementById('correctedSection');
+                    const textarea = correctedSection.querySelector('textarea');
+                    textarea.value = result.improved_report;
+                    
+                    // Auto-expand the section
+                    if (!correctedSection.classList.contains('active')) {{
+                        toggleSection('correctedSection');
+                    }}
+                    
+                    const successMsg = document.getElementById('successMessage');
+                    successMsg.textContent = '✅ Rapport gecorrigeerd!';
+                    successMsg.style.display = 'block';
+                }} else {{
+                    errorMsg.textContent = '❌ Fout bij corrigeren: ' + result.error;
+                    errorMsg.style.display = 'block';
                 }}
-                h1 {{
-                    color: #333;
-                    margin-bottom: 10px;
-                    text-align: center;
+            }} catch (error) {{
+                loadingMsg.style.display = 'none';
+                errorMsg.textContent = '❌ Fout bij corrigeren: ' + error.message;
+                errorMsg.style.display = 'block';
+            }}
+        }}
+
+        async function analyzeReport() {{
+            const content = document.getElementById('reportContent').value;
+            const loadingMsg = document.getElementById('loadingMessage');
+            const errorMsg = document.getElementById('errorMessage');
+            
+            if (!content.trim()) {{
+                errorMsg.textContent = '❌ Geen rapport om te analyseren';
+                errorMsg.style.display = 'block';
+                return;
+            }}
+            
+            errorMsg.style.display = 'none';
+            loadingMsg.style.display = 'block';
+            
+            try {{
+                const response = await fetch('/api/differential-diagnosis', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json',
+                    }},
+                    body: JSON.stringify({{
+                        record_id: {record_id},
+                        report_content: content
+                    }})
+                }});
+                
+                const result = await response.json();
+                loadingMsg.style.display = 'none';
+                
+                if (result.success) {{
+                    const analysisSection = document.getElementById('analysisSection');
+                    const textarea = analysisSection.querySelector('textarea');
+                    textarea.value = result.analysis;
+                    
+                    // Auto-expand the section
+                    if (!analysisSection.classList.contains('active')) {{
+                        toggleSection('analysisSection');
+                    }}
+                    
+                    const successMsg = document.getElementById('successMessage');
+                    successMsg.textContent = '✅ Cardiologische analyse voltooid!';
+                    successMsg.style.display = 'block';
+                }} else {{
+                    errorMsg.textContent = '❌ Fout bij analyse: ' + result.error;
+                    errorMsg.style.display = 'block';
                 }}
-                .meta {{
-                    color: #666;
-                    margin-bottom: 30px;
-                    padding-bottom: 20px;
-                    border-bottom: 2px solid #f0f0f0;
-                    text-align: center;
-                }}
-                .report-section {{
-                    margin-bottom: 30px;
-                }}
-                h2 {{
-                    color: #4a5568;
-                    font-size: 1.3em;
-                    margin-bottom: 15px;
-                    padding: 10px;
-                    background: #f7fafc;
-                    border-left: 4px solid #667eea;
-                }}
-                .report-content {{
-                    background: #f9fafb;
-                    border: 1px solid #e2e8f0;
-                    border-radius: 8px;
-                    padding: 20px;
-                    font-family: 'Georgia', serif;
-                    font-size: 16px;
-                    line-height: 1.8;
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                    min-height: 300px;
-                }}
-                .button-group {{
-                    display: flex;
-                    gap: 15px;
-                    margin-top: 30px;
-                    flex-wrap: wrap;
-                    justify-content: center;
-                }}
-                button {{
-                    padding: 12px 24px;
-                    border: none;
-                    border-radius: 6px;
-                    font-size: 16px;
-                    cursor: pointer;
-                    transition: all 0.3s;
-                    font-weight: 500;
-                }}
-                .btn-primary {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                }}
-                .btn-primary:hover {{
-                    transform: translateY(-2px);
-                    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-                }}
-                .btn-secondary {{
-                    background: #e2e8f0;
-                    color: #4a5568;
-                }}
-                .btn-success {{
-                    background: #48bb78;
-                    color: white;
-                }}
-                .btn-warning {{
-                    background: #ed8936;
-                    color: white;
-                }}
-                .btn-info {{
-                    background: #4299e1;
-                    color: white;
-                }}
-                .btn-danger {{
-                    background: #f56565;
-                    color: white;
-                }}
-                .loading {{
-                    opacity: 0.6;
-                    pointer-events: none;
-                }}
-                .loading::after {{
-                    content: " ⏳";
-                }}
-                .audio-section {{
-                    margin: 20px 0;
-                    padding: 15px;
-                    background: #f0f8ff;
-                    border-radius: 8px;
-                    border-left: 4px solid #4299e1;
-                }}
+            }} catch (error) {{
+                loadingMsg.style.display = 'none';
+                errorMsg.textContent = '❌ Fout bij analyse: ' + error.message;
+                errorMsg.style.display = 'block';
+            }}
+        }}
+
+        // Auto-save functionality (optional)
+        let saveTimeout;
+        document.getElementById('reportContent').addEventListener('input', function() {{
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {{
+                // Auto-save after 3 seconds of no typing
+                // saveReport();
+            }}, 3000);
+        }});
+    </script>
+</body>
+</html>'''
+        
+        return html_content
+        
+    except Exception as e:
+        print(f"❌ Review page error: {e}")
+        import traceback
+        print(f"🔍 DEBUG: Review error traceback: {traceback.format_exc()}")
+        flash(f'Fout bij laden van transcriptie: {str(e)}', 'error')
+        return redirect(url_for('history'))
                 audio {{
                     width: 100%;
                     margin-top: 10px;
@@ -2736,6 +3198,85 @@ def debug_database():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+@app.route('/api/save-report', methods=['POST'])
+@login_required
+def save_report():
+    """Save edited report content"""
+    try:
+        data = request.get_json()
+        record_id = data.get('record_id')
+        report_content = data.get('report_content')
+        
+        if not record_id or not report_content:
+            return jsonify({'success': False, 'error': 'Missing record_id or report_content'}), 400
+        
+        user = get_current_user()
+        user_id = user.get('id') if user else 1
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Update the structured_report field
+        cursor.execute('''
+            UPDATE transcription_history 
+            SET structured_report = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND user_id = %s
+        ''', (report_content, record_id, user_id))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Record not found or no permission'}), 404
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Report saved successfully'})
+        
+    except Exception as e:
+        print(f"❌ Save report error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/audio/<filename>')
+@login_required
+def serve_audio(filename):
+    """Serve audio files with proper headers for iPhone compatibility"""
+    try:
+        # Audio files are stored in the uploads directory
+        audio_path = os.path.join(app.config.get('UPLOAD_FOLDER', 'uploads'), filename)
+        
+        if not os.path.exists(audio_path):
+            return "Audio file not found", 404
+        
+        # Determine MIME type based on file extension
+        file_ext = filename.lower().split('.')[-1]
+        mime_types = {
+            'mp3': 'audio/mpeg',
+            'wav': 'audio/wav',
+            'm4a': 'audio/mp4',
+            'webm': 'audio/webm',
+            'ogg': 'audio/ogg'
+        }
+        
+        mime_type = mime_types.get(file_ext, 'audio/mpeg')
+        
+        def generate():
+            with open(audio_path, 'rb') as f:
+                data = f.read(1024)
+                while data:
+                    yield data
+                    data = f.read(1024)
+        
+        response = Response(generate(), mimetype=mime_type)
+        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers['Content-Length'] = str(os.path.getsize(audio_path))
+        response.headers['Cache-Control'] = 'no-cache'
+        
+        return response
+        
+    except Exception as e:
+        print(f"❌ Audio serve error: {e}")
+        return "Error serving audio file", 500
 
 @app.route('/migrate-db')
 @login_required
