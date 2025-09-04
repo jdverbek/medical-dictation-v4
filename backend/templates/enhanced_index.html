@@ -513,6 +513,21 @@
                 " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
                     📋 Review & Geschiedenis
                 </a>
+                <button onclick="showAdminNoteModal()" style="
+                    background: #28a745;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    cursor: pointer;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    📝 Admin Nota
+                </button>
                 <a href="/admin" style="
                     background: #17a2b8;
                     color: white;
@@ -1313,8 +1328,185 @@
 
         // Initialize tabs when DOM is loaded
         document.addEventListener('DOMContentLoaded', initializeTabs);
+
+        // Admin Note Modal Functions
+        function showAdminNoteModal() {
+            document.getElementById('adminNoteModal').style.display = 'block';
+        }
+
+        function hideAdminNoteModal() {
+            document.getElementById('adminNoteModal').style.display = 'none';
+            // Reset form
+            document.getElementById('adminNoteForm').reset();
+        }
+
+        function submitAdminNote() {
+            const patientId = document.getElementById('adminPatientId').value;
+            const reportType = document.getElementById('adminReportType').value;
+            const contactLocation = document.getElementById('adminContactLocation').value;
+            const noteText = document.getElementById('adminNoteText').value;
+
+            if (!patientId || !reportType || !contactLocation || !noteText) {
+                alert('Alle velden zijn verplicht');
+                return;
+            }
+
+            // Validate patient ID (10 digits)
+            if (!/^\d{10}$/.test(patientId)) {
+                alert('Patiënt ID moet exact 10 cijfers bevatten');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('patient_id', patientId);
+            formData.append('report_type', reportType);
+            formData.append('contact_location', contactLocation);
+            formData.append('note_text', noteText);
+
+            fetch('/api/admin-note', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus('✅ Administratieve nota succesvol opgeslagen!', 'success');
+                    hideAdminNoteModal();
+                } else {
+                    showStatus('❌ Fout bij opslaan: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('❌ Fout bij opslaan van administratieve nota', 'error');
+            });
+        }
     </script>
 
+    <!-- Admin Note Modal -->
+    <div id="adminNoteModal" style="
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    ">
+        <div style="
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #2c3e50;">📝 Administratieve Nota</h2>
+                <button onclick="hideAdminNoteModal()" style="
+                    background: none;
+                    border: none;
+                    font-size: 24px;
+                    cursor: pointer;
+                    color: #7f8c8d;
+                ">×</button>
+            </div>
+            
+            <form id="adminNoteForm">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #34495e;">
+                        👤 Patiënt ID (10 cijfers):
+                    </label>
+                    <input type="text" id="adminPatientId" maxlength="10" pattern="[0-9]{10}" style="
+                        width: 100%;
+                        padding: 12px;
+                        border: 2px solid #e1e8ed;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        box-sizing: border-box;
+                    " placeholder="Voer patiënt ID in of gebruik OCR" required>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #34495e;">
+                        📋 Type Contact:
+                    </label>
+                    <select id="adminReportType" style="
+                        width: 100%;
+                        padding: 12px;
+                        border: 2px solid #e1e8ed;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        box-sizing: border-box;
+                    " required>
+                        <option value="">Selecteer type contact</option>
+                        <option value="TTE">TTE (Transthoracale Echo)</option>
+                        <option value="TEE">TEE (Transesofageale Echo)</option>
+                        <option value="Consultatie">Consultatie</option>
+                        <option value="Spoedconsult">Spoedconsult</option>
+                        <option value="Admin">Administratief Contact</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #34495e;">
+                        🏥 Locatie Contact:
+                    </label>
+                    <select id="adminContactLocation" style="
+                        width: 100%;
+                        padding: 12px;
+                        border: 2px solid #e1e8ed;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        box-sizing: border-box;
+                    " required>
+                        <option value="">Selecteer locatie</option>
+                        <option value="Poli">Op Poli</option>
+                        <option value="CCU">Op CCU</option>
+                        <option value="Spoed">Op Spoed</option>
+                        <option value="Elders">Elders</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #34495e;">
+                        📝 Korte Nota:
+                    </label>
+                    <textarea id="adminNoteText" rows="4" style="
+                        width: 100%;
+                        padding: 12px;
+                        border: 2px solid #e1e8ed;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        resize: vertical;
+                        box-sizing: border-box;
+                    " placeholder="Typ hier uw korte administratieve nota..." required></textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="hideAdminNoteModal()" style="
+                        background: #f8f9fa;
+                        color: #495057;
+                        border: 1px solid #dee2e6;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 16px;
+                    ">Annuleren</button>
+                    <button type="button" onclick="submitAdminNote()" style="
+                        background: #28a745;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 16px;
+                    ">💾 Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
-

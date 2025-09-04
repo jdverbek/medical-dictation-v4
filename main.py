@@ -2981,6 +2981,65 @@ def debug_database():
             "traceback": traceback.format_exc()
         }), 500
 
+@app.route('/api/admin-note', methods=['POST'])
+@login_required
+def save_admin_note():
+    """Save administrative note without audio recording"""
+    try:
+        patient_id = request.form.get('patient_id')
+        report_type = request.form.get('report_type')
+        contact_location = request.form.get('contact_location')
+        note_text = request.form.get('note_text')
+        
+        if not all([patient_id, report_type, contact_location, note_text]):
+            return jsonify({'success': False, 'error': 'Alle velden zijn verplicht'}), 400
+        
+        # Validate patient ID
+        if not patient_id.isdigit() or len(patient_id) != 10:
+            return jsonify({'success': False, 'error': 'Patiënt ID moet exact 10 cijfers bevatten'}), 400
+        
+        user = get_current_user()
+        user_id = user.get('id') if user else 1
+        
+        # Save to database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO transcription_history (
+                user_id, patient_id, verslag_type, contact_location,
+                original_transcript, structured_report, enhanced_transcript,
+                created_at, is_completed, billing_ok
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s, %s)
+            RETURNING id
+        ''', (
+            user_id,
+            patient_id,
+            report_type,
+            contact_location,
+            f"Administratieve nota: {note_text}",
+            f"ADMINISTRATIEVE NOTA\n\nPatiënt: {patient_id}\nType: {report_type}\nLocatie: {contact_location}\n\nNota:\n{note_text}",
+            f"Administratieve nota: {note_text}",
+            False,  # is_completed
+            False   # billing_ok
+        ))
+        
+        result = cursor.fetchone()
+        record_id = result['id'] if isinstance(result, dict) else result[0]
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Administratieve nota succesvol opgeslagen',
+            'record_id': record_id
+        })
+        
+    except Exception as e:
+        print(f"❌ Admin note error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/save-report', methods=['POST'])
 @login_required
 def save_report():
