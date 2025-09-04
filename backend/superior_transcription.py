@@ -820,7 +820,7 @@ Geef ESC Guidelines aanbevelingen met LoR en LoE voor elke geïdentificeerde pat
         
         Rechter ventrikel: [niet gedilateerd/gedilateerd], globale functie: [goed/matig/slecht].
         
-        Diastole: [normaal/gestoord/etc] {f"met {', '.join([f'{k.replace('_', ' ').replace('velocity', '').replace('deceleration time', 'DT').replace('E prime', \"E'\").replace('E over E prime', 'E/E\\'').strip()} {v}' for k, v in diastolic_params.items()])} indien parameters vermeld" if diastolic_params else ""}.
+        Diastole: [normaal/gestoord/etc]. Als diastolische parameters zijn geëxtraheerd, neem deze op in natuurlijke vorm.
         
         Atria: LA [normaal/gedilateerd/sterk gedilateerd] [met diameter X mm indien vermeld].
         
