@@ -172,7 +172,7 @@ ANTWOORD IN JSON FORMAT:
     def agent_2_diagnostic_expert(self, transcript: str, patient_context: str = "") -> Dict[str, Any]:
         """
         🩺 Agent 2: Diagnostic Expert (GPT-4)
-        Analyzes medical content for diagnostic insights
+        Analyzes medical content for diagnostic insights with special focus on TTE diastolic parameters
         """
         system_prompt = """Je bent een expert cardioloog en diagnosticus. Je analyseert Nederlandse medische transcripties en geeft diagnostische inzichten.
 
@@ -182,6 +182,21 @@ FOCUS OP:
 - Differentiaal diagnoses
 - Aanbevolen onderzoeken
 - Red flags
+
+SPECIALE AANDACHT VOOR TTE DIASTOLISCHE PARAMETERS:
+Wanneer een TTE (transthoracale echocardiografie) wordt besproken, MOET je de volgende diastolische parameters extraheren en rapporteren als ze vermeld worden:
+- E (early diastolic filling velocity) in cm/s
+- A (late diastolic filling velocity) in cm/s  
+- DT (deceleration time) in ms
+- E' (e accent - tissue Doppler early diastolic velocity) in cm/s
+- E/E' (e over e accent ratio)
+
+VOORBEELDEN VAN DIASTOLISCHE PARAMETER EXTRACTIE:
+- "E 80 cm/s" → E: 80 cm/s
+- "A golf 60" → A: 60 cm/s
+- "deceleratietijd 200 ms" → DT: 200 ms
+- "E accent 8" → E': 8 cm/s
+- "E over E accent 10" → E/E': 10
 
 Geef ALTIJD een JSON response terug."""
         
@@ -201,7 +216,15 @@ Geef analyse in JSON format:
     "urgency_level": "low/medium/high/critical",
     "recommended_tests": ["voorgestelde onderzoeken"],
     "red_flags": ["zorgwekkende bevindingen"],
-    "clinical_reasoning": "korte uitleg"
+    "clinical_reasoning": "korte uitleg",
+    "tte_diastolic_parameters": {{
+        "E_velocity": "waarde in cm/s indien vermeld",
+        "A_velocity": "waarde in cm/s indien vermeld", 
+        "deceleration_time": "waarde in ms indien vermeld",
+        "E_prime": "waarde in cm/s indien vermeld",
+        "E_over_E_prime": "ratio waarde indien vermeld",
+        "diastolic_function": "normaal/vertraagde relaxatie/dysfunctie graad 2/dysfunctie graad 3 indien vermeld"
+    }}
 }}"""
         
         response = self._call_gpt4(prompt, system_prompt, max_tokens=1000, json_mode=True)
@@ -220,27 +243,50 @@ Geef analyse in JSON format:
                     result['recommended_tests'] = []
                 if 'red_flags' not in result:
                     result['red_flags'] = []
-                if 'clinical_reasoning' not in result:
-                    result['clinical_reasoning'] = "Basic analysis applied"
+                if 'tte_diastolic_parameters' not in result:
+                    result['tte_diastolic_parameters'] = {
+                        "E_velocity": "niet vermeld",
+                        "A_velocity": "niet vermeld",
+                        "deceleration_time": "niet vermeld", 
+                        "E_prime": "niet vermeld",
+                        "E_over_E_prime": "niet vermeld",
+                        "diastolic_function": "niet vermeld"
+                    }
                 return result
             else:
+                # Fallback parsing
                 return {
                     "primary_diagnosis": {"name": "Analysis pending", "confidence": 0.5},
                     "urgency_level": "medium",
                     "differential_diagnoses": [],
                     "recommended_tests": [],
                     "red_flags": [],
-                    "clinical_reasoning": "Basic analysis applied"
+                    "clinical_reasoning": response[:200] + "...",
+                    "tte_diastolic_parameters": {
+                        "E_velocity": "niet vermeld",
+                        "A_velocity": "niet vermeld", 
+                        "deceleration_time": "niet vermeld",
+                        "E_prime": "niet vermeld",
+                        "E_over_E_prime": "niet vermeld",
+                        "diastolic_function": "niet vermeld"
+                    }
                 }
-        except Exception as e:
-            print(f"⚠️ Agent 2 JSON parsing error: {e}")
+        except json.JSONDecodeError:
             return {
-                "primary_diagnosis": {"name": "Processing error", "confidence": 0.3},
-                "urgency_level": "unknown",
+                "primary_diagnosis": {"name": "JSON parsing error", "confidence": 0.3},
+                "urgency_level": "medium",
                 "differential_diagnoses": [],
                 "recommended_tests": [],
-                "red_flags": [],
-                "clinical_reasoning": "Analysis unavailable"
+                "red_flags": ["JSON parsing failed"],
+                "clinical_reasoning": "Failed to parse diagnostic response",
+                "tte_diastolic_parameters": {
+                    "E_velocity": "niet vermeld",
+                    "A_velocity": "niet vermeld",
+                    "deceleration_time": "niet vermeld",
+                    "E_prime": "niet vermeld", 
+                    "E_over_E_prime": "niet vermeld",
+                    "diastolic_function": "niet vermeld"
+                }
             }
     
     def agent_3_treatment_protocol(self, transcript: str, diagnosis_info: Dict = None) -> Dict[str, Any]:
