@@ -1326,11 +1326,30 @@
             });
         }
 
-        // Initialize tabs when DOM is loaded
-        document.addEventListener('DOMContentLoaded', initializeTabs);
+        // Initialize admin OCR file input when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize tabs
+            initializeTabs();
+            
+            // Initialize admin OCR file input
+            const adminOcrFileInput = document.getElementById('adminOcrFileInput');
+            if (adminOcrFileInput) {
+                adminOcrFileInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        processAdminOCRImage(file);
+                    }
+                });
+            }
+        });
 
         // Admin Note Modal Functions
         function showAdminNoteModal() {
+            // Pre-fill patient ID if already recognized via OCR
+            const currentPatientId = document.getElementById('patient-id').value;
+            if (currentPatientId && currentPatientId.length === 10) {
+                document.getElementById('adminPatientId').value = currentPatientId;
+            }
             document.getElementById('adminNoteModal').style.display = 'block';
         }
 
@@ -1381,6 +1400,41 @@
                 showStatus('❌ Fout bij opslaan van administratieve nota', 'error');
             });
         }
+
+        // Admin Note OCR Functions
+        function adminOcrCamera() {
+            // Use the existing camera modal but update the admin field
+            showCameraModal();
+            // Override the success callback for admin note
+            window.adminOcrMode = true;
+        }
+
+        function adminOcrUpload() {
+            document.getElementById('adminOcrFileInput').click();
+        }
+
+        function processAdminOCRImage(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            fetch('/api/ocr-extract', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.patient_number) {
+                    document.getElementById('adminPatientId').value = data.patient_number;
+                    showStatus('✅ Patiënt ID herkend: ' + data.patient_number, 'success');
+                } else {
+                    showStatus('❌ OCR verwerking gefaald: ' + (data.error || 'Onbekende fout'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('❌ Fout bij OCR verwerking', 'error');
+            });
+        }
     </script>
 
     <!-- Admin Note Modal -->
@@ -1419,14 +1473,37 @@
                     <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #34495e;">
                         👤 Patiënt ID (10 cijfers):
                     </label>
-                    <input type="text" id="adminPatientId" maxlength="10" pattern="[0-9]{10}" style="
-                        width: 100%;
-                        padding: 12px;
-                        border: 2px solid #e1e8ed;
-                        border-radius: 8px;
-                        font-size: 16px;
-                        box-sizing: border-box;
-                    " placeholder="Voer patiënt ID in of gebruik OCR" required>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="adminPatientId" maxlength="10" pattern="[0-9]{10}" style="
+                            flex: 1;
+                            padding: 12px;
+                            border: 2px solid #e1e8ed;
+                            border-radius: 8px;
+                            font-size: 16px;
+                            box-sizing: border-box;
+                        " placeholder="Voer patiënt ID in of gebruik OCR" required>
+                        <button type="button" onclick="adminOcrCamera()" style="
+                            background: #17a2b8;
+                            color: white;
+                            border: none;
+                            padding: 12px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            white-space: nowrap;
+                        ">📷 OCR</button>
+                        <button type="button" onclick="adminOcrUpload()" style="
+                            background: #6c757d;
+                            color: white;
+                            border: none;
+                            padding: 12px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            white-space: nowrap;
+                        ">📁 Upload</button>
+                    </div>
+                    <input type="file" id="adminOcrFileInput" accept="image/*" style="display: none;">
                 </div>
 
                 <div style="margin-bottom: 15px;">
