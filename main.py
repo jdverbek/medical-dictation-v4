@@ -1227,7 +1227,7 @@ def api_transcribe():
         
         if verslag_type == 'TTE':
             print("🔍 API DEBUG: Generating TTE report...")
-            report = transcription_system.generate_tte_report(improved_transcript, patient_id)
+            report = transcription_system.generate_tte_report(improved_transcript, patient_id, expert_analysis)
         elif verslag_type == 'TEE':
             print("🔍 API DEBUG: Generating TEE report...")
             report = transcription_system.generate_tee_report(improved_transcript, patient_id)
@@ -1239,7 +1239,7 @@ def api_transcribe():
             report = transcription_system.generate_consultatie_report(improved_transcript, patient_id)
         else:
             print(f"🔍 API DEBUG: Unknown type '{verslag_type}', defaulting to TTE...")
-            report = transcription_system.generate_tte_report(improved_transcript, patient_id)
+            report = transcription_system.generate_tte_report(improved_transcript, patient_id, expert_analysis)
         
         print(f"🔍 API DEBUG: Generated report preview: {report[:100]}...")
         

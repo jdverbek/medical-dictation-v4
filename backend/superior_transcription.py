@@ -754,9 +754,34 @@ Geef ESC Guidelines aanbevelingen met LoR en LoE voor elke geïdentificeerde pat
         
         return report
     
-    def generate_tte_report(self, transcript, patient_id=""):
-        """Generate TTE report with natural medical language, NO artificial formulations"""
+    def generate_tte_report(self, transcript, patient_id="", expert_analysis=None):
+        """Generate TTE report with natural medical language, incorporating extracted diastolic parameters"""
         today = datetime.datetime.now().strftime("%d-%m-%Y")
+        
+        # Extract diastolic parameters from expert analysis if available
+        diastolic_params = {}
+        if expert_analysis and 'agent_2_diagnostic_expert' in expert_analysis:
+            diastolic_data = expert_analysis['agent_2_diagnostic_expert'].get('tte_diastolic_parameters', {})
+            if diastolic_data:
+                diastolic_params = {k: v for k, v in diastolic_data.items() if v != "niet vermeld"}
+        
+        # Build diastolic parameters string for inclusion in report
+        diastolic_info = ""
+        if diastolic_params:
+            diastolic_parts = []
+            if 'E_velocity' in diastolic_params:
+                diastolic_parts.append(f"E {diastolic_params['E_velocity']}")
+            if 'A_velocity' in diastolic_params:
+                diastolic_parts.append(f"A {diastolic_params['A_velocity']}")
+            if 'deceleration_time' in diastolic_params:
+                diastolic_parts.append(f"DT {diastolic_params['deceleration_time']}")
+            if 'E_prime' in diastolic_params:
+                diastolic_parts.append(f"E' {diastolic_params['E_prime']}")
+            if 'E_over_E_prime' in diastolic_params:
+                diastolic_parts.append(f"E/E' {diastolic_params['E_over_E_prime']}")
+            
+            if diastolic_parts:
+                diastolic_info = f"\nGEEXTRAHEERDE DIASTOLISCHE PARAMETERS: {', '.join(diastolic_parts)}"
         
         system_message = """Je bent een ervaren cardioloog die TTE (Transthoracale Echo) verslagen maakt.
         
@@ -766,6 +791,11 @@ Geef ESC Guidelines aanbevelingen met LoR en LoE voor elke geïdentificeerde pat
         - Vermeld alleen RELEVANTE bevindingen
         - GEEN kunstmatige constructies zoals "EDD normaal mm" of "LVEF normaal%"
         - Gebruik professionele medische terminologie zoals echte cardiologen
+        
+        SPECIALE AANDACHT VOOR DIASTOLISCHE PARAMETERS:
+        - Als E, A, DT, E', E/E' waarden worden vermeld, MOET je deze opnemen in de diastole sectie
+        - Gebruik het formaat: "Diastole: [functie] met E (...) cm/s, A (...) cm/s, DT (...) ms, E' (...) cm/s, E/E' (...)"
+        - Alleen vermelden wat daadwerkelijk genoemd wordt in de transcriptie
         
         STANDAARD FORMULERINGEN:
         - "eutroof" / "hypertrofe" / "niet gedilateerd" / "gedilateerd"
@@ -777,7 +807,7 @@ Geef ESC Guidelines aanbevelingen met LoR en LoE voor elke geïdentificeerde pat
         
         user_message = f"""Genereer een PROFESSIONEEL TTE verslag voor patiënt {patient_id} op {today}.
         
-        Transcriptie: "{transcript}"
+        Transcriptie: "{transcript}"{diastolic_info}
         
         Gebruik deze NATUURLIJKE stijl (gebaseerd op echte cardiologische verslagen):
         
@@ -790,7 +820,7 @@ Geef ESC Guidelines aanbevelingen met LoR en LoE voor elke geïdentificeerde pat
         
         Rechter ventrikel: [niet gedilateerd/gedilateerd], globale functie: [goed/matig/slecht].
         
-        Diastole: [normaal/gestoord/etc].
+        Diastole: [normaal/gestoord/etc] {f"met {', '.join([f'{k.replace('_', ' ').replace('velocity', '').replace('deceleration time', 'DT').replace('E prime', \"E'\").replace('E over E prime', 'E/E\\'').strip()} {v}' for k, v in diastolic_params.items()])} indien parameters vermeld" if diastolic_params else ""}.
         
         Atria: LA [normaal/gedilateerd/sterk gedilateerd] [met diameter X mm indien vermeld].
         
@@ -812,6 +842,7 @@ Geef ESC Guidelines aanbevelingen met LoR en LoE voor elke geïdentificeerde pat
         - Schrijf in natuurlijke medische taal zoals echte cardiologen
         - Vermeld alleen relevante bevindingen
         - GEEN kunstmatige formuleringen met "normaal mm" of "normaal%"
+        - Als diastolische parameters zijn geëxtraheerd, neem deze op in de diastole sectie
         
         Specifieke bevinding uit transcriptie: Let op de vermelding van "53 mm" - dit lijkt een LA diameter te zijn."""
         
