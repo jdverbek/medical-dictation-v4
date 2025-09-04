@@ -548,8 +548,10 @@
                     <div class="patient-id-group">
                         <input type="text" id="patientId" name="patient_id" class="patient-id-input" 
                                placeholder="Voer patiënt ID in of gebruik OCR" pattern="[0-9]{10}" maxlength="10">
-                        <button type="button" class="ocr-btn" id="ocrBtn">📷 OCR Scan</button>
+                        <button type="button" class="ocr-btn" id="ocrBtn">📷 Camera OCR</button>
+                        <button type="button" class="ocr-btn" id="fileOcrBtn" style="background: #3498db;">📁 Upload OCR</button>
                     </div>
+                    <input type="file" id="ocrFileInput" accept="image/*" style="display: none;">
                     <div id="ocrResult" class="ocr-result hidden"></div>
                 </div>
             
@@ -728,6 +730,79 @@
         }
 
         // OCR Functionality
+        const fileOcrBtn = document.getElementById('fileOcrBtn');
+        const ocrFileInput = document.getElementById('ocrFileInput');
+
+        // File Upload OCR
+        fileOcrBtn.addEventListener('click', () => {
+            ocrFileInput.click();
+        });
+
+        ocrFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Show processing
+            ocrResult.className = 'ocr-result';
+            ocrResult.innerHTML = '🤖 AI analyseert afbeelding voor patiëntennummer...';
+            ocrResult.classList.remove('hidden');
+
+            try {
+                // Convert file to base64
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const imageData = e.target.result;
+                    await processOCRImage(imageData);
+                };
+                reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('File OCR error:', error);
+                showStatus('❌ Bestand OCR fout: ' + error.message, 'error');
+            }
+        });
+
+        async function processOCRImage(imageData) {
+            try {
+                const response = await fetch('/api/ocr-extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Fill patient ID field
+                    patientIdInput.value = result.patient_number;
+                    
+                    // Show success message with method info
+                    const method = result.method === 'openai_vision' ? '🌐 Cloud OCR' : '🔍 Local OCR';
+                    ocrResult.className = 'ocr-result';
+                    ocrResult.innerHTML = `✅ Patiëntennummer gevonden: <strong>${result.patient_number}</strong><br><small>${method}</small>`;
+                    ocrResult.classList.remove('hidden');
+                    
+                    showStatus(`✅ Patiëntennummer succesvol herkend via ${method}!`, 'success');
+                } else {
+                    // Show error with debug info
+                    let errorHtml = `❌ ${result.error}<br><small>${result.suggestion || ''}</small>`;
+                    if (result.debug_info) {
+                        errorHtml += `<br><details style="margin-top: 10px;"><summary>Debug Info</summary><pre style="font-size: 11px; margin: 5px 0;">${result.debug_info}</pre></details>`;
+                    }
+                    
+                    ocrResult.className = 'ocr-result ocr-error';
+                    ocrResult.innerHTML = errorHtml;
+                    ocrResult.classList.remove('hidden');
+                    
+                    showStatus('❌ OCR fout: ' + result.error, 'error');
+                }
+                
+            } catch (error) {
+                console.error('OCR error:', error);
+                showStatus('❌ OCR verwerking gefaald: ' + error.message, 'error');
+            }
+        }
+
+        // Camera OCR
         ocrBtn.addEventListener('click', async () => {
             try {
                 // Check if OCR is available first
@@ -788,44 +863,11 @@
                 // Convert to base64
                 const imageData = canvas.toDataURL('image/jpeg', 0.8);
                 
-                // Send to OCR endpoint
-                const response = await fetch('/ocr-patient-id', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ image: imageData })
-                });
+                // Process with shared OCR function
+                await processOCRImage(imageData);
                 
-                const result = await response.json();
-                
-                if (result.success) {
-                    // Fill patient ID field
-                    patientIdInput.value = result.patient_number;
-                    
-                    // Show success message with method info
-                    const method = result.method === 'openai_vision' ? '🌐 Cloud OCR' : '🔍 Local OCR';
-                    ocrResult.className = 'ocr-result';
-                    ocrResult.innerHTML = `✅ Patiëntennummer gevonden: <strong>${result.patient_number}</strong><br><small>${method}</small>`;
-                    ocrResult.classList.remove('hidden');
-                    
-                    // Close camera modal
-                    closeCameraModal();
-                    
-                    showStatus(`✅ Patiëntennummer succesvol herkend via ${method}!`, 'success');
-                } else {
-                    // Show error with debug info
-                    let errorHtml = `❌ ${result.error}<br><small>${result.suggestion || ''}</small>`;
-                    if (result.debug_info) {
-                        errorHtml += `<br><details style="margin-top: 10px;"><summary>Debug Info</summary><pre style="font-size: 11px; margin: 5px 0;">${result.debug_info}</pre></details>`;
-                    }
-                    
-                    ocrResult.className = 'ocr-result ocr-error';
-                    ocrResult.innerHTML = errorHtml;
-                    ocrResult.classList.remove('hidden');
-                    
-                    showStatus('❌ OCR fout: ' + result.error, 'error');
-                }
+                // Close camera modal on success
+                closeCameraModal();
                 
             } catch (error) {
                 console.error('OCR error:', error);
