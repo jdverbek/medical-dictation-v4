@@ -1866,9 +1866,7 @@ def mark_all_completed():
         
     except Exception as e:
         print(f"❌ Error marking all completed: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500: {traceback.format_exc()}")
-        flash(f'Fout bij laden van geschiedenis: {str(e)}', 'error')
-        return render_template('history.html', records=[], user=get_current_user())
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/view/<int:record_id>')
 @login_required
