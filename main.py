@@ -1178,6 +1178,10 @@ def api_transcribe():
                 
                 # Use improved transcript from Agent 1
                 improved_transcript = expert_analysis.get('agent_1_quality_control', {}).get('improved_transcript', transcript)
+                print(f"🔍 DEBUG: Agent 1 result keys: {list(expert_analysis.get('agent_1_quality_control', {}).keys())}")
+                print(f"🔍 DEBUG: Original transcript length: {len(transcript)}")
+                print(f"🔍 DEBUG: Improved transcript length: {len(improved_transcript)}")
+                print(f"🔍 DEBUG: Improved transcript preview: {improved_transcript[:200]}...")
                 print(f"🤖 API DEBUG: Expert analysis completed successfully!")
                 
             except Exception as e:
