@@ -1887,12 +1887,11 @@ def review_transcription(record_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get transcription record with all fields including audio_filename
+        # Get transcription record with existing fields only
         cursor.execute('''
             SELECT id, patient_id, verslag_type, original_transcript, 
                    structured_report, enhanced_transcript, created_at, 
-                   quality_feedback, improved_report, differential_diagnosis,
-                   audio_filename
+                   quality_feedback
             FROM transcription_history 
             WHERE id = %s AND user_id = %s
         ''', (record_id, user_id))
@@ -1916,15 +1915,11 @@ def review_transcription(record_id):
                 'structured_report': record[4],
                 'enhanced_transcript': record[5],
                 'created_at': record[6],
-                'quality_feedback': record[7] if len(record) > 7 else None,
-                'improved_report': record[8] if len(record) > 8 else None,
-                'differential_diagnosis': record[9] if len(record) > 9 else None,
-                'audio_filename': record[10] if len(record) > 10 else None
+                'quality_feedback': record[7] if len(record) > 7 else None
             }
         
         # Ensure all fields have default values
-        for field in ['original_transcript', 'structured_report', 'enhanced_transcript', 
-                     'quality_feedback', 'improved_report', 'differential_diagnosis']:
+        for field in ['original_transcript', 'structured_report', 'enhanced_transcript', 'quality_feedback']:
             if data.get(field) is None:
                 data[field] = ''
         
