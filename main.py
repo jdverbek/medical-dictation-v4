@@ -1107,10 +1107,12 @@ def api_transcribe():
         audio_file = request.files['audio']
         verslag_type = request.form.get('verslag_type', 'TTE')
         patient_id = request.form.get('patient_id', '')
+        contact_location = request.form.get('contact_location', 'Poli')
         
         # DEBUG: Log what template was selected in API
         print(f"🔍 API DEBUG: Template selected = '{verslag_type}'")
         print(f"🔍 API DEBUG: Patient ID = '{patient_id}'")
+        print(f"🔍 API DEBUG: Contact Location = '{contact_location}'")
         print(f"🔍 API DEBUG: Audio filename = '{audio_file.filename}'")
         
         # Transcribe audio with report type
@@ -1204,10 +1206,10 @@ def api_transcribe():
             
             cursor.execute('''
                 INSERT INTO transcription_history 
-                (user_id, patient_id, verslag_type, original_transcript, structured_report, enhanced_transcript, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (user_id, patient_id, verslag_type, contact_location, original_transcript, structured_report, enhanced_transcript, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            ''', (user_id, patient_id, verslag_type, transcript, "Processing...", improved_transcript, datetime.now()))
+            ''', (user_id, patient_id, verslag_type, contact_location, transcript, "Processing...", improved_transcript, datetime.now()))
             
             result = cursor.fetchone()
             record_id = result['id'] if isinstance(result, dict) else result[0]
@@ -1587,34 +1589,284 @@ def history():
     """View transcription history for authenticated user"""
     try:
         user = get_current_user()
-        if not user:
-            flash('Please log in to access this page', 'error')
-            return redirect(url_for('login'))
+        user_id = user.get('id') if user else 1
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get transcription history for current user only - PostgreSQL
+        # Get recent transcriptions (last 48 hours)
         cursor.execute('''
-            SELECT id, patient_id, verslag_type, original_transcript, 
-                   structured_report, created_at
+            SELECT id, patient_id, verslag_type, original_transcript, created_at
             FROM transcription_history 
-            WHERE user_id = %s
-            ORDER BY created_at DESC 
-            LIMIT 50
-        ''', (user['id'],))
+            WHERE user_id = %s 
+            AND created_at >= NOW() - INTERVAL '48 hours'
+            ORDER BY created_at DESC
+        ''', (user_id,))
         
-        history_records = cursor.fetchall()
+        records = cursor.fetchall()
+        print(f"🔍 DEBUG: History query returned {len(records)} records for user {user_id}")
+        
         conn.close()
         
-        print(f"🔍 DEBUG: History query returned {len(history_records)} records for user {user['id']}")
-        
-        return render_template('history.html', records=history_records, user=user)
+        return render_template('history.html', records=records)
         
     except Exception as e:
-        logger.error(f"History error: {e}")
+        print(f"❌ History error: {e}")
         import traceback
         print(f"🔍 DEBUG: History error traceback: {traceback.format_exc()}")
+        return render_template('history.html', records=[], error="Fout bij laden van geschiedenis")
+
+@app.route('/admin')
+@login_required
+def admin_overview():
+    """Administrative overview page"""
+    return render_template('admin.html')
+
+@app.route('/api/admin/week-data')
+@login_required
+def get_week_data():
+    """Get transcription data for a specific week"""
+    try:
+        week = request.args.get('week')  # Format: 2025-W36
+        if not week:
+            return jsonify({'success': False, 'error': 'Week parameter required'}), 400
+        
+        # Parse week format (2025-W36)
+        year, week_num = week.split('-W')
+        year = int(year)
+        week_num = int(week_num)
+        
+        # Calculate start and end dates of the week
+        from datetime import datetime, timedelta
+        jan1 = datetime(year, 1, 1)
+        week_start = jan1 + timedelta(weeks=week_num-1) - timedelta(days=jan1.weekday())
+        week_end = week_start + timedelta(days=6)
+        
+        user = get_current_user()
+        user_id = user.get('id') if user else 1
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, patient_id, verslag_type, contact_location, 
+                   is_completed, billing_ok, created_at
+            FROM transcription_history 
+            WHERE user_id = %s 
+            AND created_at >= %s 
+            AND created_at <= %s
+            ORDER BY created_at DESC
+        ''', (user_id, week_start, week_end + timedelta(days=1)))
+        
+        records = cursor.fetchall()
+        conn.close()
+        
+        # Convert to list of dicts for JSON serialization
+        records_list = []
+        for record in records:
+            if isinstance(record, dict):
+                records_list.append(record)
+            else:
+                # Handle tuple format
+                records_list.append({
+                    'id': record[0],
+                    'patient_id': record[1],
+                    'verslag_type': record[2],
+                    'contact_location': record[3],
+                    'is_completed': record[4],
+                    'billing_ok': record[5],
+                    'created_at': record[6].isoformat() if record[6] else None
+                })
+        
+        return jsonify({
+            'success': True,
+            'records': records_list,
+            'week': week,
+            'period': f"{week_start.strftime('%d/%m')} - {week_end.strftime('%d/%m/%Y')}"
+        })
+        
+    except Exception as e:
+        print(f"❌ Error getting week data: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/update-status', methods=['POST'])
+@login_required
+def update_status():
+    """Update completion or billing status"""
+    try:
+        data = request.get_json()
+        record_id = data.get('record_id')
+        status_type = data.get('type')  # 'completed' or 'billing'
+        value = data.get('value')
+        
+        if not all([record_id, status_type, value is not None]):
+            return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if status_type == 'completed':
+            cursor.execute('''
+                UPDATE transcription_history 
+                SET is_completed = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            ''', (value, record_id))
+        elif status_type == 'billing':
+            cursor.execute('''
+                UPDATE transcription_history 
+                SET billing_ok = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            ''', (value, record_id))
+        else:
+            return jsonify({'success': False, 'error': 'Invalid status type'}), 400
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        print(f"❌ Error updating status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/generate-email')
+@login_required
+def generate_email():
+    """Generate email for secretaries with weekly overview"""
+    try:
+        week = request.args.get('week')
+        if not week:
+            return jsonify({'success': False, 'error': 'Week parameter required'}), 400
+        
+        # Parse week and get data (reuse logic from get_week_data)
+        year, week_num = week.split('-W')
+        year = int(year)
+        week_num = int(week_num)
+        
+        from datetime import datetime, timedelta
+        jan1 = datetime(year, 1, 1)
+        week_start = jan1 + timedelta(weeks=week_num-1) - timedelta(days=jan1.weekday())
+        week_end = week_start + timedelta(days=6)
+        
+        user = get_current_user()
+        user_id = user.get('id') if user else 1
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT patient_id, verslag_type, contact_location, created_at
+            FROM transcription_history 
+            WHERE user_id = %s 
+            AND created_at >= %s 
+            AND created_at <= %s
+            ORDER BY created_at ASC
+        ''', (user_id, week_start, week_end + timedelta(days=1)))
+        
+        records = cursor.fetchall()
+        conn.close()
+        
+        # Generate email content
+        email_content = f"""Onderwerp: Cardiologie Contacten Week {week_num} ({week_start.strftime('%d/%m')} - {week_end.strftime('%d/%m/%Y')})
+
+Beste secretaressen,
+
+Hierbij het overzicht van alle cardiologie contacten voor week {week_num}:
+
+"""
+        
+        if not records:
+            email_content += "Geen contacten geregistreerd voor deze week.\n"
+        else:
+            email_content += f"Totaal aantal contacten: {len(records)}\n\n"
+            email_content += "OVERZICHT PER CONTACT:\n"
+            email_content += "=" * 50 + "\n\n"
+            
+            for i, record in enumerate(records, 1):
+                if isinstance(record, dict):
+                    patient_id = record['patient_id']
+                    verslag_type = record['verslag_type']
+                    contact_location = record['contact_location']
+                    created_at = record['created_at']
+                else:
+                    patient_id = record[0]
+                    verslag_type = record[1]
+                    contact_location = record[2]
+                    created_at = record[3]
+                
+                date_str = created_at.strftime('%d/%m/%Y %H:%M') if created_at else 'Onbekend'
+                
+                email_content += f"{i}. Patiënt: {patient_id}\n"
+                email_content += f"   Datum: {date_str}\n"
+                email_content += f"   Type: {verslag_type}\n"
+                email_content += f"   Locatie: {contact_location}\n\n"
+        
+        email_content += """
+Met vriendelijke groet,
+Dr. [Naam]
+Cardiologie
+
+---
+Dit overzicht is automatisch gegenereerd door Medical Dictation v4.0"""
+        
+        return jsonify({
+            'success': True,
+            'email': email_content,
+            'count': len(records)
+        })
+        
+    except Exception as e:
+        print(f"❌ Error generating email: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/mark-all-completed', methods=['POST'])
+@login_required
+def mark_all_completed():
+    """Mark all records in a week as completed"""
+    try:
+        data = request.get_json()
+        week = data.get('week')
+        
+        if not week:
+            return jsonify({'success': False, 'error': 'Week parameter required'}), 400
+        
+        # Parse week and calculate dates
+        year, week_num = week.split('-W')
+        year = int(year)
+        week_num = int(week_num)
+        
+        from datetime import datetime, timedelta
+        jan1 = datetime(year, 1, 1)
+        week_start = jan1 + timedelta(weeks=week_num-1) - timedelta(days=jan1.weekday())
+        week_end = week_start + timedelta(days=6)
+        
+        user = get_current_user()
+        user_id = user.get('id') if user else 1
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE transcription_history 
+            SET is_completed = true, updated_at = CURRENT_TIMESTAMP
+            WHERE user_id = %s 
+            AND created_at >= %s 
+            AND created_at <= %s
+            AND is_completed = false
+        ''', (user_id, week_start, week_end + timedelta(days=1)))
+        
+        updated_count = cursor.rowcount
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'updated': updated_count
+        })
+        
+    except Exception as e:
+        print(f"❌ Error marking all completed: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500: {traceback.format_exc()}")
         flash(f'Fout bij laden van geschiedenis: {str(e)}', 'error')
         return render_template('history.html', records=[], user=get_current_user())
 

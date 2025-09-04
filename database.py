@@ -69,14 +69,17 @@ def init_db():
                 user_id INTEGER NOT NULL,
                 patient_id TEXT,
                 verslag_type TEXT NOT NULL,
+                contact_location TEXT DEFAULT 'Poli',
                 original_transcript TEXT,
                 structured_report TEXT,
                 enhanced_transcript TEXT,
                 quality_feedback TEXT,
                 improved_report TEXT,
                 differential_diagnosis TEXT,
+                is_completed BOOLEAN DEFAULT FALSE,
+                billing_ok BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         

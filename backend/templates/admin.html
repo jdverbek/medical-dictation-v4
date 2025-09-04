@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administratief Overzicht - Medical Dictation v4.0</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .week-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .week-selector label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .week-selector input {
+            padding: 8px 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .table-container {
+            padding: 30px;
+            overflow-x: auto;
+        }
+
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+
+        .admin-table th,
+        .admin-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .admin-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+        }
+
+        .admin-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-billing-ok {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-billing-pending {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .location-badge {
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .location-poli { background: #e3f2fd; color: #1565c0; }
+        .location-ccu { background: #ffebee; color: #c62828; }
+        .location-spoed { background: #fff3e0; color: #ef6c00; }
+        .location-elders { background: #f3e5f5; color: #7b1fa2; }
+
+        .checkbox-cell {
+            text-align: center;
+        }
+
+        .checkbox-cell input[type="checkbox"] {
+            transform: scale(1.2);
+            cursor: pointer;
+        }
+
+        .email-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .email-preview {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            flex: 1;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border-radius: 25px;
+            text-decoration: none;
+            color: #667eea;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: white;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .controls-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .stats {
+                flex-direction: column;
+            }
+
+            .admin-table {
+                font-size: 14px;
+            }
+
+            .admin-table th,
+            .admin-table td {
+                padding: 8px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Terug naar Dictatie</a>
+
+    <div class="container">
+        <div class="header">
+            <h1>📊 Administratief Overzicht</h1>
+            <p>Beheer verslagen, tarificatie en wekelijkse rapportage</p>
+        </div>
+
+        <div class="controls">
+            <div class="controls-row">
+                <div class="week-selector">
+                    <label for="weekSelect">📅 Selecteer week:</label>
+                    <input type="week" id="weekSelect" />
+                </div>
+                <div class="filter-buttons">
+                    <button class="btn btn-primary" onclick="loadWeekData()">📊 Laad Week</button>
+                    <button class="btn btn-success" onclick="generateEmail()">📧 Genereer Email</button>
+                    <button class="btn btn-warning" onclick="markAllCompleted()">✅ Alles Afgewerkt</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="stats" id="statsContainer">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCount">0</div>
+                    <div class="stat-label">Totaal Contacten</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="completedCount">0</div>
+                    <div class="stat-label">Afgewerkt</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="billingCount">0</div>
+                    <div class="stat-label">Tarificatie OK</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pendingCount">0</div>
+                    <div class="stat-label">Te Doen</div>
+                </div>
+            </div>
+
+            <table class="admin-table" id="adminTable">
+                <thead>
+                    <tr>
+                        <th>📅 Datum</th>
+                        <th>🧑‍⚕️ Patiënt ID</th>
+                        <th>📋 Type</th>
+                        <th>🏥 Locatie</th>
+                        <th>✅ Afgewerkt</th>
+                        <th>💰 Tarificatie</th>
+                        <th>🔗 Acties</th>
+                    </tr>
+                </thead>
+                <tbody id="adminTableBody">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #6c757d;">
+                            📊 Selecteer een week om gegevens te laden
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="email-section">
+            <h3>📧 Email voor Secretaressen</h3>
+            <button class="btn btn-success" onclick="copyEmailToClipboard()">📋 Kopieer Email</button>
+            <div class="email-preview" id="emailPreview">
+Selecteer een week en klik op "Genereer Email" om een overzicht te maken voor de secretaressen.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set current week as default
+        document.getElementById('weekSelect').value = getCurrentWeek();
+
+        function getCurrentWeek() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const week = getWeekNumber(now);
+            return `${year}-W${week.toString().padStart(2, '0')}`;
+        }
+
+        function getWeekNumber(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+        }
+
+        async function loadWeekData() {
+            const weekValue = document.getElementById('weekSelect').value;
+            if (!weekValue) {
+                alert('Selecteer eerst een week');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/week-data?week=${weekValue}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayWeekData(data.records);
+                    updateStats(data.records);
+                } else {
+                    alert('Fout bij laden van gegevens: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error loading week data:', error);
+                alert('Fout bij laden van gegevens');
+            }
+        }
+
+        function displayWeekData(records) {
+            const tbody = document.getElementById('adminTableBody');
+            
+            if (records.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #6c757d;">
+                            📭 Geen gegevens gevonden voor deze week
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = records.map(record => `
+                <tr>
+                    <td>${formatDate(record.created_at)}</td>
+                    <td><strong>${record.patient_id}</strong></td>
+                    <td><span class="status-badge">${record.verslag_type}</span></td>
+                    <td><span class="location-badge location-${record.contact_location.toLowerCase()}">${record.contact_location}</span></td>
+                    <td class="checkbox-cell">
+                        <input type="checkbox" ${record.is_completed ? 'checked' : ''} 
+                               onchange="updateStatus(${record.id}, 'completed', this.checked)">
+                    </td>
+                    <td class="checkbox-cell">
+                        <input type="checkbox" ${record.billing_ok ? 'checked' : ''} 
+                               onchange="updateStatus(${record.id}, 'billing', this.checked)">
+                    </td>
+                    <td>
+                        <button class="btn btn-primary" onclick="viewReport(${record.id})" style="padding: 5px 10px; font-size: 12px;">
+                            👁️ Bekijk
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateStats(records) {
+            const total = records.length;
+            const completed = records.filter(r => r.is_completed).length;
+            const billing = records.filter(r => r.billing_ok).length;
+            const pending = records.filter(r => !r.is_completed || !r.billing_ok).length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('completedCount').textContent = completed;
+            document.getElementById('billingCount').textContent = billing;
+            document.getElementById('pendingCount').textContent = pending;
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('nl-NL', {
+                weekday: 'short',
+                day: '2-digit',
+                month: '2-digit'
+            });
+        }
+
+        async function updateStatus(recordId, type, checked) {
+            try {
+                const response = await fetch('/api/admin/update-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        record_id: recordId,
+                        type: type,
+                        value: checked
+                    })
+                });
+
+                const result = await response.json();
+                if (!result.success) {
+                    alert('Fout bij bijwerken: ' + result.error);
+                    // Revert checkbox
+                    event.target.checked = !checked;
+                } else {
+                    // Reload data to update stats
+                    loadWeekData();
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Fout bij bijwerken');
+                event.target.checked = !checked;
+            }
+        }
+
+        function viewReport(recordId) {
+            window.open(`/review/${recordId}`, '_blank');
+        }
+
+        async function generateEmail() {
+            const weekValue = document.getElementById('weekSelect').value;
+            if (!weekValue) {
+                alert('Selecteer eerst een week');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/generate-email?week=${weekValue}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('emailPreview').textContent = data.email;
+                } else {
+                    alert('Fout bij genereren email: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error generating email:', error);
+                alert('Fout bij genereren email');
+            }
+        }
+
+        function copyEmailToClipboard() {
+            const emailText = document.getElementById('emailPreview').textContent;
+            if (emailText.includes('Selecteer een week')) {
+                alert('Genereer eerst een email');
+                return;
+            }
+
+            navigator.clipboard.writeText(emailText).then(() => {
+                alert('📋 Email gekopieerd naar klembord!');
+            }).catch(err => {
+                console.error('Error copying to clipboard:', err);
+                alert('Fout bij kopiëren naar klembord');
+            });
+        }
+
+        async function markAllCompleted() {
+            const weekValue = document.getElementById('weekSelect').value;
+            if (!weekValue) {
+                alert('Selecteer eerst een week');
+                return;
+            }
+
+            if (!confirm('Alle items van deze week markeren als afgewerkt?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/mark-all-completed', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ week: weekValue })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert(`✅ ${result.updated} items gemarkeerd als afgewerkt`);
+                    loadWeekData();
+                } else {
+                    alert('Fout: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error marking all completed:', error);
+                alert('Fout bij bijwerken');
+            }
+        }
+
+        // Load current week data on page load
+        window.addEventListener('load', () => {
+            loadWeekData();
+        });
+    </script>
+</body>
+</html>
+
