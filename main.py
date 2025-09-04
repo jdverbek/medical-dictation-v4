@@ -2553,22 +2553,21 @@ Origineel rapport:
         
         improved_report = response.choices[0].message.content
         
-        # Save to database if record_id provided
-        if record_id:
-            user = get_current_user()
-            user_id = user.get('id') if user else 1
-            
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                UPDATE transcription_history 
-                SET improved_report = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s AND user_id = %s
-            ''', (improved_report, record_id, user_id))
-            
-            conn.commit()
-            conn.close()
+        # Note: Database save disabled until migration adds improved_report column
+        # if record_id:
+        #     try:
+        #         conn = get_db_connection()
+        #         cursor = conn.cursor()
+        #         cursor.execute('''
+        #             UPDATE transcription_history 
+        #             SET improved_report = %s, updated_at = CURRENT_TIMESTAMP
+        #             WHERE id = %s AND user_id = %s
+        #         ''', (improved_report, record_id, user_id))
+        #         
+        #         conn.commit()
+        #         conn.close()
+        #     except Exception as e:
+        #         print(f"⚠️ Could not save improved report: {e}")
         
         return jsonify({
             'success': True,
@@ -2631,22 +2630,21 @@ Rapport:
         
         analysis = response.choices[0].message.content
         
-        # Save to database if record_id provided
-        if record_id:
-            user = get_current_user()
-            user_id = user.get('id') if user else 1
-            
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                UPDATE transcription_history 
-                SET differential_diagnosis = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s AND user_id = %s
-            ''', (analysis, record_id, user_id))
-            
-            conn.commit()
-            conn.close()
+        # Note: Database save disabled until migration adds differential_diagnosis column
+        # if record_id:
+        #     try:
+        #         conn = get_db_connection()
+        #         cursor = conn.cursor()
+        #         cursor.execute('''
+        #             UPDATE transcription_history 
+        #             SET differential_diagnosis = %s, updated_at = CURRENT_TIMESTAMP
+        #             WHERE id = %s AND user_id = %s
+        #         ''', (analysis, record_id, user_id))
+        #         
+        #         conn.commit()
+        #         conn.close()
+        #     except Exception as e:
+        #         print(f"⚠️ Could not save differential diagnosis: {e}")
         
         return jsonify({
             'success': True,
