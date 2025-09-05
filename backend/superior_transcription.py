@@ -10,7 +10,7 @@ import tempfile
 import subprocess
 from openai import OpenAI
 from dotenv import load_dotenv
-from medical_classification_validator import MedicalClassificationValidator
+from .medical_classification_validator import MedicalClassificationValidator
 
 # Load environment variables
 load_dotenv()
