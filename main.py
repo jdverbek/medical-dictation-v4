@@ -1475,6 +1475,16 @@ def api_transcribe():
 def api_ocr_extract():
     """API endpoint for OCR patient ID extraction from photos"""
     try:
+        # DEBUG: Log all request details
+        print(f"🔍 DEBUG OCR REQUEST:")
+        print(f"  Content-Type: {request.content_type}")
+        print(f"  Files: {list(request.files.keys())}")
+        print(f"  Form: {list(request.form.keys())}")
+        print(f"  JSON: {request.get_json(silent=True)}")
+        print(f"  Data length: {len(request.data)} bytes")
+        print(f"  User-Agent: {request.headers.get('User-Agent', 'Unknown')}")
+        print(f"  Session: {'user_id' in session}")
+        
         if not OCR_AVAILABLE:
             return jsonify({
                 'success': False,
@@ -1484,9 +1494,11 @@ def api_ocr_extract():
         
         # Handle FormData from file upload
         if 'image' not in request.files:
+            print(f"❌ DEBUG: No 'image' in request.files")
             return jsonify({
                 'success': False,
-                'error': 'Geen afbeelding bestand ontvangen'
+                'error': 'Geen afbeelding bestand ontvangen',
+                'debug_info': f"Files: {list(request.files.keys())}, Form: {list(request.form.keys())}, Content-Type: {request.content_type}"
             }), 400
         
         image_file = request.files['image']
