@@ -273,6 +273,20 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def api_login_required(f):
+    """Decorator to require authentication for API routes - returns JSON instead of redirect"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({
+                'success': False,
+                'error': 'Authenticatie vereist',
+                'suggestion': 'Log opnieuw in en probeer opnieuw',
+                'redirect': '/login'
+            }), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 def get_current_user():
     """Get current user data from session"""
     if 'user_id' in session:

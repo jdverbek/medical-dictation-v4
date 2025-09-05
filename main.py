@@ -22,9 +22,8 @@ from database import get_db_connection, init_db, is_postgresql, execute_query, g
 
 # Import authentication system
 from auth_system import (
-    init_auth_db, create_default_admin, login_required, get_current_user,
-    authenticate_user, create_user, save_transcription, get_user_transcription_history,
-    log_security_event, rate_limit
+    init_auth_db, create_default_admin, login_required, api_login_required, get_current_user,
+    authenticate_user, register_user, is_rate_limited, log_security_event
 )
 
 # EMBED MEDICAL EXPERT AGENTS DIRECTLY TO AVOID IMPORT ISSUES
@@ -1472,7 +1471,7 @@ def api_transcribe():
         }), 500
 
 @app.route('/api/ocr-extract', methods=['POST'])
-@login_required
+@api_login_required
 def api_ocr_extract():
     """API endpoint for OCR patient ID extraction from photos"""
     try:

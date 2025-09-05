@@ -818,6 +818,15 @@
                 
                 const result = await apiResponse.json();
                 
+                // Check for authentication error
+                if (!result.success && result.redirect === '/login') {
+                    showStatus('❌ Sessie verlopen - opnieuw inloggen vereist', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    return;
+                }
+                
                 if (result.success) {
                     // Fill patient ID field
                     patientIdInput.value = result.patient_number;
@@ -1436,18 +1445,16 @@
                 body: formData,
                 credentials: 'same-origin'
             })
-            .then(response => {
-                if (response.status === 302 || response.redirected) {
+            .then(response => response.json())
+            .then(data => {
+                // Check for authentication error
+                if (!data.success && data.redirect === '/login') {
                     showStatus('❌ Sessie verlopen - opnieuw inloggen vereist', 'error');
                     setTimeout(() => {
                         window.location.href = '/login';
                     }, 2000);
-                    return null;
+                    return;
                 }
-                return response.json();
-            })
-            .then(data => {
-                if (!data) return;
                 
                 if (data.success && data.patient_number) {
                     document.getElementById('adminPatientId').value = data.patient_number;
@@ -1471,19 +1478,16 @@
                 body: formData,
                 credentials: 'same-origin'  // Ensure cookies are sent
             })
-            .then(response => {
-                if (response.status === 302 || response.redirected) {
-                    // Authentication failed - redirect to login
+            .then(response => response.json())
+            .then(data => {
+                // Check for authentication error
+                if (!data.success && data.redirect === '/login') {
                     showStatus('❌ Sessie verlopen - opnieuw inloggen vereist', 'error');
                     setTimeout(() => {
                         window.location.href = '/login';
                     }, 2000);
-                    return null;
+                    return;
                 }
-                return response.json();
-            })
-            .then(data => {
-                if (!data) return; // Authentication redirect handled above
                 
                 if (data.success && data.patient_number) {
                     updatePatientIdField(data.patient_number);
