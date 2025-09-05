@@ -1534,29 +1534,6 @@ def api_ocr_extract():
             'success': False,
             'error': f'Server fout bij OCR verwerking: {str(e)}'
         }), 500
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'error': 'Geëxtraheerd nummer is geen geldig patiëntennummer',
-                    'suggestion': 'Controleer of het patiëntennummer duidelijk zichtbaar is',
-                    'debug_info': f"Extracted: {result['patient_number']}"
-                })
-        else:
-            return jsonify({
-                'success': False,
-                'error': result.get('error', 'OCR extractie gefaald'),
-                'suggestion': result.get('suggestion', 'Probeer een duidelijkere foto'),
-                'debug_info': result.get('debug_info', '')
-            })
-            
-    except Exception as e:
-        print(f"❌ OCR API error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'OCR verwerking fout: {str(e)}',
-            'suggestion': 'Probeer opnieuw of voer patiënt ID handmatig in'
-        }), 500
 
 @app.route('/ocr-patient-id', methods=['POST'])
 @login_required
