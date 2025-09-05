@@ -802,13 +802,21 @@
 
         async function processOCRImage(imageData) {
             try {
-                const response = await fetch('/api/ocr-extract', {
+                // Convert base64 data URL to blob for FormData
+                const response = await fetch(imageData);
+                const blob = await response.blob();
+                
+                // Create FormData like the other working OCR functions
+                const formData = new FormData();
+                formData.append('image', blob, 'camera_capture.jpg');
+                
+                const apiResponse = await fetch('/api/ocr-extract', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image: imageData })
+                    body: formData,
+                    credentials: 'same-origin'
                 });
                 
-                const result = await response.json();
+                const result = await apiResponse.json();
                 
                 if (result.success) {
                     // Fill patient ID field
