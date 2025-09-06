@@ -1503,28 +1503,42 @@ def api_ocr_extract_test():
                 'suggestion': 'Voer patiënt ID handmatig in'
             }), 503
         
-        # Handle FormData from file upload
-        if 'image' not in request.files:
+        # Handle both file upload and form data (iPhone Safari compatibility)
+        image_data = None
+        filename = None
+        
+        if 'image' in request.files and request.files['image'].filename != '':
+            # Standard file upload
+            image_file = request.files['image']
+            image_data = image_file.read()
+            filename = image_file.filename
+            print(f"✅ TEST: Received file upload: {filename}")
+        elif 'image' in request.form:
+            # iPhone Safari sends as form data
+            form_data = request.form['image']
+            if form_data.startswith('data:image/'):
+                # Base64 encoded image
+                import base64
+                header, encoded = form_data.split(',', 1)
+                image_data = base64.b64decode(encoded)
+                filename = 'iphone_upload.jpg'
+                print(f"✅ TEST: Received base64 form data")
+            else:
+                print(f"❌ TEST: Unknown form data format")
+        
+        if not image_data:
             debug_info = {
                 'content_type': request.content_type,
                 'files': list(request.files.keys()),
                 'form': list(request.form.keys()),
                 'json': request.get_json(silent=True),
                 'data_length': len(request.data),
-                'user_agent': request.headers.get('User-Agent', 'Unknown')[:50]  # Truncate for display
+                'user_agent': request.headers.get('User-Agent', 'Unknown')[:50]
             }
-            print(f"❌ TEST DEBUG: No 'image' in request.files")
             return jsonify({
                 'success': False,
-                'error': 'Geen afbeelding bestand ontvangen (TEST)',
+                'error': 'Geen afbeelding data ontvangen (TEST)',
                 'debug_info': debug_info
-            }), 400
-        
-        image_file = request.files['image']
-        if image_file.filename == '':
-            return jsonify({
-                'success': False,
-                'error': 'Geen bestand geselecteerd (TEST)'
             }), 400
         
         # Just return success for testing - don't actually process OCR
@@ -1565,24 +1579,28 @@ def api_ocr_extract():
                 'suggestion': 'Voer patiënt ID handmatig in'
             }), 503
         
-        # Handle FormData from file upload
-        if 'image' not in request.files:
-            print(f"❌ DEBUG: No 'image' in request.files")
+        # Handle both file upload and form data (iPhone Safari compatibility)
+        image_data = None
+        
+        if 'image' in request.files and request.files['image'].filename != '':
+            # Standard file upload
+            image_file = request.files['image']
+            image_data = image_file.read()
+        elif 'image' in request.form:
+            # iPhone Safari sends as form data
+            form_data = request.form['image']
+            if form_data.startswith('data:image/'):
+                # Base64 encoded image
+                import base64
+                header, encoded = form_data.split(',', 1)
+                image_data = base64.b64decode(encoded)
+        
+        if not image_data:
             return jsonify({
                 'success': False,
                 'error': 'Geen afbeelding bestand ontvangen',
                 'debug_info': f"Files: {list(request.files.keys())}, Form: {list(request.form.keys())}, Content-Type: {request.content_type}"
             }), 400
-        
-        image_file = request.files['image']
-        if image_file.filename == '':
-            return jsonify({
-                'success': False,
-                'error': 'Geen bestand geselecteerd'
-            }), 400
-        
-        # Read image data
-        image_data = image_file.read()
         
         # Extract patient number using OCR
         result = ocr_service.extract_patient_number(image_data)
