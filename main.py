@@ -1505,11 +1505,19 @@ def api_ocr_extract_test():
         
         # Handle FormData from file upload
         if 'image' not in request.files:
+            debug_info = {
+                'content_type': request.content_type,
+                'files': list(request.files.keys()),
+                'form': list(request.form.keys()),
+                'json': request.get_json(silent=True),
+                'data_length': len(request.data),
+                'user_agent': request.headers.get('User-Agent', 'Unknown')[:50]  # Truncate for display
+            }
             print(f"❌ TEST DEBUG: No 'image' in request.files")
             return jsonify({
                 'success': False,
                 'error': 'Geen afbeelding bestand ontvangen (TEST)',
-                'debug_info': f"Files: {list(request.files.keys())}, Form: {list(request.form.keys())}, Content-Type: {request.content_type}"
+                'debug_info': debug_info
             }), 400
         
         image_file = request.files['image']
