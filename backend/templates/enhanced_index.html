@@ -1473,7 +1473,7 @@
             const formData = new FormData();
             formData.append('image', file);
 
-            fetch('/api/ocr-extract', {
+            fetch('/api/ocr-extract-test', {  // TEMPORARY: Using test endpoint
                 method: 'POST',
                 body: formData,
                 credentials: 'same-origin'  // Ensure cookies are sent
