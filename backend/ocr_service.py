@@ -112,7 +112,7 @@ class PatientNumberOCR:
             print(f"❌ Local image preprocessing failed: {str(e)}")
             return None
     
-    def extract_with_openai_vision(self, image_data: str) -> Dict[str, Any]:
+    def extract_with_openai_vision(self, image_data) -> Dict[str, Any]:
         """
         Extract patient number using OpenAI Vision API
         Perfect for cloud deployment and mobile usage
@@ -124,9 +124,22 @@ class PatientNumberOCR:
             }
         
         try:
-            # Ensure image is in base64 format
-            if isinstance(image_data, str) and not image_data.startswith('data:image'):
-                image_data = f"data:image/jpeg;base64,{image_data}"
+            # Handle both bytes and string input
+            if isinstance(image_data, bytes):
+                # Convert bytes to base64 string
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+                image_data_url = f"data:image/jpeg;base64,{image_base64}"
+            elif isinstance(image_data, str):
+                # Ensure string is in proper data URL format
+                if not image_data.startswith('data:image'):
+                    image_data_url = f"data:image/jpeg;base64,{image_data}"
+                else:
+                    image_data_url = image_data
+            else:
+                return {
+                    'success': False,
+                    'error': f'Ongeldig image data type: {type(image_data)}'
+                }
             
             # Prepare the API request
             headers = {
@@ -178,7 +191,7 @@ Look carefully at the entire interface, especially areas with patient informatio
                             {
                                 "type": "image_url",
                                 "image_url": {
-                                    "url": image_data
+                                    "url": image_data_url
                                 }
                             }
                         ]
