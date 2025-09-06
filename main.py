@@ -1470,6 +1470,71 @@ def api_transcribe():
             'error': f'Transcription failed: {str(e)}'
         }), 500
 
+@app.route('/api/test-session', methods=['GET', 'POST'])
+def test_session():
+    """Test endpoint to check if session cookies are working"""
+    return jsonify({
+        'success': True,
+        'session_has_user_id': 'user_id' in session,
+        'session_keys': list(session.keys()),
+        'user_agent': request.headers.get('User-Agent', 'Unknown'),
+        'method': request.method,
+        'cookies': list(request.cookies.keys()),
+        'message': 'Session test successful'
+    })
+
+@app.route('/api/ocr-extract-test', methods=['POST'])
+def api_ocr_extract_test():
+    """Test OCR endpoint without authentication to isolate FormData issues"""
+    try:
+        # DEBUG: Log all request details
+        print(f"🧪 TEST OCR REQUEST (NO AUTH):")
+        print(f"  Content-Type: {request.content_type}")
+        print(f"  Files: {list(request.files.keys())}")
+        print(f"  Form: {list(request.form.keys())}")
+        print(f"  JSON: {request.get_json(silent=True)}")
+        print(f"  Data length: {len(request.data)} bytes")
+        print(f"  User-Agent: {request.headers.get('User-Agent', 'Unknown')}")
+        
+        if not OCR_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'error': 'OCR functionaliteit niet beschikbaar',
+                'suggestion': 'Voer patiënt ID handmatig in'
+            }), 503
+        
+        # Handle FormData from file upload
+        if 'image' not in request.files:
+            print(f"❌ TEST DEBUG: No 'image' in request.files")
+            return jsonify({
+                'success': False,
+                'error': 'Geen afbeelding bestand ontvangen (TEST)',
+                'debug_info': f"Files: {list(request.files.keys())}, Form: {list(request.form.keys())}, Content-Type: {request.content_type}"
+            }), 400
+        
+        image_file = request.files['image']
+        if image_file.filename == '':
+            return jsonify({
+                'success': False,
+                'error': 'Geen bestand geselecteerd (TEST)'
+            }), 400
+        
+        # Just return success for testing - don't actually process OCR
+        return jsonify({
+            'success': True,
+            'patient_number': '1234567890',
+            'message': 'TEST: FormData received successfully!',
+            'filename': image_file.filename,
+            'content_type': image_file.content_type
+        })
+        
+    except Exception as e:
+        print(f"❌ TEST OCR Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'TEST OCR Error: {str(e)}'
+        }), 500
+
 @app.route('/api/ocr-extract', methods=['POST'])
 @api_login_required
 def api_ocr_extract():
